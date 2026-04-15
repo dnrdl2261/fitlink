@@ -21,7 +21,7 @@ import CertificationBadge from '../../components/CertificationBadge';
 import { TrainerPhoto } from '../../types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const PHOTO_SIZE = (SCREEN_WIDTH - 12 * 2 - 16 * 2 - 4 * 2) / 3;
+const PHOTO_SIZE = (SCREEN_WIDTH - 12 * 2 - 16 * 2 - 6 * 2) / 4;
 
 export default function TrainerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -64,12 +64,7 @@ export default function TrainerDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>트레이너 소개</Text>
           <Text style={styles.bio}>{trainer.bio}</Text>
-        </View>
-
-        {/* 포토 갤러리 */}
-        {trainer.photos && trainer.photos.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>포토 갤러리</Text>
+          {trainer.photos && trainer.photos.length > 0 && (
             <View style={styles.photoGrid}>
               {trainer.photos.map((photo) => (
                 <TouchableOpacity
@@ -84,8 +79,8 @@ export default function TrainerDetailScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
-        )}
+          )}
+        </View>
 
         {/* 자격증 */}
         <View style={styles.section}>
