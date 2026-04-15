@@ -17,9 +17,9 @@ import { COLORS } from '../utils/constants';
 import { UserRole } from '../types';
 
 const DEMO_ACCOUNTS: { role: UserRole; label: string; emoji: string; email: string; color: string }[] = [
-  { role: 'member',    label: '회원',       emoji: '🏃', email: 'member@fitlink.com',  color: COLORS.primary },
-  { role: 'trainer',   label: '트레이너',   emoji: '💪', email: 'trainer@fitlink.com', color: COLORS.secondary },
-  { role: 'gym_admin', label: '헬스장 관리자', emoji: '🏋️', email: 'gym@fitlink.com',    color: COLORS.gym },
+  { role: 'member',    label: '회원',       emoji: '🏃', email: 'member@followfit.com',  color: COLORS.primary },
+  { role: 'trainer',   label: '트레이너',   emoji: '💪', email: 'trainer@followfit.com', color: COLORS.secondary },
+  { role: 'gym_admin', label: '헬스장 관리자', emoji: '🏋️', email: 'gym@followfit.com',    color: COLORS.gym },
 ];
 
 function navigateByRole(router: ReturnType<typeof useRouter>, role: UserRole) {
@@ -80,7 +80,7 @@ export default function LoginScreen() {
         >
           {/* 로고 */}
           <View style={styles.header}>
-            <Text style={styles.logo}>FitLink</Text>
+            <Text style={styles.logo}>FollowFit</Text>
             <Text style={styles.tagline}>PT 매칭 플랫폼</Text>
           </View>
 

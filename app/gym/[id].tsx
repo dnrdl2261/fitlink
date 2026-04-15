@@ -51,7 +51,7 @@ export default function GymDetailScreen() {
           </View>
           {gym.isPartner && (
             <View style={styles.partnerBadge}>
-              <Text style={styles.partnerText}>FitLink 파트너</Text>
+              <Text style={styles.partnerText}>FollowFit 파트너</Text>
             </View>
           )}
         </View>

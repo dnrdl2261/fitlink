@@ -78,7 +78,7 @@ export default function SignupScreen() {
               <Text style={styles.backText}>← 뒤로</Text>
             </TouchableOpacity>
             <Text style={styles.title}>회원가입</Text>
-            <Text style={styles.subtitle}>FitLink에 오신 것을 환영합니다</Text>
+            <Text style={styles.subtitle}>FollowFit에 오신 것을 환영합니다</Text>
           </View>
 
           {/* 역할 선택 */}

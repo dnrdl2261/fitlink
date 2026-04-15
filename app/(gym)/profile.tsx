@@ -34,7 +34,7 @@ export default function GymProfileScreen() {
             <Text style={styles.gymName}>{gym.name}</Text>
             {gym.isPartner && (
               <View style={styles.partnerBadge}>
-                <Text style={styles.partnerText}>FitLink 파트너</Text>
+                <Text style={styles.partnerText}>FollowFit 파트너</Text>
               </View>
             )}
           </View>
@@ -95,14 +95,14 @@ export default function GymProfileScreen() {
             if (Platform.OS === 'web') {
               doLogout();
             } else {
-              Alert.alert('역할 전환', '역할 선택 화면으로 이동하시겠습니까?', [
+              Alert.alert('로그아웃', '로그아웃 하시겠습니까?', [
                 { text: '취소', style: 'cancel' },
-                { text: '이동', onPress: doLogout },
+                { text: '로그아웃', onPress: doLogout },
               ]);
             }
           }}
         >
-          <Text style={styles.logoutText}>역할 변경</Text>
+          <Text style={styles.logoutText}>로그아웃</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

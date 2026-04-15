@@ -31,7 +31,7 @@ export default function MemberLayout() {
           title: '홈',
           tabBarLabel: '홈',
           tabBarIcon: ({ color }) => <TabIcon emoji="🏠" color={color} active={color === COLORS.primary} />,
-          headerTitle: 'FitLink',
+          headerTitle: 'FollowFit',
         }}
       />
       <Tabs.Screen

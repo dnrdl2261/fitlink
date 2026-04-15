@@ -93,7 +93,7 @@ export default function MemberProfileScreen() {
         </View>
 
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Text style={styles.logoutText}>역할 변경 (로그아웃)</Text>
+          <Text style={styles.logoutText}>로그아웃</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

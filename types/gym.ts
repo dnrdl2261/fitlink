@@ -20,6 +20,7 @@ export interface GymTimeSlot {
   openTime: string;
   closeTime: string;
   ptAvailable: boolean;
+  maxExternalTrainers: number; // 30분 슬롯당 동시에 받을 수 있는 최대 외부 트레이너 수
 }
 
 export interface PricingTier {

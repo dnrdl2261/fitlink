@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useBookingStore } from '../../store/bookingStore';
-import { formatTime, formatDate } from '../../utils/formatters';
+import { useGymSlotStore } from '../../store/gymSlotStore';
+import { formatTime, formatDate, formatPrice } from '../../utils/formatters';
 import { COLORS, BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '../../utils/constants';
 
 function getWeekDates(): { date: string; label: string; dayOfWeek: number }[] {
@@ -32,10 +33,15 @@ export default function TrainerScheduleScreen() {
   const today = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(today);
   const { bookings, updateStatus } = useBookingStore();
+  const slotBookings = useGymSlotStore((s) => s.slotBookings);
 
   const weekDates = getWeekDates();
   const dayBookings = bookings
     .filter((b) => b.trainerId === 'trainer_001' && b.sessionDate === selectedDate)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+  const confirmedSlots = slotBookings
+    .filter((b) => b.trainerId === 'trainer_001' && b.date === selectedDate && b.status === 'confirmed')
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   const handleApprove = (bookingId: string) => {
@@ -76,13 +82,34 @@ export default function TrainerScheduleScreen() {
         <Text style={styles.dateHeader}>{formatDate(selectedDate)}</Text>
         <Text style={styles.bookingCount}>{dayBookings.length}개 세션</Text>
 
-        {dayBookings.length === 0 ? (
+        {dayBookings.length === 0 && confirmedSlots.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyEmoji}>🏖️</Text>
             <Text style={styles.emptyText}>이 날은 예약이 없습니다</Text>
           </View>
         ) : (
-          dayBookings.map((b) => {
+          <>
+          {confirmedSlots.map((s) => {
+            const [h, m] = s.startTime.split(':').map(Number);
+            const endMin = h * 60 + m + 30;
+            const endTime = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
+            return (
+              <View key={s.id} style={styles.slotCard}>
+                <View style={styles.slotBar} />
+                <View style={styles.sessionContent}>
+                  <View style={styles.sessionHeader}>
+                    <Text style={styles.sessionTime}>{s.startTime} ~ {endTime}</Text>
+                    <View style={styles.slotBadge}>
+                      <Text style={styles.slotBadgeText}>슬롯 확정</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.memberName}>{s.gymName}</Text>
+                  <Text style={styles.gymName}>회원 {s.memberCount}명 · 시설료 {formatPrice(s.facilityFee)}</Text>
+                </View>
+              </View>
+            );
+          })}
+          {dayBookings.map((b) => {
             const statusColor = BOOKING_STATUS_COLORS[b.status];
             const endHour = parseInt(b.startTime.split(':')[0]) + 1;
             const endTime = `${String(endHour).padStart(2, '0')}:00`;
@@ -120,7 +147,8 @@ export default function TrainerScheduleScreen() {
                 </View>
               </TouchableOpacity>
             );
-          })
+          })}
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -181,4 +209,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   approveBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  slotCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 14,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.gym + '55',
+  },
+  slotBar: { width: 4, backgroundColor: COLORS.gym },
+  slotBadge: {
+    backgroundColor: COLORS.gym + '22',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  slotBadgeText: { fontSize: 12, fontWeight: '700', color: COLORS.gym },
 });

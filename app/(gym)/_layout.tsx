@@ -30,7 +30,7 @@ export default function GymLayout() {
         options={{
           tabBarLabel: '대시보드',
           tabBarIcon: ({ color }) => <TabIcon emoji="📊" color={color} active={color === COLORS.gym} />,
-          headerTitle: 'FitLink 헬스장',
+          headerTitle: 'FollowFit 헬스장',
         }}
       />
       <Tabs.Screen

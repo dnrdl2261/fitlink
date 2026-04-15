@@ -30,7 +30,7 @@ export default function TrainerLayout() {
         options={{
           tabBarLabel: '대시보드',
           tabBarIcon: ({ color }) => <TabIcon emoji="📊" color={color} active={color === COLORS.secondary} />,
-          headerTitle: 'FitLink 트레이너',
+          headerTitle: 'FollowFit 트레이너',
         }}
       />
       <Tabs.Screen
@@ -47,6 +47,15 @@ export default function TrainerLayout() {
           tabBarLabel: '수익',
           tabBarIcon: ({ color }) => <TabIcon emoji="💰" color={color} active={color === COLORS.secondary} />,
           headerTitle: '수익 현황',
+        }}
+      />
+      <Tabs.Screen
+        name="slots"
+        options={{
+          tabBarLabel: '슬롯 예약',
+          tabBarIcon: ({ color }) => <TabIcon emoji="🏋️" color={color} active={color === COLORS.secondary} />,
+          headerTitle: '헬스장 슬롯 예약',
+          unmountOnBlur: true,
         }}
       />
       <Tabs.Screen
