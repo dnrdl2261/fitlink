@@ -21,7 +21,7 @@ import CertificationBadge from '../../components/CertificationBadge';
 import { TrainerPhoto } from '../../types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const PHOTO_SIZE = (SCREEN_WIDTH - 12 * 2 - 16 * 2 - 6 * 2) / 4;
+const PHOTO_SIZE = (SCREEN_WIDTH - 12 * 2 - 16 * 2 - 4 * 4) / 5;
 
 export default function TrainerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
