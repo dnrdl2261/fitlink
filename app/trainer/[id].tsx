@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
+  Modal,
+  Dimensions,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MOCK_TRAINERS } from '../../data/trainers';
@@ -15,11 +18,16 @@ import { formatPrice, formatRelativeDate } from '../../utils/formatters';
 import { COLORS } from '../../utils/constants';
 import StarRating from '../../components/StarRating';
 import CertificationBadge from '../../components/CertificationBadge';
+import { TrainerPhoto } from '../../types';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const PHOTO_SIZE = (SCREEN_WIDTH - 12 * 2 - 16 * 2 - 4 * 2) / 3;
 
 export default function TrainerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const trainer = MOCK_TRAINERS.find((t) => t.id === id);
+  const [selectedPhoto, setSelectedPhoto] = useState<TrainerPhoto | null>(null);
 
   if (!trainer) {
     return (
@@ -57,6 +65,27 @@ export default function TrainerDetailScreen() {
           <Text style={styles.sectionTitle}>트레이너 소개</Text>
           <Text style={styles.bio}>{trainer.bio}</Text>
         </View>
+
+        {/* 포토 갤러리 */}
+        {trainer.photos && trainer.photos.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>포토 갤러리</Text>
+            <View style={styles.photoGrid}>
+              {trainer.photos.map((photo) => (
+                <TouchableOpacity
+                  key={photo.id}
+                  onPress={() => setSelectedPhoto(photo)}
+                  activeOpacity={0.85}
+                >
+                  <Image
+                    source={{ uri: photo.uri }}
+                    style={[styles.photoThumb, { width: PHOTO_SIZE, height: PHOTO_SIZE }]}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* 자격증 */}
         <View style={styles.section}>
@@ -144,6 +173,37 @@ export default function TrainerDetailScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* 사진 확대 모달 */}
+      <Modal
+        visible={selectedPhoto !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedPhoto(null)}
+      >
+        <TouchableWithoutFeedback onPress={() => setSelectedPhoto(null)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <Image
+                  source={{ uri: selectedPhoto?.uri }}
+                  style={styles.modalImage}
+                  resizeMode="contain"
+                />
+                {selectedPhoto?.caption && (
+                  <Text style={styles.modalCaption}>{selectedPhoto.caption}</Text>
+                )}
+                <TouchableOpacity
+                  style={styles.modalCloseBtn}
+                  onPress={() => setSelectedPhoto(null)}
+                >
+                  <Text style={styles.modalCloseTxt}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -188,6 +248,19 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text },
   bio: { fontSize: 14, color: COLORS.text, lineHeight: 22 },
+
+  // 포토 갤러리
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  photoThumb: {
+    borderRadius: 8,
+    backgroundColor: COLORS.border,
+  },
+
+  // 경력
   workItem: { flexDirection: 'row', gap: 12, marginBottom: 4 },
   timeline: { alignItems: 'center', width: 16 },
   timelineDot: {
@@ -203,6 +276,8 @@ const styles = StyleSheet.create({
   workPosition: { fontSize: 13, color: COLORS.primary, marginTop: 2 },
   workPeriod: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
   workDesc: { fontSize: 13, color: COLORS.textSecondary, marginTop: 4, lineHeight: 18 },
+
+  // 헬스장
   gymItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -213,6 +288,8 @@ const styles = StyleSheet.create({
   gymName: { fontSize: 15, fontWeight: '600', color: COLORS.text, flex: 1 },
   gymAddress: { fontSize: 12, color: COLORS.textSecondary },
   gymArrow: { fontSize: 20, color: COLORS.border, marginLeft: 8 },
+
+  // 리뷰
   reviewItem: {
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
@@ -224,6 +301,8 @@ const styles = StyleSheet.create({
   reviewStars: { color: '#FFB300', fontSize: 13 },
   reviewDate: { fontSize: 11, color: COLORS.textSecondary },
   reviewComment: { fontSize: 13, color: COLORS.text, lineHeight: 20 },
+
+  // 예약
   bookingBox: {
     backgroundColor: COLORS.surface,
     margin: 12,
@@ -243,4 +322,40 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   bookBtnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+
+  // 모달
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.88)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: SCREEN_WIDTH - 32,
+    alignItems: 'center',
+  },
+  modalImage: {
+    width: SCREEN_WIDTH - 32,
+    height: SCREEN_WIDTH - 32,
+    borderRadius: 12,
+  },
+  modalCaption: {
+    color: '#fff',
+    fontSize: 14,
+    marginTop: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  modalCloseBtn: {
+    marginTop: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  modalCloseTxt: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });

@@ -92,6 +92,13 @@ export const MOCK_TRAINERS: Trainer[] = [
     ],
     totalSessions: 1248,
     monthlyEarnings: 4200000,
+    photos: [
+      { id: 'p001_1', uri: 'https://picsum.photos/seed/t1p1/600/600', caption: '개인 트레이닝 세션' },
+      { id: 'p001_2', uri: 'https://picsum.photos/seed/t1p2/600/600', caption: '생활스포츠지도사 2급 자격증' },
+      { id: 'p001_3', uri: 'https://picsum.photos/seed/t1p3/600/600', caption: 'NSCA-CPT 자격증' },
+      { id: 'p001_4', uri: 'https://picsum.photos/seed/t1p4/600/600', caption: '회원 다이어트 성과 (3개월 -10kg)' },
+      { id: 'p001_5', uri: 'https://picsum.photos/seed/t1p5/600/600', caption: '강남 피트니스 클럽 근무 현장' },
+    ],
   },
   {
     id: 'trainer_002',
@@ -174,6 +181,12 @@ export const MOCK_TRAINERS: Trainer[] = [
     ],
     totalSessions: 1876,
     monthlyEarnings: 5800000,
+    photos: [
+      { id: 'p002_1', uri: 'https://picsum.photos/seed/t2p1/600/600', caption: '재활운동 지도 현장' },
+      { id: 'p002_2', uri: 'https://picsum.photos/seed/t2p2/600/600', caption: '물리치료사 면허' },
+      { id: 'p002_3', uri: 'https://picsum.photos/seed/t2p3/600/600', caption: 'CSCS 재활운동전문가 자격증' },
+      { id: 'p002_4', uri: 'https://picsum.photos/seed/t2p4/600/600', caption: '척추 재활 프로그램 진행' },
+    ],
   },
   {
     id: 'trainer_003',
@@ -242,6 +255,12 @@ export const MOCK_TRAINERS: Trainer[] = [
     ],
     totalSessions: 432,
     monthlyEarnings: 2800000,
+    photos: [
+      { id: 'p003_1', uri: 'https://picsum.photos/seed/t3p1/600/600', caption: '크로스핏 클래스 진행' },
+      { id: 'p003_2', uri: 'https://picsum.photos/seed/t3p2/600/600', caption: 'CrossFit Level 2 자격증' },
+      { id: 'p003_3', uri: 'https://picsum.photos/seed/t3p3/600/600', caption: 'HIIT 트레이닝 세션' },
+      { id: 'p003_4', uri: 'https://picsum.photos/seed/t3p4/600/600', caption: '홍대 크로스핏 박스 근무' },
+    ],
   },
   {
     id: 'trainer_004',
@@ -319,6 +338,13 @@ export const MOCK_TRAINERS: Trainer[] = [
     ],
     totalSessions: 2156,
     monthlyEarnings: 5200000,
+    photos: [
+      { id: 'p004_1', uri: 'https://picsum.photos/seed/t4p1/600/600', caption: '필라테스 개인 레슨' },
+      { id: 'p004_2', uri: 'https://picsum.photos/seed/t4p2/600/600', caption: '필라테스 지도자 자격증' },
+      { id: 'p004_3', uri: 'https://picsum.photos/seed/t4p3/600/600', caption: 'RYT-500 요가 강사 자격증' },
+      { id: 'p004_4', uri: 'https://picsum.photos/seed/t4p4/600/600', caption: '요가 플로우 클래스' },
+      { id: 'p004_5', uri: 'https://picsum.photos/seed/t4p5/600/600', caption: '신촌 바디앤마인드 스튜디오' },
+    ],
   },
   {
     id: 'trainer_005',
@@ -388,6 +414,12 @@ export const MOCK_TRAINERS: Trainer[] = [
     ],
     totalSessions: 218,
     monthlyEarnings: 2100000,
+    photos: [
+      { id: 'p005_1', uri: 'https://picsum.photos/seed/t5p1/600/600', caption: '스포츠 퍼포먼스 트레이닝' },
+      { id: 'p005_2', uri: 'https://picsum.photos/seed/t5p2/600/600', caption: 'CSCS 스포츠체력전문가 자격증' },
+      { id: 'p005_3', uri: 'https://picsum.photos/seed/t5p3/600/600', caption: '아시안게임 출전 당시' },
+      { id: 'p005_4', uri: 'https://picsum.photos/seed/t5p4/600/600', caption: '스피드·민첩성 훈련 현장' },
+    ],
   },
 
   // ── 부산 ──────────────────────────────────────────────
@@ -467,6 +499,13 @@ export const MOCK_TRAINERS: Trainer[] = [
     ],
     totalSessions: 986,
     monthlyEarnings: 3800000,
+    photos: [
+      { id: 'p006_1', uri: 'https://picsum.photos/seed/t6p1/600/600', caption: '해운대 해변 야외 트레이닝' },
+      { id: 'p006_2', uri: 'https://picsum.photos/seed/t6p2/600/600', caption: '생활스포츠지도사 2급 자격증' },
+      { id: 'p006_3', uri: 'https://picsum.photos/seed/t6p3/600/600', caption: 'NSCA-CPT 자격증' },
+      { id: 'p006_4', uri: 'https://picsum.photos/seed/t6p4/600/600', caption: '맞춤 식단 설계 상담' },
+      { id: 'p006_5', uri: 'https://picsum.photos/seed/t6p5/600/600', caption: '서면 스포츠센터 근무' },
+    ],
   },
   {
     id: 'trainer_007',
@@ -549,6 +588,12 @@ export const MOCK_TRAINERS: Trainer[] = [
     ],
     totalSessions: 1543,
     monthlyEarnings: 5200000,
+    photos: [
+      { id: 'p007_1', uri: 'https://picsum.photos/seed/t7p1/600/600', caption: '재활운동 지도 현장' },
+      { id: 'p007_2', uri: 'https://picsum.photos/seed/t7p2/600/600', caption: '물리치료사 면허' },
+      { id: 'p007_3', uri: 'https://picsum.photos/seed/t7p3/600/600', caption: 'CSCS 재활운동전문가 자격증' },
+      { id: 'p007_4', uri: 'https://picsum.photos/seed/t7p4/600/600', caption: '센텀 바디앤마인드 스튜디오' },
+    ],
   },
   {
     id: 'trainer_008',
@@ -617,6 +662,12 @@ export const MOCK_TRAINERS: Trainer[] = [
     ],
     totalSessions: 512,
     monthlyEarnings: 3100000,
+    photos: [
+      { id: 'p008_1', uri: 'https://picsum.photos/seed/t8p1/600/600', caption: '광안리 루프탑 크로스핏 수업' },
+      { id: 'p008_2', uri: 'https://picsum.photos/seed/t8p2/600/600', caption: 'CrossFit Level 1 자격증' },
+      { id: 'p008_3', uri: 'https://picsum.photos/seed/t8p3/600/600', caption: 'HIIT 그룹 클래스' },
+      { id: 'p008_4', uri: 'https://picsum.photos/seed/t8p4/600/600', caption: '크로스핏 대회 입상' },
+    ],
   },
   {
     id: 'trainer_009',
@@ -694,6 +745,13 @@ export const MOCK_TRAINERS: Trainer[] = [
     ],
     totalSessions: 1872,
     monthlyEarnings: 4900000,
+    photos: [
+      { id: 'p009_1', uri: 'https://picsum.photos/seed/t9p1/600/600', caption: '필라테스 개인 레슨' },
+      { id: 'p009_2', uri: 'https://picsum.photos/seed/t9p2/600/600', caption: '필라테스 지도자 자격증' },
+      { id: 'p009_3', uri: 'https://picsum.photos/seed/t9p3/600/600', caption: 'RYT-500 요가 강사 자격증' },
+      { id: 'p009_4', uri: 'https://picsum.photos/seed/t9p4/600/600', caption: '광안리 요가 클래스' },
+      { id: 'p009_5', uri: 'https://picsum.photos/seed/t9p5/600/600', caption: '센텀 바디앤마인드 스튜디오' },
+    ],
   },
   {
     id: 'trainer_010',
@@ -770,5 +828,11 @@ export const MOCK_TRAINERS: Trainer[] = [
     ],
     totalSessions: 324,
     monthlyEarnings: 2600000,
+    photos: [
+      { id: 'p010_1', uri: 'https://picsum.photos/seed/t10p1/600/600', caption: '스포츠 퍼포먼스 훈련' },
+      { id: 'p010_2', uri: 'https://picsum.photos/seed/t10p2/600/600', caption: 'CSCS 스포츠체력전문가 자격증' },
+      { id: 'p010_3', uri: 'https://picsum.photos/seed/t10p3/600/600', caption: '국가대표 수영 선수 시절' },
+      { id: 'p010_4', uri: 'https://picsum.photos/seed/t10p4/600/600', caption: '기장 스포렉스 수영 퍼포먼스 클래스' },
+    ],
   },
 ];

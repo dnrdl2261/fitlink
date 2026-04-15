@@ -43,6 +43,12 @@ export interface AvailableSlot {
   endTime: string;
 }
 
+export interface TrainerPhoto {
+  id: string;
+  uri: string;
+  caption?: string;
+}
+
 export interface Trainer extends BaseUser {
   role: 'trainer';
   bio: string;
@@ -59,4 +65,5 @@ export interface Trainer extends BaseUser {
   availableSlots: AvailableSlot[];
   totalSessions: number;
   monthlyEarnings: number;
+  photos?: TrainerPhoto[];
 }
