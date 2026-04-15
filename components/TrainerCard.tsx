@@ -20,8 +20,13 @@ export default function TrainerCard({ trainer, onPress }: TrainerCardProps) {
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.name}>{trainer.name} 트레이너</Text>
-          <View style={styles.experienceBadge}>
-            <Text style={styles.experience}>{trainer.experienceYears}년 경력</Text>
+          <View style={styles.badges}>
+            <View style={styles.regionBadge}>
+              <Text style={styles.regionText}>📍 {trainer.region}</Text>
+            </View>
+            <View style={styles.experienceBadge}>
+              <Text style={styles.experience}>{trainer.experienceYears}년 경력</Text>
+            </View>
           </View>
         </View>
         <StarRating rating={trainer.rating} reviewCount={trainer.reviewCount} size="small" />
@@ -68,6 +73,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  badges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  regionBadge: {
+    backgroundColor: 'rgba(76,175,80,0.12)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  regionText: {
+    fontSize: 11,
+    color: '#388E3C',
+    fontWeight: '600',
   },
   name: {
     fontSize: 16,

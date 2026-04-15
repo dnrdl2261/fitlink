@@ -19,13 +19,19 @@ const SPECS: (Specialization | '전체')[] = [
   '전체', '체중감량', '근육증가', '재활', '필라테스', '크로스핏', '요가', '체력향상', '스포츠퍼포먼스',
 ];
 
+const REGIONS: ('전체' | '서울' | '부산')[] = ['전체', '서울', '부산'];
+
 export default function TrainersScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSpec, setActiveSpec] = useState<Specialization | '전체'>('전체');
+  const [activeRegion, setActiveRegion] = useState<'전체' | '서울' | '부산'>('전체');
 
   const filtered = useMemo(() => {
     let result = MOCK_TRAINERS;
+    if (activeRegion !== '전체') {
+      result = result.filter((t) => t.region === activeRegion);
+    }
     if (activeSpec !== '전체') {
       result = result.filter((t) => t.specializations.includes(activeSpec as Specialization));
     }
@@ -39,7 +45,7 @@ export default function TrainersScreen() {
       );
     }
     return result.sort((a, b) => b.rating - a.rating);
-  }, [searchQuery, activeSpec]);
+  }, [searchQuery, activeSpec, activeRegion]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -51,6 +57,23 @@ export default function TrainersScreen() {
           onChangeText={setSearchQuery}
           placeholderTextColor={COLORS.textSecondary}
         />
+      </View>
+
+      {/* 지역 필터 */}
+      <View style={styles.regionContainer}>
+        <View style={styles.regionRow}>
+          {REGIONS.map((r) => (
+            <TouchableOpacity
+              key={r}
+              style={[styles.regionChip, activeRegion === r && styles.regionChipActive]}
+              onPress={() => setActiveRegion(r)}
+            >
+              <Text style={[styles.regionChipText, activeRegion === r && styles.regionChipTextActive]}>
+                {r === '전체' ? '전체 지역' : `📍 ${r}`}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       {/* 전문분야 필터 */}
@@ -113,6 +136,35 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  regionContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+  },
+  regionRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  regionChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+  },
+  regionChipActive: {
+    backgroundColor: '#388E3C',
+    borderColor: '#388E3C',
+  },
+  regionChipText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  regionChipTextActive: {
+    color: '#fff',
+    fontWeight: '700',
   },
   specContainer: {
     paddingBottom: 10,

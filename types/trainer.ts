@@ -46,6 +46,7 @@ export interface AvailableSlot {
 export interface Trainer extends BaseUser {
   role: 'trainer';
   bio: string;
+  region: string;
   specializations: Specialization[];
   certifications: Certification[];
   workHistory: WorkHistory[];
