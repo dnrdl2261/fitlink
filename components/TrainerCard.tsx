@@ -2,15 +2,17 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Trainer } from '../types';
 import { formatPrice } from '../utils/formatters';
+import { formatDistance } from '../utils/distance';
 import { COLORS } from '../utils/constants';
 import StarRating from './StarRating';
 
 interface TrainerCardProps {
   trainer: Trainer;
   onPress: () => void;
+  distance?: number;
 }
 
-export default function TrainerCard({ trainer, onPress }: TrainerCardProps) {
+export default function TrainerCard({ trainer, onPress, distance }: TrainerCardProps) {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
       <Image
@@ -40,6 +42,9 @@ export default function TrainerCard({ trainer, onPress }: TrainerCardProps) {
         </View>
         <View style={styles.footer}>
           <Text style={styles.sessionCount}>{trainer.totalSessions.toLocaleString()}회 진행</Text>
+          {distance !== undefined && (
+            <Text style={styles.distance}>📍 {formatDistance(distance)}</Text>
+          )}
           <Text style={styles.price}>{formatPrice(trainer.sessionPrice)}/회</Text>
         </View>
       </View>
@@ -140,6 +145,11 @@ const styles = StyleSheet.create({
   sessionCount: {
     fontSize: 12,
     color: COLORS.textSecondary,
+  },
+  distance: {
+    fontSize: 12,
+    color: COLORS.primary,
+    fontWeight: '600',
   },
   price: {
     fontSize: 15,
