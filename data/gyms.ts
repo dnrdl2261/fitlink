@@ -35,6 +35,13 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 128,
     isPartner: true,
     adminUserId: 'admin_001',
+    usageRules: [
+      '운동복 및 실내 운동화 착용 필수',
+      '기구 사용 전후 소독 티슈로 닦기 필수',
+      '기구 사용 후 반드시 원위치 정리',
+      '사진·영상 촬영 시 타인 동의 필수',
+      '음식물 반입 금지 (물 제외)',
+    ],
   },
   {
     id: 'gym_002',
@@ -58,6 +65,12 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 89,
     isPartner: true,
     adminUserId: 'admin_002',
+    usageRules: [
+      '운동복 및 실내 운동화 착용 필수',
+      '기구 사용 후 소독 및 원위치 정리',
+      '요가스튜디오 내 실내화 착용 금지 (맨발 입장)',
+      '음식물 반입 금지 (물 제외)',
+    ],
   },
   {
     id: 'gym_003',
@@ -81,6 +94,13 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 215,
     isPartner: true,
     adminUserId: 'admin_003',
+    usageRules: [
+      '초보자는 안전 교육 이수 후 기구 사용 가능',
+      '바 리프팅 시 칼라(collar) 착용 필수',
+      '안전 장비 (벨트, 무릎랩 등) 착용 권장',
+      '기구 사용 후 반드시 원위치 정리',
+      '운동복 및 실내 운동화 착용 필수',
+    ],
   },
   {
     id: 'gym_004',
@@ -105,6 +125,13 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 342,
     isPartner: true,
     adminUserId: 'admin_004',
+    usageRules: [
+      '운동복 착용 필수 (비즈니스 정장 입장 불가)',
+      '기구 사용 전후 소독 티슈 사용 필수',
+      '헤드폰 착용 권장 (블루투스 스피커 사용 금지)',
+      '카페테리아 음식물 지정 구역 외 반입 금지',
+      '사진·영상 촬영 시 타인 동의 필수',
+    ],
   },
   {
     id: 'gym_005',
@@ -128,6 +155,13 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 567,
     isPartner: true,
     adminUserId: 'admin_005',
+    usageRules: [
+      '수영장 이용 시 수영모 착용 필수',
+      '수영장 입장 전 샤워 필수',
+      '스쿼시 코트 사전 예약 후 이용',
+      '12세 미만 어린이 보호자 동반 필수',
+      '락커는 당일 이용 후 잠금장치 반드시 해제',
+    ],
   },
   {
     id: 'gym_006',
@@ -151,6 +185,13 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 198,
     isPartner: true,
     adminUserId: 'admin_006',
+    usageRules: [
+      '스튜디오 내 맨발 입장 (양말 착용 금지)',
+      '수업 5분 전까지 입장 완료',
+      '수업 중 휴대폰 무음 처리',
+      '강한 향수·로션 사용 자제',
+      '매트·폼롤러 사용 후 소독 및 정리',
+    ],
   },
   {
     id: 'gym_007',
@@ -171,6 +212,13 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 76,
     isPartner: false,
     adminUserId: 'admin_007',
+    usageRules: [
+      '바 리프팅 시 칼라(collar) 착용 필수',
+      '데드리프트 바 바운싱 (드롭) 금지',
+      '고중량 리프팅 시 스팟터 동반 권장',
+      '기구 독점 사용 30분 이내 권장',
+      '음식물 반입 금지 (프로틴 쉐이크 제외)',
+    ],
   },
   {
     id: 'gym_008',
@@ -194,6 +242,12 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 134,
     isPartner: true,
     adminUserId: 'admin_008',
+    usageRules: [
+      '운동복 및 실내 운동화 착용 필수',
+      '기구 사용 후 소독 및 원위치 정리',
+      '사우나 이용 시 수건 착용 필수',
+      '음식물 반입 금지 (물 제외)',
+    ],
   },
   {
     id: 'gym_009',
@@ -214,6 +268,13 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 92,
     isPartner: true,
     adminUserId: 'admin_009',
+    usageRules: [
+      '파워리프팅 경험자 우선 시설',
+      '바 리프팅 시 안전핀 및 칼라 착용 필수',
+      '고중량 리프팅 시 스팟터 동반 권장',
+      '벨트·무릎랩 등 보조장비 착용 적극 권장',
+      '음식물 반입 금지 (프로틴 쉐이크 제외)',
+    ],
   },
   {
     id: 'gym_010',
@@ -238,6 +299,13 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 283,
     isPartner: true,
     adminUserId: 'admin_010',
+    usageRules: [
+      '이른 아침 (06:00~08:00) 조용한 운동 환경 유지',
+      '기구 사용 후 소독 티슈 사용 필수',
+      '이어폰 착용 필수 (블루투스 스피커 사용 금지)',
+      '사우나 이용 후 시설 청결 유지',
+      '카페테리아 음식물 지정 구역 내 이용',
+    ],
   },
 
   // ── 부산 ──────────────────────────────────────────────
@@ -265,6 +333,13 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 214,
     isPartner: true,
     adminUserId: 'admin_011',
+    usageRules: [
+      '운동복 및 실내 운동화 착용 필수',
+      '기구 사용 전후 소독 티슈 사용 필수',
+      '사우나 이용 시 수건 착용 필수',
+      '카페테리아 음식물 지정 구역 내 이용',
+      '사진·영상 촬영 시 타인 동의 필수',
+    ],
   },
   {
     id: 'gym_012',
@@ -288,6 +363,13 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 178,
     isPartner: true,
     adminUserId: 'admin_012',
+    usageRules: [
+      '심야 시간 (24:00~06:00) 소음 최소화 필수',
+      '1인 1기구 원칙 (30분 이상 독점 사용 금지)',
+      '기구 사용 후 소독 및 원위치 정리',
+      '운동복 및 실내 운동화 착용 필수',
+      '음식물 반입 금지 (물·프로틴 쉐이크 제외)',
+    ],
   },
   {
     id: 'gym_013',
@@ -311,6 +393,13 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 143,
     isPartner: true,
     adminUserId: 'admin_013',
+    usageRules: [
+      '초보자는 안전 교육 이수 후 기구 사용 가능',
+      '바 리프팅 시 칼라(collar) 착용 필수',
+      '루프탑 기상 악화(강풍·비) 시 실내 이용',
+      '기구 사용 후 반드시 원위치 정리',
+      '운동복 및 실내 운동화 착용 필수',
+    ],
   },
   {
     id: 'gym_014',
@@ -335,6 +424,13 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 96,
     isPartner: true,
     adminUserId: 'admin_014',
+    usageRules: [
+      '운동복 및 실내 운동화 착용 필수',
+      '기구 사용 전후 소독 티슈 사용 필수',
+      '이어폰 착용 권장 (블루투스 스피커 사용 금지)',
+      '사우나 이용 시 수건 착용 필수',
+      '사진·영상 촬영 시 타인 동의 필수',
+    ],
   },
   {
     id: 'gym_015',
@@ -355,6 +451,12 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 67,
     isPartner: false,
     adminUserId: 'admin_015',
+    usageRules: [
+      '운동복 및 실내 운동화 착용 필수',
+      '기구 사용 후 소독 및 원위치 정리',
+      '바 리프팅 시 칼라 착용 권장',
+      '음식물 반입 금지 (물 제외)',
+    ],
   },
   {
     id: 'gym_016',
@@ -378,6 +480,13 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 261,
     isPartner: true,
     adminUserId: 'admin_016',
+    usageRules: [
+      '스튜디오 내 맨발 입장 (양말 착용 금지)',
+      '수업 5분 전까지 입장 완료',
+      '수업 중 휴대폰 무음 처리',
+      '강한 향수·로션 사용 자제',
+      '기구 사용 후 소독 및 원위치 정리',
+    ],
   },
   {
     id: 'gym_017',
@@ -398,6 +507,13 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 54,
     isPartner: false,
     adminUserId: 'admin_017',
+    usageRules: [
+      '파워리프팅 경험자 우선 시설',
+      '바 리프팅 시 안전핀 및 칼라 착용 필수',
+      '데드리프트 바 바운싱(드롭) 금지',
+      '고중량 리프팅 시 스팟터 동반 권장',
+      '음식물 반입 금지 (프로틴 쉐이크 제외)',
+    ],
   },
   {
     id: 'gym_018',
@@ -422,6 +538,13 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 112,
     isPartner: true,
     adminUserId: 'admin_018',
+    usageRules: [
+      '운동복 및 실내 운동화 착용 필수',
+      '기구 사용 후 소독 티슈 사용 필수',
+      '스포츠 선수 훈련 시 트레이너 동반 권장',
+      '사우나 이용 후 시설 청결 유지',
+      '사진·영상 촬영 시 타인 동의 필수',
+    ],
   },
   {
     id: 'gym_019',
@@ -445,6 +568,13 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 88,
     isPartner: true,
     adminUserId: 'admin_019',
+    usageRules: [
+      '수영장 이용 시 수영모 착용 필수',
+      '수영장 입장 전 샤워 필수',
+      '스쿼시 코트 사전 예약 필수',
+      '12세 미만 어린이 보호자 동반 필수',
+      '락커는 당일 이용 후 잠금장치 반드시 해제',
+    ],
   },
   {
     id: 'gym_020',
@@ -468,5 +598,12 @@ export const MOCK_GYMS: Gym[] = [
     reviewCount: 49,
     isPartner: true,
     adminUserId: 'admin_020',
+    usageRules: [
+      '운동복 및 실내 운동화 착용 필수',
+      '1인 1기구 원칙 (30분 이상 독점 사용 금지)',
+      '기구 사용 후 소독 및 원위치 정리',
+      '주차장 2시간 무료 이용 (이후 유료)',
+      '음식물 반입 금지 (물 제외)',
+    ],
   },
 ];

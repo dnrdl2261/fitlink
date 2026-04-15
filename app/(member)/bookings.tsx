@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -22,8 +22,10 @@ const TABS: { key: BookingStatus | 'upcoming'; label: string }[] = [
 
 export default function BookingsScreen() {
   const router = useRouter();
-  const { bookings, cancelBooking } = useBookingStore();
+  const { bookings, cancelBooking, autoConfirmPending } = useBookingStore();
   const [activeTab, setActiveTab] = useState<'upcoming' | BookingStatus>('upcoming');
+
+  useEffect(() => { autoConfirmPending(); }, []);
 
   const myBookings = bookings.filter((b) => b.memberId === 'member_001');
 

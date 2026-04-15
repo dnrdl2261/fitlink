@@ -46,4 +46,5 @@ export interface Gym {
   isPartner: boolean;
   adminUserId: string;
   distance?: number;
+  usageRules?: string[];
 }

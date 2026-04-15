@@ -111,6 +111,19 @@ export default function GymDetailScreen() {
           <Text style={styles.pricingNote}>* 위 금액은 헬스장 시설 이용료이며 트레이너 PT 비용은 별도입니다</Text>
         </View>
 
+        {/* 이용 규칙 */}
+        {gym.usageRules && gym.usageRules.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>이용 규칙</Text>
+            {gym.usageRules.map((rule, idx) => (
+              <View key={idx} style={styles.ruleItem}>
+                <Text style={styles.ruleBullet}>•</Text>
+                <Text style={styles.ruleText}>{rule}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         {/* 소속 트레이너 */}
         {partnerTrainers.length > 0 && (
           <View style={styles.section}>
@@ -225,6 +238,9 @@ const styles = StyleSheet.create({
   pricingLabel: { fontSize: 14, color: COLORS.text },
   pricingValue: { fontSize: 14, color: COLORS.secondary, fontWeight: '700' },
   pricingNote: { fontSize: 11, color: COLORS.textSecondary, fontStyle: 'italic' },
+  ruleItem: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  ruleBullet: { fontSize: 14, color: COLORS.primary, lineHeight: 22, fontWeight: '700' },
+  ruleText: { flex: 1, fontSize: 14, color: COLORS.text, lineHeight: 22 },
   bookBtn: {
     backgroundColor: COLORS.primary,
     margin: 16,

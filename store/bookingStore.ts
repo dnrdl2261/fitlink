@@ -16,11 +16,14 @@ interface NewBookingParams {
   notes?: string;
 }
 
+const AUTO_CONFIRM_MS = 3 * 60 * 60 * 1000; // 3시간
+
 interface BookingState {
   bookings: Booking[];
   addBooking: (params: NewBookingParams) => string;
   cancelBooking: (bookingId: string) => void;
   updateStatus: (bookingId: string, status: BookingStatus) => void;
+  autoConfirmPending: () => void;
   getMyBookings: (memberId: string) => Booking[];
   getTrainerBookings: (trainerId: string) => Booking[];
   getGymBookings: (gymId: string) => Booking[];
@@ -54,8 +57,8 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         currency: 'KRW',
       },
       notes: params.notes,
-      createdAt: new Date().toISOString().split('T')[0],
-      updatedAt: new Date().toISOString().split('T')[0],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     set((state) => ({ bookings: [newBooking, ...state.bookings] }));
@@ -76,9 +79,23 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     set((state) => ({
       bookings: state.bookings.map((b) =>
         b.id === bookingId
-          ? { ...b, status, updatedAt: new Date().toISOString().split('T')[0] }
+          ? { ...b, status, updatedAt: new Date().toISOString() }
           : b
       ),
+    }));
+  },
+
+  autoConfirmPending: () => {
+    const now = Date.now();
+    set((state) => ({
+      bookings: state.bookings.map((b) => {
+        if (b.status !== 'pending') return b;
+        const createdTime = new Date(b.createdAt).getTime();
+        if (now - createdTime >= AUTO_CONFIRM_MS) {
+          return { ...b, status: 'confirmed', updatedAt: new Date().toISOString() };
+        }
+        return b;
+      }),
     }));
   },
 

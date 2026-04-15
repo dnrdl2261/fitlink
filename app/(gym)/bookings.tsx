@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,9 @@ const TABS: { key: string; label: string }[] = [
 export default function GymBookingsScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('all');
-  const { bookings, updateStatus } = useBookingStore();
+  const { bookings, updateStatus, autoConfirmPending } = useBookingStore();
+
+  useEffect(() => { autoConfirmPending(); }, []);
 
   const gymBookings = bookings
     .filter((b) => b.gymId === 'gym_001')
