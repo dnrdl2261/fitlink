@@ -23,9 +23,19 @@ function generate30MinSlots(openTime: string, closeTime: string): { start: strin
   return slots;
 }
 
+interface BlacklistEntry {
+  trainerId: string;
+  trainerName: string;
+}
+
 interface GymSlotState {
   slotBookings: SlotBooking[];
   capacityOverrides: Record<string, Record<number, number>>;
+  blacklists: Record<string, BlacklistEntry[]>;
+  favoriteGyms: string[];
+
+  toggleFavorite: (gymId: string) => void;
+  isFavorite: (gymId: string) => boolean;
 
   bookSlot: (params: {
     gymId: string;
@@ -47,13 +57,31 @@ interface GymSlotState {
 
   updateCapacity: (gymId: string, dayOfWeek: number, max: number) => void;
   getCapacity: (gymId: string, dayOfWeek: number) => number;
+
+  blacklistTrainer: (gymId: string, trainerId: string, trainerName: string) => void;
+  unblacklistTrainer: (gymId: string, trainerId: string) => void;
+  isBlacklisted: (gymId: string, trainerId: string) => boolean;
+  getBlacklist: (gymId: string) => BlacklistEntry[];
 }
 
 export const useGymSlotStore = create<GymSlotState>((set, get) => ({
   slotBookings: [],
   capacityOverrides: {},
+  blacklists: {},
+  favoriteGyms: [],
+
+  toggleFavorite: (gymId) => {
+    set((state) => ({
+      favoriteGyms: state.favoriteGyms.includes(gymId)
+        ? state.favoriteGyms.filter((id) => id !== gymId)
+        : [...state.favoriteGyms, gymId],
+    }));
+  },
+
+  isFavorite: (gymId) => get().favoriteGyms.includes(gymId),
 
   bookSlot: ({ gymId, gymName, trainerId, trainerName, date, startTime, memberCount, facilityFee }) => {
+    if (get().isBlacklisted(gymId, trainerId)) return null;
     const slots = get().getAvailableSlots(gymId, date, trainerId);
     const target = slots.find((s) => s.startTime === startTime);
 
@@ -95,6 +123,8 @@ export const useGymSlotStore = create<GymSlotState>((set, get) => ({
   },
 
   getAvailableSlots: (gymId, date, trainerId) => {
+    if (trainerId && get().isBlacklisted(gymId, trainerId)) return [];
+
     const gym = MOCK_GYMS.find((g) => g.id === gymId);
     if (!gym) return [];
 
@@ -152,5 +182,35 @@ export const useGymSlotStore = create<GymSlotState>((set, get) => ({
     const gym = MOCK_GYMS.find((g) => g.id === gymId);
     const hours = gym?.operatingHours.find((h) => h.dayOfWeek === dayOfWeek);
     return hours?.maxExternalTrainers ?? 0;
+  },
+
+  blacklistTrainer: (gymId, trainerId, trainerName) => {
+    set((state) => {
+      const current = state.blacklists[gymId] ?? [];
+      if (current.some((e) => e.trainerId === trainerId)) return state;
+      return {
+        blacklists: {
+          ...state.blacklists,
+          [gymId]: [...current, { trainerId, trainerName }],
+        },
+      };
+    });
+  },
+
+  unblacklistTrainer: (gymId, trainerId) => {
+    set((state) => ({
+      blacklists: {
+        ...state.blacklists,
+        [gymId]: (state.blacklists[gymId] ?? []).filter((e) => e.trainerId !== trainerId),
+      },
+    }));
+  },
+
+  isBlacklisted: (gymId, trainerId) => {
+    return (get().blacklists[gymId] ?? []).some((e) => e.trainerId === trainerId);
+  },
+
+  getBlacklist: (gymId) => {
+    return get().blacklists[gymId] ?? [];
   },
 }));

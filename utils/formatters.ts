@@ -42,3 +42,15 @@ export function formatRelativeDate(dateStr: string): string {
   if (diffDays < 30) return `${Math.floor(diffDays / 7)}주 전`;
   return `${Math.floor(diffDays / 30)}개월 전`;
 }
+
+// 채팅 타임스탬프 포맷 (방금, n분 전, HH:MM, M.D)
+export function formatChatTime(timestamp: number): string {
+  const now = new Date();
+  const d = new Date(timestamp);
+  const diffMin = Math.floor((now.getTime() - timestamp) / 60000);
+  if (diffMin < 1) return '방금';
+  if (diffMin < 60) return `${diffMin}분 전`;
+  if (now.toDateString() === d.toDateString())
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `${d.getMonth() + 1}.${d.getDate()}`;
+}

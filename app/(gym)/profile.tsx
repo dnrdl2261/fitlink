@@ -11,7 +11,9 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
+import { useGymProfileStore } from '../../store/gymProfileStore';
 import { MOCK_GYMS } from '../../data/gyms';
 import { formatPrice } from '../../utils/formatters';
 import { COLORS } from '../../utils/constants';
@@ -20,21 +22,34 @@ import StarRating from '../../components/StarRating';
 export default function GymProfileScreen() {
   const router = useRouter();
   const { gymAdmin, logout } = useAuthStore();
-  const gym = MOCK_GYMS.find((g) => g.id === 'gym_001');
+  const baseGym = MOCK_GYMS.find((g) => g.id === (gymAdmin?.gymId ?? 'gym_001'));
+  const editsRaw = useGymProfileStore(s => s.edits[gymAdmin?.gymId ?? 'gym_001']);
+  const edits = editsRaw ?? {};
+  const gym = baseGym ? { ...baseGym, ...edits } : baseGym;
 
   if (!gym) return null;
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Image source={{ uri: gym.images[0] }} style={styles.heroImage} />
+        <View style={styles.heroWrap}>
+          <Image source={{ uri: gym.images[0] }} style={styles.heroImage} />
+          <TouchableOpacity
+            style={styles.editOverlayBtn}
+            onPress={() => router.push('/(gym)/edit-profile' as any)}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons name="pencil" size={15} color="#fff" />
+            <Text style={styles.editOverlayText}>프로필 수정</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.section}>
           <View style={styles.nameRow}>
             <Text style={styles.gymName}>{gym.name}</Text>
             {gym.isPartner && (
               <View style={styles.partnerBadge}>
-                <Text style={styles.partnerText}>FollowFit 파트너</Text>
+                <Text style={styles.partnerText}>FLOWIN 파트너</Text>
               </View>
             )}
           </View>
@@ -76,6 +91,18 @@ export default function GymProfileScreen() {
           ))}
         </View>
 
+        {gym.usageRules && gym.usageRules.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>이용 규칙</Text>
+            {gym.usageRules.map((rule, idx) => (
+              <View key={idx} style={styles.ruleItem}>
+                <Text style={styles.ruleBullet}>•</Text>
+                <Text style={styles.ruleText}>{rule}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>관리자 계정</Text>
           <View style={styles.adminInfo}>
@@ -110,8 +137,16 @@ export default function GymProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: '#F1F5F9' },
+  heroWrap: { position: 'relative' },
   heroImage: { width: '100%', height: 220, backgroundColor: COLORS.surfaceElevated },
+  editOverlayBtn: {
+    position: 'absolute', bottom: 12, right: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+  },
+  editOverlayText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   section: {
     backgroundColor: COLORS.surface,
     margin: 12,
@@ -124,7 +159,7 @@ const styles = StyleSheet.create({
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   gymName: { fontSize: 22, fontWeight: '800', color: COLORS.text, flex: 1 },
   partnerBadge: {
-    backgroundColor: COLORS.gym,
+    backgroundColor: '#2DD4BF',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
@@ -143,7 +178,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
   },
-  facilityText: { fontSize: 13, color: COLORS.gym, fontWeight: '600' },
+  facilityText: { fontSize: 13, color: '#2DD4BF', fontWeight: '600' },
   priceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -152,7 +187,10 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   priceLabel: { fontSize: 14, color: COLORS.text },
-  priceValue: { fontSize: 14, fontWeight: '700', color: COLORS.gym },
+  priceValue: { fontSize: 14, fontWeight: '700', color: '#2DD4BF' },
+  ruleItem: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  ruleBullet: { fontSize: 14, color: '#2DD4BF', lineHeight: 22, fontWeight: '700' },
+  ruleText: { flex: 1, fontSize: 14, color: COLORS.text, lineHeight: 22 },
   adminInfo: { flexDirection: 'row', justifyContent: 'space-between' },
   adminLabel: { fontSize: 14, color: COLORS.textSecondary },
   adminValue: { fontSize: 14, color: COLORS.text, fontWeight: '600' },

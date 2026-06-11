@@ -34,6 +34,9 @@ export interface Gym {
   name: string;
   description: string;
   address: string;
+  city: string;
+  district: string;
+  dong: string;
   coordinate: GeoCoordinate;
   phoneNumber: string;
   images: string[];

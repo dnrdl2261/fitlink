@@ -10,11 +10,14 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { useRouter, Redirect } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../utils/constants';
 import { UserRole } from '../types';
+import { CITIES, getDistricts, getDongs } from '../data/regions';
 
 const ROLES: { role: UserRole; label: string; emoji: string; desc: string; color: string }[] = [
   { role: 'member',    label: '회원',          emoji: '🏃', desc: '헬스장 탐색 & PT 예약',  color: COLORS.primary },
@@ -34,6 +37,11 @@ export default function SignupScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading]       = useState(false);
 
+  const [addrCity, setAddrCity]         = useState('');
+  const [addrDistrict, setAddrDistrict] = useState('');
+  const [addrDong, setAddrDong]         = useState('');
+  const [addrModal, setAddrModal]       = useState<'city' | 'district' | 'dong' | null>(null);
+
   const selectedRole = ROLES.find((r) => r.role === role)!;
 
   // 이미 로그인된 상태면 바로 이동 (hooks 이후에 배치, authRole로 충돌 해결)
@@ -43,13 +51,30 @@ export default function SignupScreen() {
     if (authRole === 'gym_admin') return <Redirect href="/(gym)" />;
   }
 
+  const addrModalItems =
+    addrModal === 'city' ? CITIES :
+    addrModal === 'district' ? getDistricts(addrCity) :
+    addrModal === 'dong' ? getDongs(addrCity, addrDistrict) : [];
+
+  const handleAddrSelect = (value: string) => {
+    if (addrModal === 'city') { setAddrCity(value); setAddrDistrict(''); setAddrDong(''); }
+    else if (addrModal === 'district') { setAddrDistrict(value); setAddrDong(''); }
+    else if (addrModal === 'dong') { setAddrDong(value); }
+    setAddrModal(null);
+  };
+
   const handleSignup = () => {
     if (password !== confirmPw) {
       Alert.alert('비밀번호 불일치', '비밀번호가 일치하지 않습니다.');
       return;
     }
+    if (role === 'member' && (!addrCity || !addrDistrict || !addrDong)) {
+      Alert.alert('주소 미입력', '활동 지역(시/구/동)을 모두 선택해주세요.');
+      return;
+    }
     setLoading(true);
-    const result = signup(name, email, password, role);
+    const address = role === 'member' ? { city: addrCity, district: addrDistrict, dong: addrDong } : undefined;
+    const result = signup(name, email, password, role, address);
     setLoading(false);
 
     if (result.success) {
@@ -75,10 +100,10 @@ export default function SignupScreen() {
           {/* 헤더 */}
           <View style={styles.header}>
             <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-              <Text style={styles.backText}>← 뒤로</Text>
+              <Text style={styles.backText}>‹</Text>
             </TouchableOpacity>
             <Text style={styles.title}>회원가입</Text>
-            <Text style={styles.subtitle}>FollowFit에 오신 것을 환영합니다</Text>
+            <Text style={styles.subtitle}>FLOWIN에 오신 것을 환영합니다</Text>
           </View>
 
           {/* 역할 선택 */}
@@ -175,6 +200,44 @@ export default function SignupScreen() {
             </View>
           </View>
 
+          {/* 활동 지역 (회원만) */}
+          {role === 'member' && (
+            <View style={styles.card}>
+              <Text style={styles.sectionLabel}>활동 지역</Text>
+              <Text style={styles.addrHint}>트레이너 검색 시 내 지역 근처 트레이너를 먼저 보여줍니다</Text>
+              <TouchableOpacity
+                style={styles.addrRow}
+                onPress={() => setAddrModal('city')}
+              >
+                <Text style={styles.addrLabel}>시 / 도</Text>
+                <Text style={[styles.addrValue, !addrCity && styles.addrPlaceholder]}>
+                  {addrCity || '선택'}
+                </Text>
+                <Text style={styles.addrArrow}>›</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.addrRow, !addrCity && styles.addrRowDisabled]}
+                onPress={() => addrCity && setAddrModal('district')}
+              >
+                <Text style={styles.addrLabel}>구 / 군</Text>
+                <Text style={[styles.addrValue, !addrDistrict && styles.addrPlaceholder]}>
+                  {addrDistrict || '선택'}
+                </Text>
+                <Text style={styles.addrArrow}>›</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.addrRow, !addrDistrict && styles.addrRowDisabled]}
+                onPress={() => addrDistrict && setAddrModal('dong')}
+              >
+                <Text style={styles.addrLabel}>동 / 읍</Text>
+                <Text style={[styles.addrValue, !addrDong && styles.addrPlaceholder]}>
+                  {addrDong || '선택'}
+                </Text>
+                <Text style={styles.addrArrow}>›</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* 가입 버튼 */}
           <TouchableOpacity
             style={[
@@ -200,6 +263,32 @@ export default function SignupScreen() {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* 주소 선택 모달 */}
+      <Modal visible={addrModal !== null} animationType="slide" transparent onRequestClose={() => setAddrModal(null)}>
+        <View style={styles.addrModalOverlay}>
+          <View style={styles.addrModalBox}>
+            <View style={styles.addrModalHeader}>
+              <TouchableOpacity onPress={() => setAddrModal(null)}>
+                <Text style={styles.addrModalClose}>✕</Text>
+              </TouchableOpacity>
+              <Text style={styles.addrModalTitle}>
+                {addrModal === 'city' ? '시 / 도 선택' : addrModal === 'district' ? '구 / 군 선택' : '동 / 읍 선택'}
+              </Text>
+              <View style={{ width: 24 }} />
+            </View>
+            <FlatList
+              data={addrModalItems}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={styles.addrModalItem} onPress={() => handleAddrSelect(item)}>
+                  <Text style={styles.addrModalItemText}>{item}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -210,8 +299,8 @@ const styles = StyleSheet.create({
   scroll: { padding: 20, paddingBottom: 48, gap: 16 },
 
   header: { paddingTop: 8, paddingBottom: 8 },
-  backBtn: { marginBottom: 12 },
-  backText: { fontSize: 15, color: COLORS.primary, fontWeight: '600' },
+  backBtn: { marginBottom: 12, paddingLeft: 8 },
+  backText: { fontSize: 36, color: COLORS.primary, fontWeight: '300' },
   title: { fontSize: 28, fontWeight: '900', color: COLORS.text },
   subtitle: { fontSize: 14, color: COLORS.textSecondary, marginTop: 4 },
 
@@ -281,4 +370,33 @@ const styles = StyleSheet.create({
   loginLink: { alignItems: 'center', paddingVertical: 8 },
   loginLinkText: { fontSize: 14, color: COLORS.textSecondary },
   loginLinkHighlight: { color: COLORS.primary, fontWeight: '700' },
+
+  addrHint: { fontSize: 12, color: COLORS.textSecondary, marginTop: -6 },
+  addrRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 14, paddingHorizontal: 4,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
+  addrRowDisabled: { opacity: 0.4 },
+  addrLabel: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary, width: 56 },
+  addrValue: { flex: 1, fontSize: 15, color: COLORS.text, fontWeight: '600' },
+  addrPlaceholder: { color: COLORS.textSecondary, fontWeight: '400' },
+  addrArrow: { fontSize: 20, color: COLORS.textSecondary },
+
+  addrModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  addrModalBox: {
+    backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, height: '60%',
+  },
+  addrModalHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 16,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
+  addrModalClose: { fontSize: 18, color: COLORS.text, fontWeight: '600' },
+  addrModalTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
+  addrModalItem: {
+    paddingHorizontal: 24, paddingVertical: 16,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
+  addrModalItemText: { fontSize: 15, color: COLORS.text },
 });

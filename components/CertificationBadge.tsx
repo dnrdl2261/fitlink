@@ -32,10 +32,12 @@ export default function CertificationBadge({ cert }: CertificationBadgeProps) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: COLORS.surfaceElevated,
-    borderRadius: 12,
-    padding: 12,
+    backgroundColor: COLORS.surface,
+    borderRadius: 14,
+    padding: 14,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: COLORS.borderSubtle,
     borderLeftWidth: 3,
     borderLeftColor: COLORS.primary,
     gap: 12,
@@ -43,8 +45,8 @@ const styles = StyleSheet.create({
   iconBox: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(124,110,232,0.15)',
+    borderRadius: 10,
+    backgroundColor: COLORS.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -67,23 +69,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   verifiedBadge: {
-    backgroundColor: COLORS.success,
-    paddingHorizontal: 6,
+    backgroundColor: COLORS.successBg,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 9999,
   },
   verifiedText: {
-    color: '#fff',
+    color: COLORS.success,
     fontSize: 10,
     fontWeight: '700',
   },
   issuer: {
     fontSize: 12,
-    color: COLORS.primary,
-    fontWeight: '500',
+    color: COLORS.textSecondary,
+    fontWeight: '400',
   },
   date: {
     fontSize: 11,
-    color: COLORS.textSecondary,
+    color: COLORS.textMuted,
   },
 });

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "FollowFit",
-    "slug": "followfit",
-    "scheme": "followfit",
+    "name": "FLOWIN",
+    "slug": "flowin",
+    "scheme": "flowin",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icon.jpg",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -30,7 +30,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ]
   }
 }

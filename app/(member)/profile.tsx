@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useBookingStore } from '../../store/bookingStore';
 import { formatPrice } from '../../utils/formatters';
@@ -25,7 +26,7 @@ export default function MemberProfileScreen() {
   const completedCount = myBookings.filter((b) => b.status === 'completed').length;
   const totalSpent = myBookings
     .filter((b) => b.status === 'completed')
-    .reduce((sum, b) => sum + b.payment.totalAmount, 0);
+    .reduce((sum, b) => sum + b.totalAmount, 0);
 
   const handleLogout = () => {
     const doLogout = () => { logout(); router.replace('/login'); };
@@ -50,6 +51,7 @@ export default function MemberProfileScreen() {
           />
           <Text style={styles.name}>{member?.name}</Text>
           <Text style={styles.email}>{member?.email}</Text>
+          {member?.phone ? <Text style={styles.phone}>{member.phone}</Text> : null}
           <View style={styles.goalTags}>
             {member?.fitnessGoals.map((g) => (
               <View key={g} style={styles.goalTag}>
@@ -57,6 +59,20 @@ export default function MemberProfileScreen() {
               </View>
             ))}
           </View>
+          {member?.preferredLocations && member.preferredLocations.length > 0 && (
+            <View style={styles.locationRow}>
+              <MaterialCommunityIcons name="map-marker-outline" size={14} color={COLORS.textSecondary} />
+              <Text style={styles.locationText}>{member.preferredLocations.join(' · ')}</Text>
+            </View>
+          )}
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={() => router.push('/(member)/edit-profile' as any)}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="pencil-outline" size={14} color={COLORS.primary} />
+            <Text style={styles.editBtnText}>프로필 수정</Text>
+          </TouchableOpacity>
         </View>
 
         {/* 통계 */}
@@ -104,69 +120,80 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   profileHeader: {
     alignItems: 'center',
-    paddingVertical: 32,
+    paddingTop: 24,
+    paddingBottom: 20,
     paddingHorizontal: 20,
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 12,
-    backgroundColor: COLORS.border,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    marginBottom: 10,
+    backgroundColor: COLORS.surfaceElevated,
   },
-  name: { fontSize: 24, fontWeight: '800', color: COLORS.text },
-  email: { fontSize: 14, color: COLORS.textSecondary, marginTop: 4 },
-  goalTags: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  name: { fontSize: 20, fontWeight: '700', color: COLORS.text },
+  email: { fontSize: 13, color: COLORS.textSecondary, marginTop: 3 },
+  goalTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10, justifyContent: 'center' },
   goalTag: {
-    backgroundColor: 'rgba(124,110,232,0.15)',
+    backgroundColor: COLORS.surfaceElevated,
     paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 12,
+    paddingVertical: 4,
+    borderRadius: 9999,
   },
-  goalText: { fontSize: 13, color: COLORS.primary, fontWeight: '600' },
+  goalText: { fontSize: 12, color: COLORS.text, fontWeight: '500' },
+  phone: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  locationText: { fontSize: 12, color: COLORS.textSecondary },
+  editBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    marginTop: 12, paddingHorizontal: 16, paddingVertical: 7,
+    borderRadius: 20, borderWidth: 1.5, borderColor: COLORS.primary,
+  },
+  editBtnText: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
   statsRow: {
     flexDirection: 'row',
     backgroundColor: COLORS.surface,
     marginHorizontal: 16,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    elevation: 2,
+    marginTop: 12,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border,
   },
-  statBox: { flex: 1, alignItems: 'center' },
-  statValue: { fontSize: 18, fontWeight: '800', color: COLORS.primary },
-  statLabel: { fontSize: 12, color: COLORS.textSecondary, marginTop: 4 },
-  statDivider: { width: 1, backgroundColor: COLORS.border },
+  statBox: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
+  statValue: { fontSize: 16, fontWeight: '700', color: COLORS.text },
+  statLabel: { fontSize: 11, color: COLORS.textSecondary, marginTop: 3 },
+  statDivider: { width: StyleSheet.hairlineWidth, backgroundColor: COLORS.border },
   menuSection: {
     marginHorizontal: 16,
-    marginTop: 20,
+    marginTop: 12,
     backgroundColor: COLORS.surface,
-    borderRadius: 16,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border,
     overflow: 'hidden',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.borderSubtle,
     gap: 12,
   },
-  menuEmoji: { fontSize: 20 },
+  menuEmoji: { fontSize: 18 },
   menuLabel: { flex: 1, fontSize: 15, color: COLORS.text },
-  menuArrow: { fontSize: 22, color: COLORS.border },
+  menuArrow: { fontSize: 18, color: COLORS.border },
   logoutBtn: {
     margin: 16,
-    marginTop: 24,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.error,
+    marginTop: 16,
+    paddingVertical: 13,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border,
     alignItems: 'center',
   },
-  logoutText: { color: COLORS.error, fontSize: 15, fontWeight: '600' },
+  logoutText: { color: COLORS.error, fontSize: 15, fontWeight: '500' },
 });

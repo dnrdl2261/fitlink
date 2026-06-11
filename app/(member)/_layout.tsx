@@ -1,9 +1,79 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../utils/constants';
 import { useAuthStore } from '../../store/authStore';
+import { useChatStore } from '../../store/chatStore';
+import { useLocationStore } from '../../store/locationStore';
+import { useNotificationStore } from '../../store/notificationStore';
+
+function LocationHeader() {
+  const router = useRouter();
+  const selectedDong = useLocationStore((s) => s.selectedDong);
+  return (
+    <TouchableOpacity
+      onPress={() => router.push('/location-picker' as any)}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+    >
+      <Text style={{ fontSize: 17, fontWeight: '700', color: COLORS.text }}>
+        {selectedDong || '위치 설정'}
+      </Text>
+      <MaterialCommunityIcons name="chevron-down" size={18} color={COLORS.text} />
+    </TouchableOpacity>
+  );
+}
+
+// height를 크게 잡고 paddingBottom을 '안전 버퍼'로 사용
+// → 브라우저 하단 UI 크롬이 30px를 가려도 아이콘/라벨은 위쪽에 배치되어 보임
+// 핵심: justifyContent:'flex-start' + paddingTop으로 아이콘·라벨을 상단에 배치
+// → 브라우저 하단 크롬이 아무리 가려도 콘텐츠는 이미 위쪽에 있어 잘리지 않음
+const TAB_BAR = {
+  backgroundColor: '#ffffff',
+  borderTopWidth: StyleSheet.hairlineWidth,
+  borderTopColor: '#e5e7eb',
+  height: 90,
+};
+
+function BackBtn({ color }: { color: string }) {
+  const router = useRouter();
+  return (
+    <TouchableOpacity onPress={() => router.navigate('/(member)/more' as any)} style={{ paddingLeft: 20, paddingRight: 8 }}>
+      <Text style={{ fontSize: 34, fontWeight: '300', color }}>‹</Text>
+    </TouchableOpacity>
+  );
+}
+
+function BellBtn({ userId, color }: { userId: string; color: string }) {
+  const router = useRouter();
+  const unread = useNotificationStore((s) => s.getUnread(userId));
+  return (
+    <TouchableOpacity
+      onPress={() => router.push('/(member)/notifications' as any)}
+      style={{ paddingRight: 16, paddingLeft: 8 }}
+    >
+      <View style={{ position: 'relative' }}>
+        <MaterialCommunityIcons name="bell-outline" size={24} color={color} />
+        {unread > 0 && (
+          <View style={{
+            position: 'absolute', top: -3, right: -5,
+            backgroundColor: COLORS.error, borderRadius: 8,
+            minWidth: 16, height: 16,
+            alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
+          }}>
+            <Text style={{ fontSize: 9, fontWeight: '800', color: '#fff' }}>
+              {unread > 9 ? '9+' : unread}
+            </Text>
+          </View>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+}
 
 export default function MemberLayout() {
-  const { isLoggedIn } = useAuthStore();
+  const { isLoggedIn, member } = useAuthStore();
+  const unread = useChatStore((s) => s.getUnreadTotal(member?.id ?? ''));
 
   if (!isLoggedIn) return null;
 
@@ -11,70 +81,113 @@ export default function MemberLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textSecondary,
-        tabBarStyle: {
-          backgroundColor: COLORS.surface,
-          borderTopWidth: 1,
-          borderTopColor: COLORS.border,
-          paddingBottom: 4,
-          height: 60,
-        },
-        headerStyle: { backgroundColor: COLORS.surface },
+        tabBarInactiveTintColor: '#c7c7cc',
+        tabBarStyle: TAB_BAR,
+        tabBarItemStyle: { justifyContent: 'flex-start', paddingTop: 9 },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+        headerStyle: { backgroundColor: COLORS.background },
         headerTintColor: COLORS.text,
-        headerTitleStyle: { fontWeight: '700', color: COLORS.text },
+        headerTitleStyle: { fontWeight: '700', fontSize: 17, color: COLORS.text },
         headerShadowVisible: false,
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="trainers"
         options={{
-          title: '홈',
           tabBarLabel: '홈',
-          tabBarIcon: ({ color }) => <TabIcon emoji="🏠" color={color} active={color === COLORS.primary} />,
-          headerTitle: 'FollowFit',
+          tabBarIcon: ({ color }) => <TabIcon name="home" color={color} />,
+          headerTitle: () => <LocationHeader />,
+          headerRight: () => <BellBtn userId={member?.id ?? ''} color={COLORS.primary} />,
         }}
       />
       <Tabs.Screen
         name="map"
         options={{
-          title: '지도',
-          tabBarLabel: '지도',
-          tabBarIcon: ({ color }) => <TabIcon emoji="🗺️" color={color} active={color === COLORS.primary} />,
-          headerTitle: '지도로 보기',
+          tabBarLabel: '헬스장',
+          tabBarIcon: ({ color }) => <TabIcon name="map-marker" color={color} />,
+          headerTitle: '헬스장 찾기',
         }}
       />
       <Tabs.Screen
-        name="trainers"
+        name="community"
         options={{
-          title: '트레이너',
-          tabBarLabel: '트레이너',
-          tabBarIcon: ({ color }) => <TabIcon emoji="💪" color={color} active={color === COLORS.primary} />,
-          headerTitle: '트레이너 찾기',
+          tabBarLabel: '커뮤니티',
+          tabBarIcon: ({ color }) => <TabIcon name="account-group" color={color} />,
+          headerTitle: '커뮤니티',
         }}
+      />
+      <Tabs.Screen
+        name="chat"
+        options={{
+          tabBarLabel: '채팅',
+          tabBarIcon: ({ color }) => <TabIconBadge name="message" color={color} badge={unread} />,
+          headerTitle: '채팅',
+        }}
+      />
+      <Tabs.Screen
+        name="more"
+        options={{
+          tabBarLabel: '마이',
+          tabBarIcon: ({ color }) => <TabIcon name="account" color={color} />,
+          headerTitle: '내 정보',
+        }}
+      />
+      <Tabs.Screen
+        name="index"
+        options={{ href: null }}
       />
       <Tabs.Screen
         name="bookings"
         options={{
-          title: '예약',
-          tabBarLabel: '예약',
-          tabBarIcon: ({ color }) => <TabIcon emoji="📅" color={color} active={color === COLORS.primary} />,
+          href: null,
           headerTitle: '내 예약',
+          headerLeft: () => <BackBtn color={COLORS.primary} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: '프로필',
-          tabBarLabel: '프로필',
-          tabBarIcon: ({ color }) => <TabIcon emoji="👤" color={color} active={color === COLORS.primary} />,
+          href: null,
           headerTitle: '내 프로필',
+          headerLeft: () => <BackBtn color={COLORS.primary} />,
         }}
       />
+      <Tabs.Screen name="edit-profile" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="community-post" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="community-group" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="community-write" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="community-group-write" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="community-story" options={{ href: null, headerShown: false, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="my-packages" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="trainer-list" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="custom-plan" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="notifications" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="safety"        options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="support"       options={{ href: null, headerShown: false }} />
     </Tabs>
   );
 }
 
-function TabIcon({ emoji, active }: { emoji: string; color: string; active: boolean }) {
-  const { Text } = require('react-native');
-  return <Text style={{ fontSize: 22, opacity: active ? 1 : 0.4 }}>{emoji}</Text>;
+function TabIcon({ name, color }: { name: string; color: string }) {
+  return <MaterialCommunityIcons name={name as any} size={24} color={color} />;
+}
+
+function TabIconBadge({ name, color, badge }: { name: string; color: string; badge: number }) {
+  return (
+    <View style={{ position: 'relative' }}>
+      <MaterialCommunityIcons name={name as any} size={24} color={color} />
+      {badge > 0 && (
+        <View style={{
+          position: 'absolute', top: -3, right: -7,
+          backgroundColor: COLORS.error, borderRadius: 8,
+          minWidth: 16, height: 16,
+          alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
+        }}>
+          <Text style={{ fontSize: 9, fontWeight: '800', color: '#fff' }}>
+            {badge > 9 ? '9+' : badge}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
 }

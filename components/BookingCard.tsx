@@ -2,25 +2,34 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Booking } from '../types';
 import { formatDate, formatTime, formatPrice } from '../utils/formatters';
-import { COLORS, BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '../utils/constants';
+import { COLORS, BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS, DAY_LABELS } from '../utils/constants';
 
 interface BookingCardProps {
   booking: Booking;
   onPress: () => void;
   onCancel?: () => void;
+  onReview?: () => void;
+  reviewDone?: boolean;
 }
 
-export default function BookingCard({ booking, onPress, onCancel }: BookingCardProps) {
+export default function BookingCard({ booking, onPress, onCancel, onReview, reviewDone }: BookingCardProps) {
   const statusColor = BOOKING_STATUS_COLORS[booking.status] ?? COLORS.textSecondary;
   const statusLabel = BOOKING_STATUS_LABELS[booking.status] ?? booking.status;
-  const canCancel = booking.status === 'pending' || booking.status === 'confirmed';
+  const nextSession = booking.sessions.find((s) => s.status === 'scheduled');
+  const progressPct = booking.totalSessions > 0
+    ? (booking.usedSessions / booking.totalSessions) * 100
+    : 0;
+  const daysLabel = booking.schedule.daysOfWeek
+    .sort((a, b) => a - b)
+    .map((d) => DAY_LABELS[d])
+    .join('·');
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.gymName}>{booking.gymName}</Text>
+        <View style={styles.headerLeft}>
           <Text style={styles.trainerName}>{booking.trainerName} 트레이너</Text>
+          <Text style={styles.packageLabel}>{booking.totalSessions}회 패키지</Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
           <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
@@ -29,28 +38,46 @@ export default function BookingCard({ booking, onPress, onCancel }: BookingCardP
 
       <View style={styles.divider} />
 
-      <View style={styles.details}>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>날짜</Text>
-          <Text style={styles.detailValue}>{formatDate(booking.sessionDate)}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>시간</Text>
-          <Text style={styles.detailValue}>
-            {formatTime(booking.startTime)} ~ {formatTime(booking.endTime)}
+      <View style={styles.sessionRow}>
+        <View style={styles.sessionInfo}>
+          <Text style={styles.sessionCountLabel}>잔여 횟수</Text>
+          <Text style={[styles.sessionCount, { color: booking.remainingSessions > 0 ? COLORS.primary : COLORS.textSecondary }]}>
+            {booking.remainingSessions}
+            <Text style={styles.sessionTotal}>/{booking.totalSessions}회</Text>
           </Text>
         </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>결제금액</Text>
-          <Text style={[styles.detailValue, styles.price]}>
-            {formatPrice(booking.payment.totalAmount)}
-          </Text>
+        <View style={styles.progressWrap}>
+          <View style={styles.progressBg}>
+            <View style={[styles.progressFill, { width: `${100 - progressPct}%` as any }]} />
+          </View>
+          <Text style={styles.scheduleText}>매주 {daysLabel}</Text>
         </View>
       </View>
 
-      {canCancel && onCancel && (
+      {nextSession && (
+        <View style={styles.nextSessionRow}>
+          <Text style={styles.nextSessionLabel}>다음 세션</Text>
+          <Text style={styles.nextSessionValue}>
+            {formatDate(nextSession.date)}  {formatTime(nextSession.startTime)}
+          </Text>
+        </View>
+      )}
+
+      {booking.status === 'active' && onCancel && (
         <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
           <Text style={styles.cancelText}>예약 취소</Text>
+        </TouchableOpacity>
+      )}
+
+      {booking.status === 'completed' && (
+        <TouchableOpacity
+          style={[styles.reviewBtn, reviewDone && styles.reviewBtnDone]}
+          onPress={reviewDone ? undefined : onReview}
+          activeOpacity={reviewDone ? 1 : 0.7}
+        >
+          <Text style={[styles.reviewBtnText, reviewDone && styles.reviewBtnTextDone]}>
+            {reviewDone ? '✓ 리뷰 작성 완료' : '리뷰 작성'}
+          </Text>
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -63,74 +90,76 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginHorizontal: 16,
     marginBottom: 12,
-    padding: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.07,
+    shadowRadius: 6,
+    elevation: 2,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
-  gymName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  trainerName: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
+  headerLeft: { gap: 3 },
+  trainerName: { fontSize: 16, fontWeight: '700', color: COLORS.text },
+  packageLabel: { fontSize: 13, color: COLORS.textSecondary },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  statusText: { fontSize: 11, fontWeight: '700' },
   divider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginVertical: 12,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.borderSubtle,
+    marginVertical: 14,
   },
-  details: {
-    gap: 8,
+  sessionRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  sessionInfo: { alignItems: 'center', minWidth: 64 },
+  sessionCountLabel: { fontSize: 11, color: COLORS.textSecondary, marginBottom: 2 },
+  sessionCount: { fontSize: 26, fontWeight: '800' },
+  sessionTotal: { fontSize: 14, fontWeight: '400', color: COLORS.textSecondary },
+  progressWrap: { flex: 1, gap: 6 },
+  progressBg: {
+    height: 6, borderRadius: 3,
+    backgroundColor: COLORS.borderSubtle,
+    overflow: 'hidden',
   },
-  detailRow: {
+  progressFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: 3,
+  },
+  scheduleText: { fontSize: 12, color: COLORS.textSecondary },
+  nextSessionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  detailLabel: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-  },
-  detailValue: {
-    fontSize: 13,
-    color: COLORS.text,
-    fontWeight: '500',
-  },
-  price: {
-    color: COLORS.secondary,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  cancelBtn: {
     marginTop: 12,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.borderSubtle,
+  },
+  nextSessionLabel: { fontSize: 13, color: COLORS.textSecondary },
+  nextSessionValue: { fontSize: 13, color: COLORS.text, fontWeight: '600' },
+  cancelBtn: {
+    marginTop: 14,
+    paddingVertical: 11,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: COLORS.error,
     alignItems: 'center',
   },
-  cancelText: {
-    color: COLORS.error,
-    fontSize: 14,
-    fontWeight: '600',
+  cancelText: { color: COLORS.error, fontSize: 14, fontWeight: '600' },
+  reviewBtn: {
+    marginTop: 14,
+    paddingVertical: 11,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    alignItems: 'center',
+    backgroundColor: COLORS.primaryPale,
   },
+  reviewBtnText: { color: COLORS.primary, fontSize: 14, fontWeight: '600' },
+  reviewBtnDone: { borderColor: COLORS.border, backgroundColor: COLORS.background },
+  reviewBtnTextDone: { color: COLORS.textSecondary, fontSize: 14, fontWeight: '500' },
 });

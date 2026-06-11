@@ -16,6 +16,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '강남 피트니스 클럽',
     description: '강남구 최고급 피트니스 시설. 최신 기구와 넓은 공간을 자랑합니다.',
     address: '서울시 강남구 테헤란로 152',
+    city: '서울', district: '강남구', dong: '역삼동',
     coordinate: { latitude: 37.4979, longitude: 127.0276 },
     phoneNumber: '02-1234-5678',
     images: [
@@ -48,6 +49,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '역삼 스포츠센터',
     description: '역삼역 도보 3분. 넓고 쾌적한 환경에서 운동하세요.',
     address: '서울시 강남구 역삼로 180',
+    city: '서울', district: '강남구', dong: '역삼동',
     coordinate: { latitude: 37.5007, longitude: 127.0362 },
     phoneNumber: '02-2345-6789',
     images: [
@@ -77,6 +79,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '홍대 크로스핏 박스',
     description: '크로스핏 전문 공간. 강도 높은 훈련을 경험하세요.',
     address: '서울시 마포구 와우산로 94',
+    city: '서울', district: '마포구', dong: '홍익동',
     coordinate: { latitude: 37.5519, longitude: 126.9245 },
     phoneNumber: '02-3456-7890',
     images: [
@@ -107,6 +110,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '여의도 프리미엄 피트니스',
     description: '여의도 금융권 직장인들을 위한 프리미엄 피트니스 센터.',
     address: '서울시 영등포구 국제금융로 70',
+    city: '서울', district: '영등포구', dong: '여의도동',
     coordinate: { latitude: 37.5251, longitude: 126.9248 },
     phoneNumber: '02-4567-8901',
     images: [
@@ -138,6 +142,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '잠실 스포렉스',
     description: '잠실 롯데월드 인근. 수영장과 다양한 시설을 갖춘 종합 스포츠센터.',
     address: '서울시 송파구 올림픽로 240',
+    city: '서울', district: '송파구', dong: '잠실동',
     coordinate: { latitude: 37.5126, longitude: 127.0983 },
     phoneNumber: '02-5678-9012',
     images: [
@@ -168,6 +173,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '신촌 바디앤마인드',
     description: '요가와 필라테스 특화 스튜디오. 마음과 몸의 균형을 찾아드립니다.',
     address: '서울시 서대문구 신촌로 79',
+    city: '서울', district: '서대문구', dong: '신촌동',
     coordinate: { latitude: 37.5568, longitude: 126.9369 },
     phoneNumber: '02-6789-0123',
     images: [
@@ -198,6 +204,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '강동 파워짐',
     description: '보디빌딩 전문 헬스장. 최고의 기구와 전문 트레이너가 함께합니다.',
     address: '서울시 강동구 천호대로 1077',
+    city: '서울', district: '강동구', dong: '천호동',
     coordinate: { latitude: 37.5387, longitude: 127.1236 },
     phoneNumber: '02-7890-1234',
     images: ['https://picsum.photos/seed/gym7a/800/400'],
@@ -225,6 +232,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '종로 피트니스 타워',
     description: '종로 한복판에서 운동하세요. 탁 트인 전망과 최신 기구.',
     address: '서울시 종로구 종로 140',
+    city: '서울', district: '종로구', dong: '종로동',
     coordinate: { latitude: 37.5703, longitude: 126.9907 },
     phoneNumber: '02-8901-2345',
     images: [
@@ -254,6 +262,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '마포 스트롱짐',
     description: '합정역 근처 파워리프팅과 역도 전문 짐.',
     address: '서울시 마포구 합정동 413',
+    city: '서울', district: '마포구', dong: '합정동',
     coordinate: { latitude: 37.5498, longitude: 126.9143 },
     phoneNumber: '02-9012-3456',
     images: ['https://picsum.photos/seed/gym9a/800/400'],
@@ -281,6 +290,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '선릉 엘리트 피트니스',
     description: '선릉역 2번 출구 바로 앞. 직장인 특화 이른 아침/늦은 저녁 운영.',
     address: '서울시 강남구 선릉로 428',
+    city: '서울', district: '강남구', dong: '대치동',
     coordinate: { latitude: 37.5047, longitude: 127.0495 },
     phoneNumber: '02-0123-4567',
     images: [
@@ -314,6 +324,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '해운대 피트니스 클럽',
     description: '해운대 해수욕장 인근 최고급 피트니스. 바다 전망과 함께 운동하세요.',
     address: '부산시 해운대구 해운대해변로 264',
+    city: '부산', district: '해운대구', dong: '해운대동',
     coordinate: { latitude: 35.1628, longitude: 129.1635 },
     phoneNumber: '051-1234-5678',
     images: [
@@ -346,6 +357,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '서면 스포츠센터',
     description: '부산 최대 번화가 서면 중심. 24시간 운영으로 언제든 방문 가능합니다.',
     address: '부산시 부산진구 서면로 68',
+    city: '부산', district: '부산진구', dong: '부전동',
     coordinate: { latitude: 35.1557, longitude: 129.0591 },
     phoneNumber: '051-2345-6789',
     images: [
@@ -376,6 +388,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '광안리 크로스핏 박스',
     description: '광안대교가 보이는 루프탑 크로스핏 전문 짐. 강도 높은 훈련의 성지.',
     address: '부산시 수영구 광안해변로 219',
+    city: '부산', district: '수영구', dong: '광안동',
     coordinate: { latitude: 35.1538, longitude: 129.1187 },
     phoneNumber: '051-3456-7890',
     images: [
@@ -406,6 +419,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '남포 프리미엄 피트니스',
     description: '남포동 쇼핑가 한복판. 쇼핑 전후로 가볍게 들를 수 있는 도심 피트니스.',
     address: '부산시 중구 광복로 53',
+    city: '부산', district: '중구', dong: '중앙동',
     coordinate: { latitude: 35.0975, longitude: 129.0283 },
     phoneNumber: '051-4567-8901',
     images: [
@@ -437,6 +451,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '동래 파워짐',
     description: '동래 온천 관광지 인근. 운동 후 온천욕으로 피로를 풀어보세요.',
     address: '부산시 동래구 온천장로 128',
+    city: '부산', district: '동래구', dong: '온천동',
     coordinate: { latitude: 35.2047, longitude: 129.0839 },
     phoneNumber: '051-5678-9012',
     images: ['https://picsum.photos/seed/gym15a/800/400'],
@@ -463,6 +478,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '센텀 바디앤마인드',
     description: '센텀시티 신세계 인근 요가·필라테스 전문 스튜디오. 바른 몸 만들기의 시작.',
     address: '부산시 해운대구 센텀중앙로 55',
+    city: '부산', district: '해운대구', dong: '우동',
     coordinate: { latitude: 35.1690, longitude: 129.1298 },
     phoneNumber: '051-6789-0123',
     images: [
@@ -493,6 +509,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '연제 스트롱짐',
     description: '부산시청 인근 파워리프팅 & 보디빌딩 전문 짐. 진지한 트레이너들의 공간.',
     address: '부산시 연제구 연제로 2',
+    city: '부산', district: '연제구', dong: '연산동',
     coordinate: { latitude: 35.1807, longitude: 129.0785 },
     phoneNumber: '051-7890-1234',
     images: ['https://picsum.photos/seed/gym17a/800/400'],
@@ -520,6 +537,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '사직 엘리트 피트니스',
     description: '사직 야구장 바로 옆. 스포츠 선수부터 일반인까지 모든 레벨을 위한 공간.',
     address: '부산시 동래구 사직로 45',
+    city: '부산', district: '동래구', dong: '사직동',
     coordinate: { latitude: 35.1979, longitude: 129.0605 },
     phoneNumber: '051-8901-2345',
     images: [
@@ -551,6 +569,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '기장 스포렉스',
     description: '기장 해안도로 인근 자연친화적 스포츠센터. 수영장·스쿼시 포함 종합 시설.',
     address: '부산시 기장군 기장읍 기장대로 533',
+    city: '부산', district: '기장군', dong: '기장읍',
     coordinate: { latitude: 35.2445, longitude: 129.2223 },
     phoneNumber: '051-9012-3456',
     images: [
@@ -581,6 +600,7 @@ export const MOCK_GYMS: Gym[] = [
     name: '사하 파워핏',
     description: '을숙도 가는 길목 사하구 대표 헬스장. 넓은 주차장과 합리적인 가격.',
     address: '부산시 사하구 낙동대로 398',
+    city: '부산', district: '사하구', dong: '하단동',
     coordinate: { latitude: 35.1049, longitude: 128.9745 },
     phoneNumber: '051-0123-4567',
     images: [
@@ -605,5 +625,231 @@ export const MOCK_GYMS: Gym[] = [
       '주차장 2시간 무료 이용 (이후 유료)',
       '음식물 반입 금지 (물 제외)',
     ],
+  },
+
+  // ── 경기 ──────────────────────────────────────────────
+  {
+    id: 'gym_021', name: '수원 영통 피트니스', description: '수원 영통구 대표 피트니스. 넓은 공간과 최신 기구.',
+    address: '경기도 수원시 영통구 영통로 77', city: '경기', district: '수원시', dong: '영통구',
+    coordinate: { latitude: 37.2636, longitude: 127.0286 }, phoneNumber: '031-1111-2222',
+    images: ['https://picsum.photos/seed/gym21a/800/400', 'https://picsum.photos/seed/gym21b/800/400'],
+    facilities: ['샤워실', '주차장', '락커룸'], operatingHours: makeHours(3),
+    pricing: [{ sessionType: 'single', facilityFee: 10000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 85000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.2, reviewCount: 64, isPartner: true, adminUserId: 'admin_021',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '기구 사용 후 소독 및 원위치 정리'],
+  },
+  {
+    id: 'gym_022', name: '분당 스포츠센터', description: '성남 분당 판교 인근 프리미엄 피트니스.',
+    address: '경기도 성남시 분당구 판교역로 235', city: '경기', district: '성남시', dong: '분당구',
+    coordinate: { latitude: 37.3948, longitude: 127.1107 }, phoneNumber: '031-2222-3333',
+    images: ['https://picsum.photos/seed/gym22a/800/400', 'https://picsum.photos/seed/gym22b/800/400'],
+    facilities: ['샤워실', '주차장', '락커룸', '사우나'], operatingHours: makeHours(3),
+    pricing: [{ sessionType: 'single', facilityFee: 13000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 110000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.4, reviewCount: 98, isPartner: true, adminUserId: 'admin_022',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '기구 사용 후 소독 필수'],
+  },
+
+  // ── 인천 ──────────────────────────────────────────────
+  {
+    id: 'gym_023', name: '송도 피트니스', description: '인천 송도국제도시 스마트 피트니스 센터.',
+    address: '인천시 연수구 송도국제대로 123', city: '인천', district: '연수구', dong: '송도동',
+    coordinate: { latitude: 37.3940, longitude: 126.6330 }, phoneNumber: '032-1111-2222',
+    images: ['https://picsum.photos/seed/gym23a/800/400', 'https://picsum.photos/seed/gym23b/800/400'],
+    facilities: ['샤워실', '주차장', '락커룸', '사우나', '카페테리아'], operatingHours: makeHours(4),
+    pricing: [{ sessionType: 'single', facilityFee: 14000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 115000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.5, reviewCount: 112, isPartner: true, adminUserId: 'admin_023',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '기구 사용 후 소독 필수'],
+  },
+  {
+    id: 'gym_024', name: '부평 스포츠센터', description: '부평역 인근 대형 복합 스포츠센터.',
+    address: '인천시 부평구 부평대로 168', city: '인천', district: '부평구', dong: '부평동',
+    coordinate: { latitude: 37.5074, longitude: 126.7218 }, phoneNumber: '032-2222-3333',
+    images: ['https://picsum.photos/seed/gym24a/800/400'],
+    facilities: ['샤워실', '락커룸', '주차장'], operatingHours: makeHours(2),
+    pricing: [{ sessionType: 'single', facilityFee: 9000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 78000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.1, reviewCount: 57, isPartner: true, adminUserId: 'admin_024',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '기구 독점 30분 이내'],
+  },
+
+  // ── 대구 ──────────────────────────────────────────────
+  {
+    id: 'gym_025', name: '범어 피트니스', description: '대구 수성구 범어동 프리미엄 헬스클럽.',
+    address: '대구시 수성구 달구벌대로 2440', city: '대구', district: '수성구', dong: '범어동',
+    coordinate: { latitude: 35.8587, longitude: 128.6312 }, phoneNumber: '053-1111-2222',
+    images: ['https://picsum.photos/seed/gym25a/800/400', 'https://picsum.photos/seed/gym25b/800/400'],
+    facilities: ['샤워실', '주차장', '락커룸', '사우나'], operatingHours: makeHours(3),
+    pricing: [{ sessionType: 'single', facilityFee: 11000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 90000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.3, reviewCount: 76, isPartner: true, adminUserId: 'admin_025',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '기구 사용 후 소독 필수'],
+  },
+  {
+    id: 'gym_026', name: '달서 스포츠센터', description: '대구 달서구 두류공원 인근 생활 스포츠센터.',
+    address: '대구시 달서구 달구벌대로 1600', city: '대구', district: '달서구', dong: '성당동',
+    coordinate: { latitude: 35.8420, longitude: 128.5280 }, phoneNumber: '053-2222-3333',
+    images: ['https://picsum.photos/seed/gym26a/800/400'],
+    facilities: ['샤워실', '락커룸'], operatingHours: makeHours(2),
+    pricing: [{ sessionType: 'single', facilityFee: 8000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 68000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.0, reviewCount: 43, isPartner: false, adminUserId: 'admin_026',
+    usageRules: ['운동복 및 실내 운동화 착용 필수'],
+  },
+
+  // ── 대전 ──────────────────────────────────────────────
+  {
+    id: 'gym_027', name: '봉명 피트니스', description: '유성구 충남대 인근 대학가 피트니스.',
+    address: '대전시 유성구 대학로 99', city: '대전', district: '유성구', dong: '봉명동',
+    coordinate: { latitude: 36.3624, longitude: 127.3562 }, phoneNumber: '042-1111-2222',
+    images: ['https://picsum.photos/seed/gym27a/800/400', 'https://picsum.photos/seed/gym27b/800/400'],
+    facilities: ['샤워실', '락커룸', '주차장'], operatingHours: makeHours(3),
+    pricing: [{ sessionType: 'single', facilityFee: 9000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 77000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.2, reviewCount: 58, isPartner: true, adminUserId: 'admin_027',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '기구 사용 후 소독 필수'],
+  },
+  {
+    id: 'gym_028', name: '둔산 스포츠센터', description: '대전 둔산 신도심 중심부 프리미엄 피트니스.',
+    address: '대전시 서구 둔산로 100', city: '대전', district: '서구', dong: '둔산동',
+    coordinate: { latitude: 36.3504, longitude: 127.3845 }, phoneNumber: '042-2222-3333',
+    images: ['https://picsum.photos/seed/gym28a/800/400', 'https://picsum.photos/seed/gym28b/800/400'],
+    facilities: ['샤워실', '주차장', '락커룸', '사우나'], operatingHours: makeHours(3),
+    pricing: [{ sessionType: 'single', facilityFee: 12000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 100000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.4, reviewCount: 89, isPartner: true, adminUserId: 'admin_028',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '사우나 이용 시 수건 착용 필수'],
+  },
+
+  // ── 광주 ──────────────────────────────────────────────
+  {
+    id: 'gym_029', name: '첨단 피트니스', description: '광주 첨단 과학단지 인근 현대식 피트니스.',
+    address: '광주시 광산구 첨단과기로 208', city: '광주', district: '광산구', dong: '첨단동',
+    coordinate: { latitude: 35.2206, longitude: 126.8423 }, phoneNumber: '062-1111-2222',
+    images: ['https://picsum.photos/seed/gym29a/800/400', 'https://picsum.photos/seed/gym29b/800/400'],
+    facilities: ['샤워실', '주차장', '락커룸'], operatingHours: makeHours(3),
+    pricing: [{ sessionType: 'single', facilityFee: 9000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 75000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.2, reviewCount: 52, isPartner: true, adminUserId: 'admin_029',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '기구 사용 후 소독 필수'],
+  },
+  {
+    id: 'gym_030', name: '상무 스포츠센터', description: '광주 상무지구 중심 종합 스포츠센터.',
+    address: '광주시 서구 상무대로 916', city: '광주', district: '서구', dong: '상무동',
+    coordinate: { latitude: 35.1513, longitude: 126.8517 }, phoneNumber: '062-2222-3333',
+    images: ['https://picsum.photos/seed/gym30a/800/400'],
+    facilities: ['샤워실', '락커룸', '요가스튜디오'], operatingHours: makeHours(2),
+    pricing: [{ sessionType: 'single', facilityFee: 10000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 83000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.1, reviewCount: 39, isPartner: false, adminUserId: 'admin_030',
+    usageRules: ['운동복 및 실내 운동화 착용 필수'],
+  },
+
+  // ── 울산 ──────────────────────────────────────────────
+  {
+    id: 'gym_031', name: '삼산 피트니스', description: '울산 삼산동 롯데백화점 인근 대형 피트니스.',
+    address: '울산시 남구 삼산로 261', city: '울산', district: '남구', dong: '삼산동',
+    coordinate: { latitude: 35.5384, longitude: 129.3114 }, phoneNumber: '052-1111-2222',
+    images: ['https://picsum.photos/seed/gym31a/800/400', 'https://picsum.photos/seed/gym31b/800/400'],
+    facilities: ['샤워실', '주차장', '락커룸', '사우나'], operatingHours: makeHours(3),
+    pricing: [{ sessionType: 'single', facilityFee: 11000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 92000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.3, reviewCount: 71, isPartner: true, adminUserId: 'admin_031',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '기구 사용 후 소독 필수'],
+  },
+  {
+    id: 'gym_032', name: '달동 스포츠짐', description: '울산 남구 달동 파워리프팅 전문 짐.',
+    address: '울산시 남구 달삼로 55', city: '울산', district: '남구', dong: '달동',
+    coordinate: { latitude: 35.5280, longitude: 129.3234 }, phoneNumber: '052-2222-3333',
+    images: ['https://picsum.photos/seed/gym32a/800/400'],
+    facilities: ['샤워실', '락커룸'], operatingHours: makeHours(2),
+    pricing: [{ sessionType: 'single', facilityFee: 8000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 68000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.0, reviewCount: 33, isPartner: false, adminUserId: 'admin_032',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '바 리프팅 시 칼라 착용 필수'],
+  },
+
+  // ── 강원 ──────────────────────────────────────────────
+  {
+    id: 'gym_033', name: '춘천 피트니스', description: '강원도 춘천 중심부 쾌적한 피트니스 센터.',
+    address: '강원도 춘천시 중앙로 50', city: '강원', district: '춘천시', dong: '석사동',
+    coordinate: { latitude: 37.8813, longitude: 127.7300 }, phoneNumber: '033-1111-2222',
+    images: ['https://picsum.photos/seed/gym33a/800/400', 'https://picsum.photos/seed/gym33b/800/400'],
+    facilities: ['샤워실', '주차장', '락커룸'], operatingHours: makeHours(2),
+    pricing: [{ sessionType: 'single', facilityFee: 8000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 68000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.1, reviewCount: 45, isPartner: true, adminUserId: 'admin_033',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '기구 사용 후 정리 필수'],
+  },
+  {
+    id: 'gym_034', name: '원주 스포츠센터', description: '원주 혁신도시 인근 복합 스포츠센터.',
+    address: '강원도 원주시 봉화로 68', city: '강원', district: '원주시', dong: '단구동',
+    coordinate: { latitude: 37.3422, longitude: 127.9202 }, phoneNumber: '033-2222-3333',
+    images: ['https://picsum.photos/seed/gym34a/800/400'],
+    facilities: ['샤워실', '락커룸', '주차장'], operatingHours: makeHours(2),
+    pricing: [{ sessionType: 'single', facilityFee: 9000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 75000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.0, reviewCount: 38, isPartner: false, adminUserId: 'admin_034',
+    usageRules: ['운동복 및 실내 운동화 착용 필수'],
+  },
+
+  // ── 충북 ──────────────────────────────────────────────
+  {
+    id: 'gym_035', name: '청주 서원 피트니스', description: '청주 충북대 인근 대학가 피트니스.',
+    address: '충북 청주시 서원구 충대로 1', city: '충북', district: '청주시', dong: '서원구',
+    coordinate: { latitude: 36.6278, longitude: 127.4568 }, phoneNumber: '043-1111-2222',
+    images: ['https://picsum.photos/seed/gym35a/800/400', 'https://picsum.photos/seed/gym35b/800/400'],
+    facilities: ['샤워실', '락커룸', '주차장'], operatingHours: makeHours(3),
+    pricing: [{ sessionType: 'single', facilityFee: 8000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 68000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.1, reviewCount: 47, isPartner: true, adminUserId: 'admin_035',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '기구 사용 후 소독 필수'],
+  },
+
+  // ── 충남 ──────────────────────────────────────────────
+  {
+    id: 'gym_036', name: '천안 피트니스', description: '충남 천안 신도심 대형 피트니스 클럽.',
+    address: '충남 천안시 동남구 신부동로 32', city: '충남', district: '천안시', dong: '동남구',
+    coordinate: { latitude: 36.8151, longitude: 127.1139 }, phoneNumber: '041-1111-2222',
+    images: ['https://picsum.photos/seed/gym36a/800/400', 'https://picsum.photos/seed/gym36b/800/400'],
+    facilities: ['샤워실', '주차장', '락커룸', '사우나'], operatingHours: makeHours(3),
+    pricing: [{ sessionType: 'single', facilityFee: 10000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 82000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.2, reviewCount: 63, isPartner: true, adminUserId: 'admin_036',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '기구 사용 후 소독 필수'],
+  },
+
+  // ── 세종 ──────────────────────────────────────────────
+  {
+    id: 'gym_037', name: '세종 피트니스', description: '세종시 행정중심복합도시 어진동 프리미엄 피트니스.',
+    address: '세종시 한누리대로 2150', city: '세종', district: '세종시', dong: '어진동',
+    coordinate: { latitude: 36.4800, longitude: 127.2890 }, phoneNumber: '044-1111-2222',
+    images: ['https://picsum.photos/seed/gym37a/800/400', 'https://picsum.photos/seed/gym37b/800/400'],
+    facilities: ['샤워실', '주차장', '락커룸', '사우나'], operatingHours: makeHours(3),
+    pricing: [{ sessionType: 'single', facilityFee: 12000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 98000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.3, reviewCount: 55, isPartner: true, adminUserId: 'admin_037',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '기구 사용 후 소독 필수'],
+  },
+
+  // ── 전남 ──────────────────────────────────────────────
+  {
+    id: 'gym_038', name: '순천 피트니스', description: '전남 순천만 생태도시 조례동 스포츠센터.',
+    address: '전남 순천시 중앙로 255', city: '전남', district: '순천시', dong: '조례동',
+    coordinate: { latitude: 34.9506, longitude: 127.4876 }, phoneNumber: '061-1111-2222',
+    images: ['https://picsum.photos/seed/gym38a/800/400'],
+    facilities: ['샤워실', '주차장', '락커룸'], operatingHours: makeHours(2),
+    pricing: [{ sessionType: 'single', facilityFee: 7000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 60000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.0, reviewCount: 31, isPartner: false, adminUserId: 'admin_038',
+    usageRules: ['운동복 및 실내 운동화 착용 필수'],
+  },
+
+  // ── 전북 ──────────────────────────────────────────────
+  {
+    id: 'gym_039', name: '전주 피트니스', description: '전북 전주 한옥마을 인근 도심 피트니스.',
+    address: '전북 전주시 완산구 전주객사3길 22', city: '전북', district: '전주시', dong: '완산구',
+    coordinate: { latitude: 35.8242, longitude: 127.1480 }, phoneNumber: '063-1111-2222',
+    images: ['https://picsum.photos/seed/gym39a/800/400', 'https://picsum.photos/seed/gym39b/800/400'],
+    facilities: ['샤워실', '락커룸', '주차장'], operatingHours: makeHours(2),
+    pricing: [{ sessionType: 'single', facilityFee: 8000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 67000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.1, reviewCount: 42, isPartner: true, adminUserId: 'admin_039',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '기구 사용 후 소독 필수'],
+  },
+
+  // ── 제주 ──────────────────────────────────────────────
+  {
+    id: 'gym_040', name: '제주 피트니스', description: '제주시 노형동 중심가 오션뷰 피트니스.',
+    address: '제주시 노형로 323', city: '제주', district: '제주시', dong: '노형동',
+    coordinate: { latitude: 33.4912, longitude: 126.4891 }, phoneNumber: '064-1111-2222',
+    images: ['https://picsum.photos/seed/gym40a/800/400', 'https://picsum.photos/seed/gym40b/800/400'],
+    facilities: ['샤워실', '주차장', '락커룸', '사우나'], operatingHours: makeHours(3),
+    pricing: [{ sessionType: 'single', facilityFee: 12000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 100000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.4, reviewCount: 86, isPartner: true, adminUserId: 'admin_040',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '기구 사용 후 소독 필수'],
   },
 ];

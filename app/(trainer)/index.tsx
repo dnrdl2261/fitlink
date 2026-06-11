@@ -1,353 +1,384 @@
-import React, { useState } from 'react';
+import React, { useMemo, useRef } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
+  View, Text, ScrollView, StyleSheet,
+  TouchableOpacity, SafeAreaView, Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useScrollToTop } from '@react-navigation/native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useBookingStore } from '../../store/bookingStore';
-import { useGymSlotStore } from '../../store/gymSlotStore';
-import { MOCK_TRAINERS } from '../../data/trainers';
-import { formatPrice, formatDate, formatTime } from '../../utils/formatters';
-import { COLORS, BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '../../utils/constants';
+import { useReviewStore } from '../../store/reviewStore';
+import { formatPrice, formatTime } from '../../utils/formatters';
 
-const TRAINER_ID = 'trainer_001';
-const THIS_MONTH = '2026-04';
+const D = {
+  bg:          '#EEF2F9',
+  surface:     '#FFFFFF',
+  primary:     '#4F63F5',
+  primaryGlow: 'rgba(79,99,245,0.12)',
+  text:        '#0F172A',
+  textSec:     '#64748B',
+  textMuted:   '#94A3B8',
+  border:      '#E2E8F0',
+  success:     '#10B981',
+  error:       '#EF4444',
+  amber:       '#F59E0B',
+  amberPale:   'rgba(245,158,11,0.10)',
+};
 
-type Tab = 'today' | 'earnings' | 'rating';
+const TODAY = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
+const MONTH_PREFIX = TODAY.slice(0, 7);
 
-export default function TrainerDashboard() {
+const MINI_BARS = [
+  { label: '12월', amount: 4000000 },
+  { label: '1월',  amount: 3200000 },
+  { label: '2월',  amount: 3700000 },
+  { label: '3월',  amount: 4100000 },
+  { label: '4월',  amount: 3900000 },
+  { label: '5월',  amount: 4350000 },
+];
+
+export default function TrainerDashboardScreen() {
   const router = useRouter();
-  const { logout } = useAuthStore();
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollToTop(scrollRef);
+  const { trainer } = useAuthStore();
   const { bookings } = useBookingStore();
-  const slotBookings = useGymSlotStore((s) => s.slotBookings);
+  const allReviews = useReviewStore((s) => s.reviews);
+  const trainerId = trainer?.id ?? '';
 
-  const [activeTab, setActiveTab] = useState<Tab>('today');
+  const stats = useMemo(() => {
+    const myBookings = bookings.filter((b) => b.trainerId === trainerId);
 
-  const trainer = MOCK_TRAINERS.find((t) => t.id === TRAINER_ID)!;
-  const today = new Date().toISOString().split('T')[0];
+    const todayScheduled = myBookings.flatMap((b) =>
+      b.sessions.filter((s) => s.date === TODAY && s.status === 'scheduled')
+    );
+    const totalHours = todayScheduled.length; // 1h per session assumed
 
-  // 오늘 세션
-  const todaySessions = bookings
-    .filter((b) => b.trainerId === TRAINER_ID && b.sessionDate === today)
-    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+    const activeMembers = new Set(
+      myBookings.filter((b) => b.status === 'active').map((b) => b.memberId)
+    ).size;
 
-  const todayConfirmedSlots = slotBookings
-    .filter((b) => b.trainerId === TRAINER_ID && b.date === today && b.status === 'confirmed')
-    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+    const todayEarnings = myBookings.reduce((sum, b) => {
+      const done = b.sessions.filter((s) => s.date === TODAY && s.status === 'completed');
+      return sum + done.length * Math.round(b.pricePerSession * 0.9);
+    }, 0);
 
-  const todayTotal = todaySessions.length + todayConfirmedSlots.length;
+    const upcoming = myBookings
+      .flatMap((b) =>
+        b.sessions
+          .filter((s) => s.status === 'scheduled' && s.date >= TODAY)
+          .map((s) => ({ ...s, memberName: b.memberName, bookingType: b.type }))
+      )
+      .sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return a.startTime.localeCompare(b.startTime);
+      })
+      .slice(0, 5);
 
-  // 이번 달 수익
-  const completedSessions = bookings.filter(
-    (b) => b.trainerId === TRAINER_ID && b.status === 'completed' && b.sessionDate.startsWith(THIS_MONTH)
+    return { todayCount: todayScheduled.length, totalHours, activeMembers, todayEarnings, upcoming };
+  }, [bookings, trainerId]);
+
+  const recentReviews = useMemo(() =>
+    allReviews
+      .filter((r) => r.trainerId === trainerId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, 3),
+    [allReviews, trainerId]
   );
-  const confirmedSlots = slotBookings.filter(
-    (b) => b.trainerId === TRAINER_ID && b.status === 'confirmed' && b.date.startsWith(THIS_MONTH)
-  );
 
-  const sessionEarnings = completedSessions.reduce((sum, b) => sum + Math.round(b.payment.trainerFee * 0.9), 0);
-  const totalEarnings = sessionEarnings || trainer.monthlyEarnings;
+  const maxBar = Math.max(...MINI_BARS.map((b) => b.amount));
 
-  // 매출 아이템 통합
-  const earningsItems = [
-    ...completedSessions.map((b) => ({
-      id: b.id,
-      date: b.sessionDate,
-      time: b.startTime,
-      label: `${b.memberName} 회원`,
-      detail: b.gymName,
-      amount: Math.round(b.payment.trainerFee * 0.9),
-      type: 'session' as const,
-    })),
-    ...confirmedSlots.map((b) => ({
-      id: b.id,
-      date: b.date,
-      time: b.startTime,
-      label: b.gymName,
-      detail: `회원 ${b.memberCount}명 슬롯`,
-      amount: b.memberCount * trainer.sessionPrice,
-      type: 'slot' as const,
-    })),
-  ].sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return '좋은 아침이에요';
+    if (h < 17) return '좋은 오후예요';
+    return '수고하셨어요';
+  })();
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* 헤더 */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.welcomeText}>안녕하세요 👋</Text>
-          <Text style={styles.trainerName}>{trainer.name} 트레이너님</Text>
-        </View>
-        <TouchableOpacity onPress={() => { logout(); router.replace('/login'); }}>
-          <Text style={styles.logoutText}>로그아웃</Text>
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: D.bg }}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
-      {/* 통계 카드 — 탭 클릭으로 전환 */}
-      <View style={styles.statsGrid}>
-        <TouchableOpacity
-          style={[styles.statCard, { borderTopColor: COLORS.primary }, activeTab === 'today' && styles.statCardActive]}
-          onPress={() => setActiveTab('today')}
-        >
-          <Text style={styles.statEmoji}>📅</Text>
-          <Text style={[styles.statNum, { color: COLORS.primary }]}>{todayTotal}</Text>
-          <Text style={styles.statLabel}>오늘 세션</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.statCard, { borderTopColor: COLORS.secondary }, activeTab === 'earnings' && styles.statCardActive]}
-          onPress={() => setActiveTab('earnings')}
-        >
-          <Text style={styles.statEmoji}>💰</Text>
-          <Text style={[styles.statNum, { color: COLORS.secondary }]}>
-            {Math.round(totalEarnings / 10000)}만
-          </Text>
-          <Text style={styles.statLabel}>이번달 수익</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.statCard, { borderTopColor: COLORS.warning }, activeTab === 'rating' && styles.statCardActive]}
-          onPress={() => setActiveTab('rating')}
-        >
-          <Text style={styles.statEmoji}>⭐</Text>
-          <Text style={[styles.statNum, { color: COLORS.warning }]}>{trainer.rating.toFixed(1)}</Text>
-          <Text style={styles.statLabel}>평점</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* 탭 바 */}
-      <View style={styles.tabBar}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'today' && styles.tabActive]}
-          onPress={() => setActiveTab('today')}
-        >
-          <Text style={[styles.tabText, activeTab === 'today' && styles.tabTextActive]}>오늘 세션</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'earnings' && styles.tabActive]}
-          onPress={() => setActiveTab('earnings')}
-        >
-          <Text style={[styles.tabText, activeTab === 'earnings' && styles.tabTextActive]}>이번달 수익</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'rating' && styles.tabActive]}
-          onPress={() => setActiveTab('rating')}
-        >
-          <Text style={[styles.tabText, activeTab === 'rating' && styles.tabTextActive]}>평점</Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-
-        {/* 오늘 세션 탭 */}
-        {activeTab === 'today' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>오늘 세션 ({todayTotal}개)</Text>
-            {todayTotal === 0 ? (
-              <Text style={styles.emptyText}>오늘 예약된 세션이 없습니다</Text>
-            ) : (
-              <>
-                {todayConfirmedSlots.map((s) => {
-                  const [h, m] = s.startTime.split(':').map(Number);
-                  const endMin = h * 60 + m + 30;
-                  const endTime = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
-                  return (
-                    <View key={s.id} style={styles.sessionRow}>
-                      <View style={[styles.sessionBar, { backgroundColor: COLORS.gym }]} />
-                      <View style={styles.sessionInfo}>
-                        <Text style={styles.sessionTime}>{s.startTime} ~ {endTime}</Text>
-                        <Text style={styles.sessionSub}>{s.gymName} · 회원 {s.memberCount}명</Text>
-                      </View>
-                      <View style={[styles.badge, { backgroundColor: COLORS.gym + '22' }]}>
-                        <Text style={[styles.badgeText, { color: COLORS.gym }]}>슬롯 확정</Text>
-                      </View>
-                    </View>
-                  );
-                })}
-                {todaySessions.map((b) => {
-                  const statusColor = BOOKING_STATUS_COLORS[b.status];
-                  const endHour = parseInt(b.startTime.split(':')[0]) + 1;
-                  const endTime = `${String(endHour).padStart(2, '0')}:00`;
-                  return (
-                    <TouchableOpacity
-                      key={b.id}
-                      style={styles.sessionRow}
-                      onPress={() => router.push(`/booking/${b.id}`)}
-                    >
-                      <View style={[styles.sessionBar, { backgroundColor: statusColor }]} />
-                      <View style={styles.sessionInfo}>
-                        <Text style={styles.sessionTime}>{formatTime(b.startTime)} ~ {formatTime(endTime)}</Text>
-                        <Text style={styles.sessionSub}>{b.memberName} · {b.gymName}</Text>
-                      </View>
-                      <View style={[styles.badge, { backgroundColor: statusColor + '22' }]}>
-                        <Text style={[styles.badgeText, { color: statusColor }]}>
-                          {BOOKING_STATUS_LABELS[b.status]}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </>
-            )}
+        {/* ── 헤더 ── */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.greeting}>{greeting} 👋</Text>
+            <Text style={styles.trainerName}>{trainer?.name ?? '트레이너'} 트레이너님</Text>
           </View>
-        )}
-
-        {/* 이번달 수익 탭 */}
-        {activeTab === 'earnings' && (
-          <View style={styles.section}>
-            <View style={styles.earningsSummary}>
-              <Text style={styles.sectionTitle}>이번달 수익</Text>
-              <Text style={styles.earningsTotal}>{formatPrice(totalEarnings)}</Text>
+          {trainer?.profileImageUrl ? (
+            <Image source={{ uri: trainer.profileImageUrl }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarFallback}>
+              <Text style={styles.avatarText}>{(trainer?.name ?? '?')[0]}</Text>
             </View>
-            {earningsItems.length === 0 ? (
-              <Text style={styles.emptyText}>이번달 수익 내역이 없습니다</Text>
-            ) : (
-              earningsItems.map((item) => (
-                <View key={item.id} style={styles.earningsRow}>
-                  <View style={[
-                    styles.earningsTypeBadge,
-                    { backgroundColor: item.type === 'slot' ? COLORS.gym + '22' : COLORS.primary + '22' },
-                  ]}>
-                    <Text style={[
-                      styles.earningsTypeText,
-                      { color: item.type === 'slot' ? COLORS.gym : COLORS.primary },
-                    ]}>
-                      {item.type === 'slot' ? '슬롯' : '세션'}
+          )}
+        </View>
+
+        {/* ── 오늘 통계 4카드 ── */}
+        <View style={styles.statsGrid}>
+          <TouchableOpacity
+            style={[styles.statCard, { backgroundColor: D.primary }]}
+            onPress={() => router.push('/(trainer)/schedule' as any)}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons name="dumbbell" size={20} color="rgba(255,255,255,0.8)" />
+            <Text style={styles.statValWhite}>{stats.todayCount}</Text>
+            <Text style={styles.statLabelWhite}>오늘 수업</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.statCard, { backgroundColor: D.surface }]}
+            onPress={() => router.push('/(trainer)/schedule' as any)}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons name="clock-outline" size={20} color={D.primary} />
+            <Text style={[styles.statVal, { color: D.text }]}>{stats.totalHours}h</Text>
+            <Text style={styles.statLabelDark}>총 시간</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.statCard, { backgroundColor: D.surface }]}
+            onPress={() => router.push('/(trainer)/members' as any)}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons name="account-group-outline" size={20} color={D.success} />
+            <Text style={[styles.statVal, { color: D.text }]}>{stats.activeMembers}</Text>
+            <Text style={styles.statLabelDark}>회원 관리</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.statCard, { backgroundColor: D.surface }]}
+            onPress={() => router.push('/(trainer)/earnings' as any)}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons name="cash-multiple" size={20} color={D.amber} />
+            <Text style={[styles.statVal, { color: D.text }]}>
+              {stats.todayEarnings > 0 ? `${Math.round(stats.todayEarnings / 10000)}만` : '0원'}
+            </Text>
+            <Text style={styles.statLabelDark}>오늘 수입</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── 이번 달 수익 미니 차트 ── */}
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => router.push('/(trainer)/earnings' as any)}
+          activeOpacity={0.92}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>이번 달 수익</Text>
+            <Text style={styles.earningsAmount}>{formatPrice(4350000)}</Text>
+          </View>
+          <View style={styles.miniChart}>
+            {MINI_BARS.map((bar, i) => {
+              const barH = Math.max((bar.amount / maxBar) * 60, 4);
+              const isLast = i === MINI_BARS.length - 1;
+              return (
+                <View key={bar.label} style={styles.miniBarWrap}>
+                  <View style={styles.miniBarTrack}>
+                    <View style={[styles.miniBar, { height: barH }, isLast && styles.miniBarActive]} />
+                  </View>
+                  <Text style={[styles.miniBarLabel, isLast && styles.miniBarLabelActive]}>
+                    {bar.label}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+          <View style={styles.earningsFooter}>
+            <MaterialCommunityIcons name="trending-up" size={14} color={D.success} />
+            <Text style={styles.earningsGrowth}>지난달 대비 +450,000원</Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* ── 다가오는 세션 ── */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>다가오는 세션</Text>
+            <TouchableOpacity onPress={() => router.push('/(trainer)/schedule' as any)}>
+              <Text style={styles.seeAll}>전체보기</Text>
+            </TouchableOpacity>
+          </View>
+          {stats.upcoming.length === 0 ? (
+            <View style={styles.emptyBox}>
+              <View style={styles.emptyIconBox}>
+                <MaterialCommunityIcons name="calendar-blank-outline" size={28} color={D.textMuted} />
+              </View>
+              <Text style={styles.emptyText}>예정된 세션이 없습니다</Text>
+            </View>
+          ) : (
+            <View style={{ gap: 12 }}>
+              {stats.upcoming.map((s, i) => (
+                <View key={s.id} style={styles.sessionRow}>
+                  <View style={[styles.sessionDot, i === 0 && styles.sessionDotFirst, s.bookingType === 'consultation' && styles.sessionDotConsult]} />
+                  <View style={styles.sessionInfo}>
+                    <View style={styles.sessionNameRow}>
+                      <Text style={styles.sessionMember}>{s.memberName}</Text>
+                      {s.bookingType === 'consultation'
+                        ? <View style={styles.consultChip}><Text style={styles.consultChipText}>무료상담</Text></View>
+                        : <View style={styles.ptChip}><Text style={styles.ptChipText}>PT</Text></View>
+                      }
+                    </View>
+                    <Text style={styles.sessionTime}>
+                      {s.date === TODAY ? '오늘' : s.date.slice(5).replace('-', '/')} · {formatTime(s.startTime)}
                     </Text>
                   </View>
-                  <View style={styles.earningsInfo}>
-                    <Text style={styles.earningsLabel}>{item.label}</Text>
-                    <Text style={styles.earningsDetail}>{item.date}  {item.time}  ·  {item.detail}</Text>
-                  </View>
-                  <Text style={styles.earningsAmount}>+{formatPrice(item.amount)}</Text>
+                  {i === 0 && (
+                    <View style={styles.nextBadge}>
+                      <Text style={styles.nextBadgeText}>다음</Text>
+                    </View>
+                  )}
                 </View>
-              ))
-            )}
-          </View>
-        )}
-
-        {/* 평점 탭 */}
-        {activeTab === 'rating' && (
-          <View style={styles.section}>
-            {/* 평점 요약 */}
-            <View style={styles.ratingHeader}>
-              <View style={styles.ratingBig}>
-                <Text style={styles.ratingScore}>{trainer.rating.toFixed(1)}</Text>
-                <Text style={styles.ratingStars}>
-                  {'★'.repeat(Math.floor(trainer.rating))}{'☆'.repeat(5 - Math.floor(trainer.rating))}
-                </Text>
-                <Text style={styles.ratingCount}>리뷰 {trainer.reviewCount}개</Text>
-              </View>
+              ))}
             </View>
+          )}
+        </View>
 
-            {/* 리뷰 목록 */}
-            <Text style={styles.sectionTitle}>최근 리뷰</Text>
-            {trainer.reviews.map((r) => (
-              <View key={r.id} style={styles.reviewCard}>
-                <View style={styles.reviewTop}>
-                  <Text style={styles.reviewerName}>{r.reviewerName}</Text>
-                  <View style={styles.reviewStarRow}>
-                    <Text style={styles.reviewStars}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</Text>
-                    <Text style={styles.reviewDate}>{r.createdAt}</Text>
-                  </View>
-                </View>
-                <Text style={styles.reviewComment}>{r.comment}</Text>
-              </View>
-            ))}
+        {/* ── 최근 후기 ── */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>최근 후기</Text>
+            <View style={styles.ratingBadge}>
+              <MaterialCommunityIcons name="star" size={12} color={D.amber} />
+              <Text style={styles.ratingText}>{trainer?.rating?.toFixed(1) ?? '5.0'}</Text>
+            </View>
           </View>
-        )}
+          {recentReviews.length === 0 ? (
+            <View style={styles.emptyBox}>
+              <View style={styles.emptyIconBox}>
+                <MaterialCommunityIcons name="star-outline" size={28} color={D.textMuted} />
+              </View>
+              <Text style={styles.emptyText}>아직 후기가 없습니다</Text>
+            </View>
+          ) : (
+            <View style={{ gap: 12 }}>
+              {recentReviews.map((r) => (
+                <View key={r.id} style={styles.reviewItem}>
+                  <View style={styles.reviewHeader}>
+                    <View style={styles.reviewStars}>
+                      {Array.from({ length: 5 }).map((_, j) => (
+                        <MaterialCommunityIcons
+                          key={j}
+                          name={j < r.rating ? 'star' : 'star-outline'}
+                          size={13}
+                          color={D.amber}
+                        />
+                      ))}
+                    </View>
+                    <Text style={styles.reviewDate}>{r.createdAt.slice(0, 10)}</Text>
+                  </View>
+                  <Text style={styles.reviewContent} numberOfLines={2}>{r.comment}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
+        <View style={{ height: 20 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  scroll: { padding: 16, gap: 14 },
 
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 20, backgroundColor: COLORS.secondary,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 8,
   },
-  welcomeText: { fontSize: 13, color: 'rgba(255,255,255,0.8)' },
-  trainerName: { fontSize: 22, fontWeight: '800', color: '#fff', marginTop: 2 },
-  logoutText: { fontSize: 13, color: 'rgba(255,255,255,0.7)', textDecorationLine: 'underline' },
+  headerLeft: { flex: 1 },
+  greeting: { fontSize: 13, color: D.textSec, fontWeight: '500' },
+  trainerName: { fontSize: 22, fontWeight: '800', color: D.text, marginTop: 2 },
+  avatar: { width: 48, height: 48, borderRadius: 24 },
+  avatarFallback: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: D.primaryGlow,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarText: { fontSize: 20, fontWeight: '800', color: D.primary },
 
-  statsGrid: { flexDirection: 'row', padding: 16, gap: 10 },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   statCard: {
-    flex: 1, backgroundColor: COLORS.surface, borderRadius: 14,
-    padding: 14, alignItems: 'center', gap: 4,
-    borderTopWidth: 3, borderWidth: 1, borderColor: COLORS.border,
+    flex: 1, minWidth: '45%',
+    borderRadius: 18, padding: 16,
+    alignItems: 'flex-start', gap: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 8, elevation: 3,
   },
-  statCardActive: { borderColor: COLORS.secondary, backgroundColor: COLORS.surfaceElevated },
-  statEmoji: { fontSize: 22 },
-  statNum: { fontSize: 18, fontWeight: '800' },
-  statLabel: { fontSize: 11, color: COLORS.textSecondary },
+  statValWhite: { fontSize: 28, fontWeight: '900', color: '#fff' },
+  statLabelWhite: { fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: '600' },
+  statVal: { fontSize: 28, fontWeight: '900' },
+  statLabelDark: { fontSize: 13, color: D.textSec, fontWeight: '600' },
 
-  tabBar: {
-    flexDirection: 'row', backgroundColor: COLORS.surface,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border, paddingHorizontal: 16,
+  card: {
+    backgroundColor: D.surface, borderRadius: 20,
+    padding: 18, gap: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 10, elevation: 3,
   },
-  tab: {
-    paddingVertical: 14, paddingHorizontal: 4, marginRight: 24,
-    borderBottomWidth: 2, borderBottomColor: 'transparent',
+  cardHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
-  tabActive: { borderBottomColor: COLORS.secondary },
-  tabText: { fontSize: 15, fontWeight: '600', color: COLORS.textSecondary },
-  tabTextActive: { color: COLORS.secondary },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: D.text },
+  seeAll: { fontSize: 13, color: D.primary, fontWeight: '600' },
+  earningsAmount: { fontSize: 20, fontWeight: '800', color: D.primary },
 
-  content: { padding: 16, gap: 12, paddingBottom: 40 },
-  section: {
-    backgroundColor: COLORS.surface, borderRadius: 16,
-    padding: 16, gap: 12, borderWidth: 1, borderColor: COLORS.border,
+  miniChart: {
+    flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around',
+    height: 80,
   },
-  sectionTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text },
-  emptyText: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', paddingVertical: 12 },
+  miniBarWrap: { flex: 1, alignItems: 'center', gap: 4 },
+  miniBarTrack: { height: 60, justifyContent: 'flex-end' },
+  miniBar: { width: 16, borderRadius: 4, backgroundColor: D.primaryGlow },
+  miniBarActive: { backgroundColor: D.primary },
+  miniBarLabel: { fontSize: 10, color: D.textMuted, fontWeight: '500' },
+  miniBarLabelActive: { color: D.primary, fontWeight: '700' },
 
-  // 오늘 세션
-  sessionRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border,
-  },
-  sessionBar: { width: 4, height: 44, borderRadius: 2 },
+  earningsFooter: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  earningsGrowth: { fontSize: 12, color: D.success, fontWeight: '600' },
+
+  sessionRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  sessionDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: D.border },
+  sessionDotFirst: { backgroundColor: D.primary },
+  sessionDotConsult: { backgroundColor: '#0891B2' },
   sessionInfo: { flex: 1 },
-  sessionTime: { fontSize: 15, fontWeight: '700', color: COLORS.text },
-  sessionSub: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  badgeText: { fontSize: 12, fontWeight: '700' },
-
-  // 이번달 수익
-  earningsSummary: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  earningsTotal: { fontSize: 20, fontWeight: '800', color: COLORS.success },
-  earningsRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  sessionNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  sessionMember: { fontSize: 14, fontWeight: '600', color: D.text },
+  sessionTime: { fontSize: 12, color: D.textSec, marginTop: 1 },
+  consultChip: {
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5,
   },
-  earningsTypeBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  earningsTypeText: { fontSize: 11, fontWeight: '700' },
-  earningsInfo: { flex: 1, gap: 2 },
-  earningsLabel: { fontSize: 14, fontWeight: '600', color: COLORS.text },
-  earningsDetail: { fontSize: 11, color: COLORS.textSecondary },
-  earningsAmount: { fontSize: 14, fontWeight: '800', color: COLORS.success },
-
-  // 평점
-  ratingHeader: { alignItems: 'center', paddingVertical: 8 },
-  ratingBig: { alignItems: 'center', gap: 4 },
-  ratingScore: { fontSize: 52, fontWeight: '800', color: COLORS.warning },
-  ratingStars: { fontSize: 24, color: COLORS.warning },
-  ratingCount: { fontSize: 13, color: COLORS.textSecondary },
-  reviewCard: {
-    backgroundColor: COLORS.surfaceElevated, borderRadius: 12,
-    padding: 14, gap: 8,
+  consultChipText: { fontSize: 10, fontWeight: '700', color: '#0891B2' },
+  ptChip: {
+    backgroundColor: D.primaryGlow,
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5,
   },
-  reviewTop: { gap: 4 },
-  reviewerName: { fontSize: 14, fontWeight: '700', color: COLORS.text },
-  reviewStarRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  reviewStars: { fontSize: 14, color: COLORS.warning },
-  reviewDate: { fontSize: 11, color: COLORS.textSecondary },
-  reviewComment: { fontSize: 13, color: COLORS.textSecondary, lineHeight: 20 },
+  ptChipText: { fontSize: 10, fontWeight: '700', color: D.primary },
+  nextBadge: {
+    backgroundColor: D.primaryGlow,
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8,
+  },
+  nextBadgeText: { fontSize: 11, fontWeight: '700', color: D.primary },
+
+  ratingBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: D.amberPale,
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
+  },
+  ratingText: { fontSize: 13, fontWeight: '700', color: D.amber },
+
+  reviewItem: { gap: 4 },
+  reviewHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  reviewStars: { flexDirection: 'row', gap: 1 },
+  reviewDate: { fontSize: 11, color: D.textMuted },
+  reviewContent: { fontSize: 13, color: D.textSec, lineHeight: 18 },
+
+  emptyBox:     { alignItems: 'center', paddingVertical: 20, gap: 8 },
+  emptyIconBox: { width: 68, height: 68, borderRadius: 20, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  emptyText:    { fontSize: 13, color: D.textMuted },
 });

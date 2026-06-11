@@ -14,6 +14,7 @@ export interface Member extends BaseUser {
   role: 'member';
   fitnessGoals: string[];
   preferredLocations: string[];
+  address?: { city: string; district: string; dong: string };
 }
 
 export interface GymAdmin extends BaseUser {

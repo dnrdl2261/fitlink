@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,18 @@ import {
   TouchableOpacity,
   FlatList,
   SafeAreaView,
+  Modal,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useGymById } from '../../hooks/useFilteredGyms';
+import { useGymSlotStore } from '../../store/gymSlotStore';
+import { useAuthStore } from '../../store/authStore';
+import { useChatStore } from '../../store/chatStore';
+import { usePartnerStore } from '../../store/partnerStore';
+import { useBookingStore } from '../../store/bookingStore';
+import { useReviewStore } from '../../store/reviewStore';
 import { MOCK_TRAINERS } from '../../data/trainers';
+import { MOCK_GYM_ADMINS } from '../../data/users';
 import { formatDistance } from '../../utils/distance';
 import { formatPrice } from '../../utils/formatters';
 import { COLORS, DAY_LABELS } from '../../utils/constants';
@@ -19,10 +27,56 @@ import StarRating from '../../components/StarRating';
 import TrainerCard from '../../components/TrainerCard';
 
 export default function GymDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
   const router = useRouter();
+  const isTrainer = from === 'trainer';
   const gym = useGymById(id);
   const [activeImg, setActiveImg] = useState(0);
+  const [partnerModal, setPartnerModal] = useState<'hidden' | 'confirm' | 'done' | 'already' | 'pending'>('hidden');
+  const { favoriteGyms, toggleFavorite } = useGymSlotStore();
+  const isFav = gym ? favoriteGyms.includes(gym.id) : false;
+  const { trainer, member } = useAuthStore();
+  const { getOrCreate } = useChatStore();
+  const { applyToGym, isPartner, hasActiveRequest } = usePartnerStore();
+  const { getMyBookings } = useBookingStore();
+  const { getGymReviews, hasReviewedGym } = useReviewStore();
+
+  const isAlreadyPartner = trainer && gym ? isPartner(gym.id, trainer.id, gym.partnerTrainerIds) : false;
+  const isPending = trainer && gym ? hasActiveRequest(gym.id, trainer.id) : false;
+
+  const gymReviews = gym ? getGymReviews(gym.id) : [];
+
+  const hasCompletedBookingAtGym = useMemo(() => {
+    if (!member || !gym) return false;
+    const myBookings = getMyBookings(member.id);
+    return myBookings.some(
+      (b) => b.status === 'completed' && gym.partnerTrainerIds.includes(b.trainerId)
+    );
+  }, [member, gym]);
+
+  const canWriteGymReview = member && hasCompletedBookingAtGym && gym
+    ? !hasReviewedGym(gym.id, member.id)
+    : false;
+
+  const handlePartnerApply = () => {
+    if (!gym) return;
+    if (isAlreadyPartner) { setPartnerModal('already'); return; }
+    if (isPending) { setPartnerModal('pending'); return; }
+    setPartnerModal('confirm');
+  };
+
+  const handleGymChat = () => {
+    if (!trainer || !gym) return;
+    const gymAdmin = MOCK_GYM_ADMINS.find((a) => a.gymId === gym.id);
+    const adminId = gym.adminUserId;
+    const adminName = gymAdmin?.name ?? `${gym.name} 관리자`;
+    const convId = getOrCreate(
+      'trainer-gym',
+      { id: trainer.id, name: trainer.name, role: 'trainer' },
+      { id: adminId, name: adminName, role: 'gym_admin' }
+    );
+    router.push(`/chat/${convId}` as any);
+  };
 
   if (!gym) {
     return (
@@ -42,7 +96,7 @@ export default function GymDetailScreen() {
         {/* 이미지 슬라이더 */}
         <View style={styles.imageContainer}>
           <Image source={{ uri: gym.images[activeImg] }} style={styles.mainImage} />
-          <View style={styles.imageDots}>
+<View style={styles.imageDots}>
             {gym.images.map((_, i) => (
               <TouchableOpacity key={i} onPress={() => setActiveImg(i)}>
                 <View style={[styles.dot, activeImg === i && styles.dotActive]} />
@@ -51,9 +105,18 @@ export default function GymDetailScreen() {
           </View>
           {gym.isPartner && (
             <View style={styles.partnerBadge}>
-              <Text style={styles.partnerText}>FollowFit 파트너</Text>
+              <Text style={styles.partnerText}>FLOWIN 파트너</Text>
             </View>
           )}
+          <TouchableOpacity
+            style={styles.favOverlayBtn}
+            onPress={() => toggleFavorite(gym.id)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={[styles.favOverlayIcon, isFav && styles.favOverlayIconActive]}>
+              {isFav ? '★' : '☆'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* 기본 정보 */}
@@ -138,16 +201,132 @@ export default function GymDetailScreen() {
           </View>
         )}
 
+        {/* 리뷰 섹션 */}
+        <View style={styles.section}>
+          <View style={styles.reviewHeader}>
+            <Text style={styles.sectionTitle}>리뷰 ({gymReviews.length})</Text>
+            {canWriteGymReview && (
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: '/review/gym-write' as any,
+                    params: { gymId: gym.id, gymName: gym.name },
+                  })
+                }
+              >
+                <Text style={styles.reviewWriteBtn}>리뷰 작성</Text>
+              </TouchableOpacity>
+            )}
+            {member && hasCompletedBookingAtGym && !canWriteGymReview && (
+              <Text style={styles.reviewWrittenLabel}>✓ 리뷰 작성 완료</Text>
+            )}
+          </View>
+          {gymReviews.length === 0 ? (
+            <Text style={styles.reviewEmpty}>아직 리뷰가 없습니다.</Text>
+          ) : (
+            gymReviews.map((review) => (
+              <View key={review.id} style={styles.reviewItem}>
+                <View style={styles.reviewItemHeader}>
+                  <Text style={styles.reviewerName}>{review.memberName}</Text>
+                  <Text style={styles.reviewDate}>{review.createdAt}</Text>
+                </View>
+                <View style={styles.reviewStars}>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Text key={s} style={[styles.reviewStar, review.rating >= s && styles.reviewStarActive]}>★</Text>
+                  ))}
+                </View>
+                <Text style={styles.reviewComment}>{review.comment}</Text>
+              </View>
+            ))
+          )}
+        </View>
+
         {/* 예약 버튼 */}
-        <TouchableOpacity
-          style={styles.bookBtn}
-          onPress={() =>
-            router.push({ pathname: '/booking/new', params: { gymId: gym.id, gymName: gym.name } })
-          }
-        >
-          <Text style={styles.bookBtnText}>이 헬스장에서 PT 예약하기</Text>
-        </TouchableOpacity>
+        {isTrainer && (
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.chatBtn} onPress={handleGymChat}>
+              <Text style={styles.chatBtnText}>💬 채팅</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.partnerBtn} onPress={handlePartnerApply}>
+              <Text style={styles.partnerBtnText}>🤝 파트너신청</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.bookBtn}
+              onPress={() =>
+                router.push({ pathname: '/(trainer)/slots', params: { gymId: gym.id } } as any)
+              }
+            >
+              <Text style={styles.bookBtnText}>예약하기</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
+
+      {/* 파트너 신청 모달 */}
+      <Modal visible={partnerModal !== 'hidden'} transparent animationType="fade" onRequestClose={() => setPartnerModal('hidden')}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setPartnerModal('hidden')}>
+          <View style={styles.modalBox}>
+            {partnerModal === 'already' && (
+              <>
+                <Text style={styles.modalEmoji}>🤝</Text>
+                <Text style={styles.modalTitle}>이미 파트너입니다</Text>
+                <Text style={styles.modalBody}>{gym.name}의 파트너 트레이너로{'\n'}이미 등록되어 있습니다.</Text>
+                <TouchableOpacity style={styles.modalSingleBtn} onPress={() => setPartnerModal('hidden')}>
+                  <Text style={styles.modalSingleBtnText}>확인</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {partnerModal === 'pending' && (
+              <>
+                <Text style={styles.modalEmoji}>⏳</Text>
+                <Text style={styles.modalTitle}>신청 검토 중</Text>
+                <Text style={styles.modalBody}>{gym.name}에 이미 파트너 신청을{'\n'}보낸 상태입니다.{'\n\n'}헬스장 관리자의 승인 또는 거절{'\n'}이후에 다시 신청할 수 있습니다.</Text>
+                <TouchableOpacity style={styles.modalSingleBtn} onPress={() => setPartnerModal('hidden')}>
+                  <Text style={styles.modalSingleBtnText}>확인</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {partnerModal === 'confirm' && (
+              <>
+                <Text style={styles.modalEmoji}>🏋️</Text>
+                <Text style={styles.modalTitle}>파트너 신청</Text>
+                <Text style={styles.modalBody}>{gym.name}에 파트너 트레이너로{'\n'}신청하시겠습니까?{'\n\n'}신청 후 헬스장 관리자의 승인이 필요합니다.</Text>
+                <View style={styles.modalBtns}>
+                  <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setPartnerModal('hidden')}>
+                    <Text style={styles.modalCancelText}>취소</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.modalConfirmBtn}
+                    onPress={() => {
+                      if (trainer && gym) {
+                        applyToGym({
+                          gymId: gym.id, gymName: gym.name,
+                          trainerId: trainer.id, trainerName: trainer.name,
+                          trainerTagline: trainer.tagline,
+                          trainerSpecializations: trainer.specializations,
+                        });
+                      }
+                      setPartnerModal('done');
+                    }}
+                  >
+                    <Text style={styles.modalConfirmText}>신청하기</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+            {partnerModal === 'done' && (
+              <>
+                <Text style={styles.modalEmoji}>✅</Text>
+                <Text style={styles.modalTitle}>신청 완료</Text>
+                <Text style={styles.modalBody}>파트너 신청이 접수되었습니다.{'\n'}헬스장에서 검토 후 연락드립니다.</Text>
+                <TouchableOpacity style={styles.modalSingleBtn} onPress={() => setPartnerModal('hidden')}>
+                  <Text style={styles.modalSingleBtnText}>확인</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -189,6 +368,19 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   partnerText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  favOverlayBtn: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  favOverlayIcon: { fontSize: 22, color: 'rgba(255,255,255,0.85)' },
+  favOverlayIconActive: { color: '#FFD700' },
   section: {
     backgroundColor: COLORS.surface,
     margin: 12,
@@ -241,17 +433,90 @@ const styles = StyleSheet.create({
   ruleItem: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
   ruleBullet: { fontSize: 14, color: COLORS.primary, lineHeight: 22, fontWeight: '700' },
   ruleText: { flex: 1, fontSize: 14, color: COLORS.text, lineHeight: 22 },
-  bookBtn: {
-    backgroundColor: COLORS.primary,
-    margin: 16,
-    paddingVertical: 16,
+  actionRow: {
+    flexDirection: 'row', gap: 10,
+    marginHorizontal: 16, marginBottom: 16,
+  },
+  chatBtn: {
+    flex: 1,
+    paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
-    shadowColor: COLORS.primary,
+    borderWidth: 1.5,
+    borderColor: COLORS.secondary,
+  },
+  chatBtnText: { fontSize: 13, fontWeight: '700', color: COLORS.secondary },
+  partnerBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    backgroundColor: COLORS.primaryPale,
+  },
+  partnerBtnText: { fontSize: 13, fontWeight: '700', color: COLORS.secondary },
+  bookBtn: {
+    flex: 1,
+    backgroundColor: COLORS.secondary,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    shadowColor: COLORS.secondary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
-  bookBtnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  bookBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+
+  reviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  reviewWriteBtn: { fontSize: 13, color: COLORS.primary, fontWeight: '600' },
+  reviewWrittenLabel: { fontSize: 13, color: COLORS.textSecondary },
+  reviewEmpty: { fontSize: 14, color: COLORS.textSecondary, paddingVertical: 8 },
+  reviewItem: {
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.borderSubtle,
+    gap: 4,
+  },
+  reviewItemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  reviewerName: { fontSize: 14, fontWeight: '600', color: COLORS.text },
+  reviewDate: { fontSize: 12, color: COLORS.textSecondary },
+  reviewStars: { flexDirection: 'row', gap: 2 },
+  reviewStar: { fontSize: 14, color: COLORS.border },
+  reviewStarActive: { color: '#FFB300' },
+  reviewComment: { fontSize: 13, color: COLORS.text, lineHeight: 20 },
+
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  modalBox: {
+    width: 300, backgroundColor: '#fff', borderRadius: 20,
+    padding: 24, alignItems: 'center', gap: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2, shadowRadius: 20, elevation: 10,
+  },
+  modalEmoji: { fontSize: 40, marginBottom: 4 },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
+  modalBody: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 22 },
+  modalBtns: { flexDirection: 'row', gap: 10, marginTop: 6, width: '100%' },
+  modalCancelBtn: {
+    flex: 1, paddingVertical: 13, borderRadius: 12,
+    alignItems: 'center', borderWidth: 1.5, borderColor: COLORS.border,
+  },
+  modalCancelText: { fontSize: 14, fontWeight: '700', color: COLORS.textSecondary },
+  modalConfirmBtn: {
+    flex: 1, paddingVertical: 13, borderRadius: 12,
+    alignItems: 'center', backgroundColor: COLORS.secondary,
+  },
+  modalConfirmText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  modalSingleBtn: {
+    marginTop: 6, width: '100%', paddingVertical: 13, borderRadius: 12,
+    alignItems: 'center', backgroundColor: COLORS.secondary,
+  },
+  modalSingleBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 });
