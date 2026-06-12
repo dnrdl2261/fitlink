@@ -4,12 +4,13 @@ import {
   Animated, Easing, TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGymSlotStore } from '../../store/gymSlotStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { MOCK_GYM_ADMINS } from '../../data/users';
 import { formatPrice } from '../../utils/formatters';
-import { DAY_LABELS } from '../../utils/constants';
+import { DAY_LABELS, PAY_METHODS } from '../../utils/constants';
 
 const D = {
   bg:          '#F8F9FA',
@@ -26,13 +27,6 @@ const D = {
   amberPale:   'rgba(245,158,11,0.10)',
   error:       '#EF4444',
 };
-
-const PAY_METHODS = [
-  { id: 'card',  label: '신용/체크카드', icon: '💳' },
-  { id: 'kakao', label: '카카오페이',    icon: '💛' },
-  { id: 'naver', label: '네이버페이',    icon: '🟢' },
-  { id: 'toss',  label: '토스',          icon: '💙' },
-];
 
 const MOCK_COUPONS: Record<string, { label: string; discount: number }> = {
   'WELCOME10': { label: '신규 가입 10% 할인', discount: 0.10 },
@@ -481,7 +475,7 @@ export default function GymBookPayScreen() {
                   onPress={() => setPayMethod(m.id)}
                   activeOpacity={0.75}
                 >
-                  <Text style={s.payIcon}>{m.icon}</Text>
+                  <MaterialCommunityIcons name={m.icon as any} size={22} color={payMethod === m.id ? D.primary : D.textMuted} />
                   <Text style={[s.payLabel, payMethod === m.id && s.payLabelActive]}>{m.label}</Text>
                   {payMethod === m.id && (
                     <View style={s.checkBadge}><Text style={s.checkText}>✓</Text></View>
@@ -825,7 +819,6 @@ const s = StyleSheet.create({
   payGrid:        { gap: 10 },
   payMethod:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: D.surface2, borderRadius: 12, padding: 14, borderWidth: 1.5, borderColor: D.border, position: 'relative' },
   payMethodActive:{ borderColor: D.primary, backgroundColor: D.primaryGlow },
-  payIcon:        { fontSize: 24 },
   payLabel:       { fontSize: 14, color: D.textSec, fontWeight: '600', flex: 1 },
   payLabelActive: { color: D.primary },
   checkBadge:     { width: 22, height: 22, borderRadius: 11, backgroundColor: D.primary, alignItems: 'center', justifyContent: 'center' },

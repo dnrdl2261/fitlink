@@ -22,6 +22,7 @@ const ICON_MAP: Record<NotifType, { icon: string; color: string; bg: string }> =
   partner_approved:  { icon: 'handshake', color: COLORS.secondary, bg: COLORS.secondary + '18' },
   partner_rejected:      { icon: 'handshake-off', color: COLORS.error, bg: COLORS.error + '12' },
   partner_invite:        { icon: 'email-plus-outline', color: COLORS.primary, bg: COLORS.primaryPale },
+  partner_request:       { icon: 'account-plus-outline', color: COLORS.secondary, bg: COLORS.secondary + '18' },
   consultation_request:  { icon: 'chat-question-outline', color: '#0891B2', bg: '#E0F2FE' },
 };
 
@@ -63,6 +64,10 @@ function resolveRoute(n: Notification): NotifRoute | null {
       return n.targetRole === 'gym'
         ? { pathname: '/(gym)/trainers', ...(m.trainerId ? { params: { highlight: m.trainerId } } : {}) }
         : { pathname: '/(trainer)/partner-gyms', ...(m.gymId ? { params: { highlight: m.gymId } } : {}) };
+
+    case 'partner_request':
+      // 헬스장이 받는 트레이너 입점 신청 → 트레이너 관리 '신청·초대' 탭
+      return { pathname: '/(gym)/trainers', params: { tab: 'requests', ...(m.trainerId ? { highlight: m.trainerId } : {}) } };
 
     case 'consultation_request':
       return { pathname: '/(trainer)/schedule' };

@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TextInput,
   TouchableOpacity, SafeAreaView, Modal, ScrollView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import TrainerCard from '../../components/TrainerCard';
 import { MOCK_TRAINERS } from '../../data/trainers';
@@ -33,7 +33,13 @@ export default function GymTrainersScreen() {
   const { approve, reject, removePartner, inviteTrainer, cancelRequest } = usePartnerStore();
   const { addNotification } = useNotificationStore();
 
+  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
   const [tab, setTab] = useState<Tab>('partners');
+
+  // 알림(입점 신청)에서 진입 시 '신청·초대' 탭으로 전환
+  useEffect(() => {
+    if (tabParam === 'requests') setTab('requests');
+  }, [tabParam]);
   const [searchQuery, setSearchQuery] = useState('');
   const [inviteModal, setInviteModal] = useState(false);
   const [inviteSearch, setInviteSearch] = useState('');

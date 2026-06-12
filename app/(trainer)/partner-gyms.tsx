@@ -103,9 +103,10 @@ export default function PartnerGymsScreen() {
     const gymAdminId = MOCK_GYM_ADMINS.find((a) => a.gymId === gym.id)?.id ?? '';
     if (gymAdminId) {
       addNotification({
-        type: 'slot_request', targetRole: 'gym', userId: gymAdminId,
+        type: 'partner_request', targetRole: 'gym', userId: gymAdminId,
         title: '파트너 입점 신청이 도착했습니다',
         body: `${trainer.name} 트레이너가 입점을 신청했습니다. 검토 후 승인해주세요.`,
+        meta: { trainerId: trainer.id },
       });
     }
     Alert.alert('신청 완료', `${gym.name}에 입점 신청을 보냈습니다.\n관리자 승인 후 파트너로 등록됩니다.`);

@@ -45,3 +45,12 @@ export const BOOKING_STATUS_COLORS: Record<string, string> = {
 };
 
 export const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+
+// 회원/트레이너 결제 화면 공통 결제수단 (MaterialCommunityIcons 이름)
+export const PAY_METHODS = [
+  { id: 'card',    label: '신용카드',   icon: 'credit-card-outline' },
+  { id: 'kakao',   label: '카카오페이', icon: 'chat-outline' },
+  { id: 'naver',   label: '네이버페이', icon: 'alpha-n-box' },
+  { id: 'toss',    label: '토스',       icon: 'currency-krw' },
+  { id: 'account', label: '계좌이체',   icon: 'bank-outline' },
+];

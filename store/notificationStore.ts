@@ -13,6 +13,7 @@ export type NotifType =
   | 'partner_approved'
   | 'partner_rejected'
   | 'partner_invite'
+  | 'partner_request'
   | 'consultation_request';
 
 export interface Notification {

@@ -11,6 +11,7 @@ import { usePackageStore } from '../../store/packageStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { formatDate, formatTime, formatPrice } from '../../utils/formatters';
+import { PAY_METHODS } from '../../utils/constants';
 
 const D = {
   bg:          '#EEF2F9',
@@ -65,14 +66,6 @@ const SESSION_COUNTS = [
   { count: 20, discount: 0.12, tag: '인기' },
   { count: 30, discount: 0.15, tag: '15% 할인' },
   { count: 40, discount: 0.18, tag: '최대 할인' },
-];
-
-const PAY_METHODS = [
-  { id: 'card',    label: '신용카드',   icon: 'credit-card-outline' },
-  { id: 'kakao',   label: '카카오페이', icon: 'chat-outline' },
-  { id: 'naver',   label: '네이버페이', icon: 'alpha-n-box' },
-  { id: 'toss',    label: '토스',       icon: 'currency-krw' },
-  { id: 'account', label: '계좌이체',   icon: 'bank-outline' },
 ];
 
 const MOCK_COUPONS: Record<string, { label: string; discount: number }> = {
