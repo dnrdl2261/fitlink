@@ -17,7 +17,8 @@ export type NotifType =
   | 'partner_rejected'
   | 'partner_invite'
   | 'partner_request'
-  | 'consultation_request';
+  | 'consultation_request'
+  | 'trainer_proposal';
 
 export interface Notification {
   id: string;

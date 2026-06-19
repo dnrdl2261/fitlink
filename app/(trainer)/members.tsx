@@ -188,14 +188,24 @@ export default function TrainerMembersScreen() {
                       <Text style={styles.memberStatVal}>{formatPrice(m.totalAmount)}</Text>
                     </View>
                   </View>
-                  <TouchableOpacity
-                    style={styles.bookBtn}
-                    onPress={() => { setBookingMember({ memberId: m.memberId, memberName: m.memberName }); setGymPickOpen(true); }}
-                    activeOpacity={0.8}
-                  >
-                    <MaterialCommunityIcons name="calendar-plus" size={13} color="#fff" />
-                    <Text style={styles.bookBtnText}>예약하기</Text>
-                  </TouchableOpacity>
+                  <View style={styles.cardBtnRow}>
+                    <TouchableOpacity
+                      style={[styles.cardBtn, styles.cardBtnGhost]}
+                      onPress={() => router.push({ pathname: '/(trainer)/member-detail', params: { memberId: m.memberId, memberName: m.memberName } } as any)}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialCommunityIcons name="clipboard-text-outline" size={13} color={D.primary} />
+                      <Text style={styles.cardBtnGhostText}>운동 기록</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.cardBtn, styles.cardBtnPrimary]}
+                      onPress={() => { setBookingMember({ memberId: m.memberId, memberName: m.memberName }); setGymPickOpen(true); }}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialCommunityIcons name="calendar-plus" size={13} color="#fff" />
+                      <Text style={styles.bookBtnText}>예약하기</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             );
@@ -319,14 +329,15 @@ const styles = StyleSheet.create({
   memberStatLabel: { fontSize: 11, color: D.textMuted },
   memberStatVal:   { fontSize: 15, fontWeight: '700', color: D.text },
 
-  bookBtn: {
-    alignSelf: 'flex-end',
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: D.primary,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10,
-    marginTop: 4,
-  },
   bookBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  cardBtnRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  cardBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    paddingVertical: 9, borderRadius: 10,
+  },
+  cardBtnPrimary: { backgroundColor: D.primary },
+  cardBtnGhost: { backgroundColor: D.surface, borderWidth: 1.5, borderColor: D.primary },
+  cardBtnGhostText: { fontSize: 12, fontWeight: '700', color: D.primary },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalSheet: {

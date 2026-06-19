@@ -27,6 +27,7 @@ const ICON_MAP: Record<NotifType, { icon: string; color: string; bg: string }> =
   partner_invite:        { icon: 'email-plus-outline', color: COLORS.primary, bg: COLORS.primaryPale },
   partner_request:       { icon: 'account-plus-outline', color: COLORS.secondary, bg: COLORS.secondary + '18' },
   consultation_request:  { icon: 'chat-question-outline', color: '#0891B2', bg: '#E0F2FE' },
+  trainer_proposal:      { icon: 'calendar-heart', color: COLORS.primary, bg: COLORS.primaryPale },
 };
 
 // 알림 종류(+받는 역할)별로 "누르면 이동할 처리 화면"을 결정.
@@ -74,6 +75,10 @@ function resolveRoute(n: Notification): NotifRoute | null {
 
     case 'consultation_request':
       return { pathname: '/(trainer)/schedule' };
+
+    case 'trainer_proposal':
+      // 회원이 받음 → 제안한 트레이너 상세로 이동해 예약 진행
+      return m.trainerId ? { pathname: '/trainer/[id]', params: { id: m.trainerId } } : null;
 
     default:
       return null;

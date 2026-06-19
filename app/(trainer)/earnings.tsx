@@ -9,7 +9,7 @@ import { useBookingStore } from '../../store/bookingStore';
 import { useAuthStore } from '../../store/authStore';
 import { formatPrice, formatDate } from '../../utils/formatters';
 import { COLORS } from '../../utils/constants';
-import { monthlyEarnings, monthTransactions, sessionNet } from '../../utils/earnings';
+import { monthlyEarnings, monthTransactions, sessionNet, nextSettlement } from '../../utils/earnings';
 
 const TRAINER = '#4F63F5';
 
@@ -68,6 +68,8 @@ export default function EarningsScreen() {
     [trainerBookings]
   );
 
+  const settlement = useMemo(() => nextSettlement(trainerBookings), [trainerBookings]);
+
   const chartData = useMemo(() => {
     const n = period === '3m' ? 3 : period === '6m' ? 6 : 12;
     return months.slice(-n);
@@ -118,6 +120,18 @@ export default function EarningsScreen() {
               <Text style={styles.heroStatVal}>10%</Text>
               <Text style={styles.heroStatLabel}>플랫폼 수수료</Text>
             </View>
+          </View>
+        </View>
+
+        {/* ── 다음 정산 예정 ── */}
+        <View style={styles.settleCard}>
+          <View style={styles.settleIcon}>
+            <MaterialCommunityIcons name="bank-outline" size={22} color={TRAINER} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.settleLabel}>다음 정산 예정 · {settlement.dateLabel}</Text>
+            <Text style={styles.settleAmount}>{formatPrice(settlement.amount)}</Text>
+            <Text style={styles.settleSub}>{settlement.monthLabel} 완료 세션 기준 · 매월 10일 자동 입금</Text>
           </View>
         </View>
 
@@ -346,6 +360,23 @@ const styles = StyleSheet.create({
   heroStatVal: { fontSize: 18, fontWeight: '800', color: '#fff' },
   heroStatLabel: { fontSize: 11, color: 'rgba(255,255,255,0.7)' },
   heroStatDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.2)' },
+
+  /* Settlement card */
+  settleCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: COLORS.surface,
+    marginHorizontal: 12, marginTop: 12,
+    borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: TRAINER + '33',
+  },
+  settleIcon: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: TRAINER + '15',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  settleLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textSecondary },
+  settleAmount: { fontSize: 24, fontWeight: '900', color: TRAINER, marginVertical: 2 },
+  settleSub: { fontSize: 11, color: COLORS.textMuted },
 
   /* Accumulated stats row */
   accRow: {

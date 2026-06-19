@@ -44,6 +44,23 @@ export function monthlyEarnings(bookings: Booking[], n: number, now: Date = new 
   return out;
 }
 
+export interface Settlement { dateLabel: string; monthLabel: string; amount: number; }
+
+// 다음 정산 예정: 매월 10일에 '전월' 수익을 지급
+export function nextSettlement(bookings: Booking[], now: Date = new Date()): Settlement {
+  const beforeCutoff = now.getDate() <= 10;
+  // 10일 이전이면 이번 달 10일에 '지난달' 정산, 이후면 다음 달 10일에 '이번 달' 정산
+  const settleDate = new Date(now.getFullYear(), now.getMonth() + (beforeCutoff ? 0 : 1), 10);
+  const targetMonth = new Date(now.getFullYear(), now.getMonth() - (beforeCutoff ? 1 : 0), 1);
+  const targetKey = monthKeyOf(targetMonth);
+  const amount = monthlyEarnings(bookings, 14, now).find((m) => m.key === targetKey)?.amount ?? 0;
+  return {
+    dateLabel: `${settleDate.getMonth() + 1}월 ${settleDate.getDate()}일`,
+    monthLabel: `${targetMonth.getMonth() + 1}월`,
+    amount,
+  };
+}
+
 export interface EarningTx { id: string; date: string; member: string; amount: number; }
 
 // 특정 월('YYYY-MM')에 완료된 세션 단위 결제 내역

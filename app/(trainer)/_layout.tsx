@@ -144,6 +144,7 @@ export default function TrainerLayout() {
       <Tabs.Screen name="package-manage" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="gym-book-pay"   options={{ href: null, headerShown: false, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="my-slot-bookings" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="member-detail"  options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="notifications"  options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="safety"         options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="support"        options={{ href: null, headerShown: false }} />
