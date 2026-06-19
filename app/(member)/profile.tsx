@@ -22,7 +22,8 @@ export default function MemberProfileScreen() {
   const { member, logout } = useAuthStore();
   const { bookings } = useBookingStore();
 
-  const myBookings = bookings.filter((b) => b.memberId === 'member_001');
+  const memberId = member?.id ?? 'member_001';
+  const myBookings = bookings.filter((b) => b.memberId === memberId);
   const completedCount = myBookings.filter((b) => b.status === 'completed').length;
   const totalSpent = myBookings
     .filter((b) => b.status === 'completed')

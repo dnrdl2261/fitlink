@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import BookingCard from '../../components/BookingCard';
 import { useBookingStore } from '../../store/bookingStore';
 import { useReviewStore } from '../../store/reviewStore';
+import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '../../utils/constants';
@@ -71,10 +72,12 @@ export default function BookingsScreen() {
   const router = useRouter();
   const { bookings, cancelBooking, completeSession, rejectCompletion } = useBookingStore();
   const { hasReviewed } = useReviewStore();
+  const { member } = useAuthStore();
   const addNotification = useNotificationStore((s) => s.addNotification);
   const [activeTab, setActiveTab] = useState<TabKey>('active');
 
-  const myBookings = bookings.filter((b) => b.memberId === 'member_001');
+  const memberId = member?.id ?? 'member_001';
+  const myBookings = bookings.filter((b) => b.memberId === memberId);
 
   // 트레이너가 완료 요청한(pending) 세션 — 회원이 직접 확인/이의제기
   const pendingConfirms = myBookings.flatMap((b) =>

@@ -46,6 +46,7 @@ export default function MemberMoreScreen() {
   const scrollRef = useRef<ScrollView>(null);
   useScrollToTop(scrollRef);
   const { member } = useAuthStore();
+  const memberId = member?.id ?? 'member_001';
   const [followModal, setFollowModal] = useState<'followers' | 'following' | null>(null);
 
   const { bookings } = useBookingStore();
@@ -60,7 +61,7 @@ export default function MemberMoreScreen() {
   );
 
   const ptStats = useMemo(() => {
-    const myBookings = bookings.filter(b => b.memberId === 'member_001');
+    const myBookings = bookings.filter(b => b.memberId === memberId);
     const activeBookings = myBookings.filter(b => b.status === 'active');
     const totalRemaining = activeBookings.reduce((s, b) => s + b.remainingSessions, 0);
     const monthDone = myBookings.flatMap(b =>
@@ -74,7 +75,7 @@ export default function MemberMoreScreen() {
       .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
       .slice(0, 2);
     return { activeCount: activeBookings.length, totalRemaining, monthDone, upcoming };
-  }, [bookings]);
+  }, [bookings, memberId]);
 
   const sections: { title: string; items: MenuItem[] }[] = [
     {

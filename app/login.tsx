@@ -21,6 +21,7 @@ import { useAuthStore } from '../store/authStore';
 import { UserRole } from '../types';
 import { OAUTH_CONFIG } from '../config/oauth';
 import { COLORS } from '../utils/constants';
+import OnboardingModal from '../components/OnboardingModal';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -135,6 +136,7 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={s.safe}>
+      <OnboardingModal />
       <KeyboardAvoidingView
         style={s.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

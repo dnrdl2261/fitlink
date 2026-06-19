@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TextInput,
-  TouchableOpacity, SafeAreaView, Modal, Image,
+  TouchableOpacity, SafeAreaView, Modal, Image, ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useScrollToTop } from '@react-navigation/native';
@@ -13,6 +13,8 @@ import { useLocation } from '../../hooks/useLocation';
 import { useLocationStore } from '../../store/locationStore';
 import { useAuthStore } from '../../store/authStore';
 import { useBookingStore } from '../../store/bookingStore';
+import { useFavoriteStore } from '../../store/favoriteStore';
+import { useUiPrefStore } from '../../store/uiPrefStore';
 import { calculateDistance, formatDistance } from '../../utils/distance';
 import { formatPrice, formatTime } from '../../utils/formatters';
 
@@ -33,9 +35,19 @@ const TODAY = (() => { const d = new Date(); return `${d.getFullYear()}-${String
 const QUICK_ACTIONS = [
   { icon: 'calendar-plus',          label: '예약',   route: '/(member)/trainer-list' },
   { icon: 'clipboard-text-outline', label: '내 예약', route: '/(member)/bookings' },
-  { icon: 'message-outline',        label: '채팅',   route: '/(member)/chat' },
   { icon: 'package-variant-closed', label: '패키지', route: '/(member)/my-packages' },
 ] as const;
+
+type PriceKey = 'all' | 'u50' | 'm5080' | 'o80';
+const PRICE_RANGES: { key: PriceKey; label: string; test: (p: number) => boolean }[] = [
+  { key: 'all',   label: '전체',        test: () => true },
+  { key: 'u50',   label: '5만원 이하',  test: (p) => p <= 50000 },
+  { key: 'm5080', label: '5~8만원',     test: (p) => p > 50000 && p <= 80000 },
+  { key: 'o80',   label: '8만원 이상',  test: (p) => p > 80000 },
+];
+
+// 검색창이 비어있을 때 노출하는 추천 검색어
+const RECOMMENDED_KEYWORDS = ['다이어트', '체형교정', '근력향상', '바디프로필', '재활운동'];
 
 type SortType = 'nearby' | 'rating' | 'priceAsc' | 'priceDesc';
 
@@ -81,16 +93,28 @@ export default function MemberHomeScreen() {
   const memberId = member?.id ?? 'member_001';
 
   const [query, setQuery]           = useState('');
-  const [sortBy, setSortBy]         = useState<SortType>('rating');
+  const [sortBy, setSortBy]         = useState<SortType>('nearby');
   const [specFilter, setSpecFilter] = useState<SpecFilter>('전체');
+  const [priceKey, setPriceKey]     = useState<PriceKey>('all');
+  const [favOnly, setFavOnly]       = useState(false);
   const [sortModal, setSortModal]   = useState(false);
   const [specModal, setSpecModal]   = useState(false);
+  const [priceModal, setPriceModal] = useState(false);
+
+  const favoriteIds = useFavoriteStore((s) => s.trainerIds);
+  const toggleFavorite = useFavoriteStore((s) => s.toggle);
+  const { recentSearches, addRecentSearch, clearRecentSearches } = useUiPrefStore();
+
+  const runSearch = (q: string) => {
+    setQuery(q);
+    addRecentSearch(q);
+  };
 
   useLocation();
   const { currentLocation, hasPermission } = useLocationStore();
 
   // ── 내 PT 현황(대시보드) ──
-  const { nextSession, remainingTotal, pendingCount } = useMemo(() => {
+  const { nextSession, pendingCount } = useMemo(() => {
     const mine = bookings.filter((b) => b.memberId === memberId);
     const upcoming = mine
       .filter((b) => b.status === 'active')
@@ -100,11 +124,8 @@ export default function MemberHomeScreen() {
           .map((s) => ({ ...s, trainerName: b.trainerName }))
       )
       .sort((a, b) => (a.date !== b.date ? a.date.localeCompare(b.date) : a.startTime.localeCompare(b.startTime)));
-    const remaining = mine
-      .filter((b) => b.status === 'active' && b.type !== 'consultation')
-      .reduce((sum, b) => sum + b.remainingSessions, 0);
     const pending = mine.reduce((n, b) => n + b.sessions.filter((s) => s.status === 'pending').length, 0);
-    return { nextSession: upcoming[0], remainingTotal: remaining, pendingCount: pending };
+    return { nextSession: upcoming[0], pendingCount: pending };
   }, [bookings, memberId]);
 
   const trainers = useTrainerStore((s) => s.trainers);
@@ -124,8 +145,13 @@ export default function MemberHomeScreen() {
   // ── 검색 + 운동목적별 + 정렬 ──
   const filtered = useMemo(() => {
     let result = [...trainers];
+    if (favOnly)
+      result = result.filter((t) => favoriteIds.includes(t.id));
     if (specFilter !== '전체')
       result = result.filter((t) => t.trainingGoals?.includes(specFilter as any));
+    const priceRange = PRICE_RANGES.find((r) => r.key === priceKey)!;
+    if (priceKey !== 'all')
+      result = result.filter((t) => priceRange.test(t.sessionPrice));
     if (query.trim()) {
       const q = query.toLowerCase();
       result = result.filter(
@@ -139,7 +165,7 @@ export default function MemberHomeScreen() {
     if (sortBy === 'priceAsc')  return result.sort((a, b) => a.sessionPrice - b.sessionPrice);
     if (sortBy === 'priceDesc') return result.sort((a, b) => b.sessionPrice - a.sessionPrice);
     return result.sort((a, b) => b.rating - a.rating);
-  }, [sortBy, specFilter, trainerDistances, hasPermission, query, trainers]);
+  }, [sortBy, specFilter, priceKey, favOnly, favoriteIds, trainerDistances, hasPermission, query, trainers]);
 
   const currentSort = SORT_OPTIONS.find((o) => o.key === sortBy)!;
 
@@ -177,17 +203,6 @@ export default function MemberHomeScreen() {
         ) : (
           <Text style={styles.statusEmpty}>예정된 PT 세션이 없어요. 트레이너를 찾아 예약해보세요.</Text>
         )}
-        <View style={styles.metaRow}>
-          <View style={styles.metaItem}>
-            <Text style={styles.metaVal}>{remainingTotal}회</Text>
-            <Text style={styles.metaLabel}>잔여 세션</Text>
-          </View>
-          <View style={styles.metaDivider} />
-          <View style={styles.metaItem}>
-            <Text style={[styles.metaVal, pendingCount > 0 && { color: D.amber }]}>{pendingCount}건</Text>
-            <Text style={styles.metaLabel}>승인 대기</Text>
-          </View>
-        </View>
         {pendingCount > 0 && (
           <TouchableOpacity
             style={styles.pendingBtn}
@@ -226,6 +241,8 @@ export default function MemberHomeScreen() {
           placeholder="트레이너 이름, 전문 분야, 운동 목표 검색"
           value={query}
           onChangeText={setQuery}
+          onSubmitEditing={() => addRecentSearch(query)}
+          returnKeyType="search"
           placeholderTextColor={D.textMuted}
         />
         {query.length > 0 && (
@@ -235,8 +252,54 @@ export default function MemberHomeScreen() {
         )}
       </View>
 
-      {/* ── 운동목적 / 정렬 버튼 ── */}
-      <View style={styles.sortBar}>
+      {/* ── 추천 / 최근 검색어 (검색창이 비었을 때) ── */}
+      {query.length === 0 && (
+        <View style={styles.suggestWrap}>
+          {recentSearches.length > 0 && (
+            <>
+              <View style={styles.suggestHead}>
+                <Text style={styles.suggestLabel}>최근 검색</Text>
+                <TouchableOpacity onPress={clearRecentSearches} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                  <Text style={styles.suggestClear}>전체삭제</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.chipRow}>
+                {recentSearches.map((k) => (
+                  <TouchableOpacity key={k} style={styles.recentChip} onPress={() => runSearch(k)} activeOpacity={0.75}>
+                    <MaterialCommunityIcons name="history" size={13} color={D.textSec} />
+                    <Text style={styles.recentChipText}>{k}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
+          <Text style={[styles.suggestLabel, { marginTop: recentSearches.length > 0 ? 12 : 0 }]}>추천 검색어</Text>
+          <View style={styles.chipRow}>
+            {RECOMMENDED_KEYWORDS.map((k) => (
+              <TouchableOpacity key={k} style={styles.recommendChip} onPress={() => runSearch(k)} activeOpacity={0.75}>
+                <Text style={styles.recommendChipText}>{k}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* ── 필터 / 정렬 바 (가로 스크롤) ── */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.sortBar}
+        contentContainerStyle={styles.sortBarContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <TouchableOpacity
+          style={[styles.sortBtn, favOnly && styles.sortBtnActive]}
+          onPress={() => setFavOnly((v) => !v)}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name={favOnly ? 'heart' : 'heart-outline'} size={14} color={favOnly ? '#EF4444' : D.textSec} />
+          <Text style={styles.sortBtnText}>찜</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.sortBtn, specFilter !== '전체' && styles.sortBtnActive]}
           onPress={() => setSpecModal(true)}
@@ -246,12 +309,21 @@ export default function MemberHomeScreen() {
           <Text style={styles.sortBtnText}>{specFilter === '전체' ? '운동목적' : specFilter}</Text>
           <MaterialCommunityIcons name="chevron-down" size={14} color={D.textSec} />
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.sortBtn, priceKey !== 'all' && styles.sortBtnActive]}
+          onPress={() => setPriceModal(true)}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="cash" size={14} color={priceKey !== 'all' ? D.primary : D.textSec} />
+          <Text style={styles.sortBtnText}>{priceKey === 'all' ? '가격대' : PRICE_RANGES.find((r) => r.key === priceKey)!.label}</Text>
+          <MaterialCommunityIcons name="chevron-down" size={14} color={D.textSec} />
+        </TouchableOpacity>
         <TouchableOpacity style={styles.sortBtn} onPress={() => setSortModal(true)} activeOpacity={0.7}>
           <MaterialCommunityIcons name="sort" size={14} color={D.primary} />
           <Text style={styles.sortBtnText}>{currentSort.label}</Text>
           <MaterialCommunityIcons name="chevron-down" size={14} color={D.textSec} />
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </View>
   );
 
@@ -265,12 +337,25 @@ export default function MemberHomeScreen() {
         renderItem={({ item }: { item: Trainer }) => {
           const dist  = hasPermission ? trainerDistances[item.id] : undefined;
           const goals = (item.trainingGoals ?? []).slice(0, 2);
+          const fav   = favoriteIds.includes(item.id);
           return (
             <TouchableOpacity
               style={styles.trainerCard}
               onPress={() => router.push(`/trainer/${item.id}` as any)}
               activeOpacity={0.85}
             >
+              <TouchableOpacity
+                style={styles.favBtn}
+                onPress={() => toggleFavorite(item.id)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons
+                  name={fav ? 'heart' : 'heart-outline'}
+                  size={20}
+                  color={fav ? '#EF4444' : D.textMuted}
+                />
+              </TouchableOpacity>
               <Image
                 source={{ uri: item.profileImageUrl ?? `https://picsum.photos/seed/${item.id}/200/200` }}
                 style={styles.trainerPhoto}
@@ -385,6 +470,30 @@ export default function MemberHomeScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* ── 가격대 모달 ── */}
+      <Modal visible={priceModal} animationType="slide" transparent onRequestClose={() => setPriceModal(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setPriceModal(false)}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>가격대 (1회 세션 기준)</Text>
+            {PRICE_RANGES.map((opt) => {
+              const active = priceKey === opt.key;
+              return (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[styles.sortItem, active && styles.sortItemActive]}
+                  onPress={() => { setPriceKey(opt.key); setPriceModal(false); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.sortItemLabel, active && styles.sortItemLabelActive]}>{opt.label}</Text>
+                  {active && <MaterialCommunityIcons name="check" size={20} color={D.primary} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -414,15 +523,6 @@ const styles = StyleSheet.create({
   nextTrainer: { fontSize: 17, fontWeight: '800', color: D.text, marginTop: -4 },
   statusEmpty: { fontSize: 14, color: D.textSec, lineHeight: 20 },
 
-  metaRow: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: D.bg, borderRadius: 14, paddingVertical: 12,
-  },
-  metaItem: { flex: 1, alignItems: 'center', gap: 2 },
-  metaDivider: { width: 1, height: 28, backgroundColor: D.border },
-  metaVal: { fontSize: 18, fontWeight: '900', color: D.primary },
-  metaLabel: { fontSize: 11, color: D.textSec, fontWeight: '600' },
-
   pendingBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: D.amber, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12,
@@ -450,11 +550,27 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 14, color: D.text },
 
-  /* ── 운동목적 / 정렬 바 ── */
-  sortBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginHorizontal: 16, marginTop: 18, paddingBottom: 10,
+  /* ── 추천 / 최근 검색어 ── */
+  suggestWrap: { marginHorizontal: 16, marginTop: 14 },
+  suggestHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  suggestLabel: { fontSize: 12, fontWeight: '700', color: D.textSec, marginBottom: 8 },
+  suggestClear: { fontSize: 12, color: D.textMuted, fontWeight: '600' },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  recentChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 11, paddingVertical: 7, borderRadius: 16,
+    backgroundColor: D.surface, borderWidth: 1, borderColor: D.border,
   },
+  recentChipText: { fontSize: 13, color: D.textSec, fontWeight: '600' },
+  recommendChip: {
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16,
+    backgroundColor: D.primaryGlow,
+  },
+  recommendChipText: { fontSize: 13, color: D.primary, fontWeight: '700' },
+
+  /* ── 필터 / 정렬 바 ── */
+  sortBar: { marginTop: 18, paddingBottom: 10 },
+  sortBarContent: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 },
   sortBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 11, paddingVertical: 6,
@@ -498,13 +614,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.07, shadowRadius: 10, elevation: 3,
   },
   trainerPhoto:    { width: 80, height: 80, borderRadius: 16, backgroundColor: D.border },
+  favBtn:          { position: 'absolute', top: 10, right: 10, zIndex: 2, padding: 2 },
   trainerInfo:     { flex: 1, gap: 5 },
   trainerNameRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
   trainerName:     { fontSize: 16, fontWeight: '800', color: D.text },
   trainerExp:      { fontSize: 11, color: D.textMuted, fontWeight: '500' },
   specRow:         { flexDirection: 'row', gap: 6 },
-  specChip:        { paddingVertical: 3, paddingRight: 4 },
-  specText:        { fontSize: 11, fontWeight: '700', color: D.textSec },
+  specChip:        { backgroundColor: D.primaryGlow, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  specText:        { fontSize: 11, fontWeight: '700', color: D.primary },
   trainerLocation: { fontSize: 11, color: D.textMuted },
   trainerMeta:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   ratingRow:       { flexDirection: 'row', alignItems: 'center', gap: 3 },
