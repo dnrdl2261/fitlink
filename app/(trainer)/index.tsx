@@ -11,13 +11,13 @@ import { useBookingStore } from '../../store/bookingStore';
 import { useReviewStore } from '../../store/reviewStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { formatPrice, formatTime } from '../../utils/formatters';
+import { monthlyEarnings } from '../../utils/earnings';
 
 const QUICK_ACTIONS = [
-  { icon: 'qrcode-scan',            label: 'QR입장', route: '/(trainer)/my-slot-bookings' },
-  { icon: 'calendar-month-outline', label: '일정',   route: '/(trainer)/schedule' },
-  { icon: 'account-group-outline',  label: '회원',   route: '/(trainer)/members' },
-  { icon: 'message-outline',        label: '채팅',   route: '/(trainer)/chat' },
-  { icon: 'dumbbell',               label: '헬스장', route: '/(trainer)/gym-list' },
+  { icon: 'qrcode-scan',            label: 'QR입장',   route: '/(trainer)/my-slot-bookings' },
+  { icon: 'calendar-month-outline', label: '일정',     route: '/(trainer)/schedule' },
+  { icon: 'account-group',          label: '커뮤니티', route: '/(trainer)/community' },
+  { icon: 'dumbbell',               label: '헬스장',   route: '/(trainer)/gym-list' },
 ] as const;
 
 const D = {
@@ -36,16 +36,6 @@ const D = {
 };
 
 const TODAY = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
-const MONTH_PREFIX = TODAY.slice(0, 7);
-
-const MINI_BARS = [
-  { label: '12월', amount: 4000000 },
-  { label: '1월',  amount: 3200000 },
-  { label: '2월',  amount: 3700000 },
-  { label: '3월',  amount: 4100000 },
-  { label: '4월',  amount: 3900000 },
-  { label: '5월',  amount: 4350000 },
-];
 
 export default function TrainerDashboardScreen() {
   const router = useRouter();
@@ -181,7 +171,18 @@ export default function TrainerDashboardScreen() {
     ]);
   };
 
-  const maxBar = Math.max(...MINI_BARS.map((b) => b.amount));
+  // 실제 예약 데이터에서 최근 6개월 수익 산출
+  const earningMonths = useMemo(
+    () => monthlyEarnings(bookings.filter((b) => b.trainerId === trainerId), 6),
+    [bookings, trainerId]
+  );
+  const thisMonth = earningMonths[earningMonths.length - 1];
+  const lastMonth = earningMonths[earningMonths.length - 2];
+  const monthDiff = (thisMonth?.amount ?? 0) - (lastMonth?.amount ?? 0);
+  const growthPct = lastMonth && lastMonth.amount > 0
+    ? Math.round((monthDiff / lastMonth.amount) * 100)
+    : null;
+  const maxBar = Math.max(...earningMonths.map((m) => m.amount), 1);
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -389,19 +390,27 @@ export default function TrainerDashboardScreen() {
           <View style={[styles.cardHeader, { alignItems: 'flex-start' }]}>
             <View>
               <Text style={styles.cardTitle}>이번 달 수익</Text>
-              <Text style={styles.earningsAmount}>{formatPrice(4350000)}</Text>
+              <Text style={styles.earningsAmount}>{formatPrice(thisMonth?.amount ?? 0)}</Text>
             </View>
-            <View style={styles.growthChip}>
-              <MaterialCommunityIcons name="trending-up" size={12} color={D.success} />
-              <Text style={styles.growthChipText}>+11.5%</Text>
-            </View>
+            {growthPct !== null && (
+              <View style={[styles.growthChip, growthPct < 0 && { backgroundColor: '#FEF2F2' }]}>
+                <MaterialCommunityIcons
+                  name={growthPct >= 0 ? 'trending-up' : 'trending-down'}
+                  size={12}
+                  color={growthPct >= 0 ? D.success : D.error}
+                />
+                <Text style={[styles.growthChipText, growthPct < 0 && { color: D.error }]}>
+                  {growthPct >= 0 ? '+' : ''}{growthPct}%
+                </Text>
+              </View>
+            )}
           </View>
           <View style={styles.miniChart}>
-            {MINI_BARS.map((bar, i) => {
+            {earningMonths.map((bar, i) => {
               const barH = Math.max((bar.amount / maxBar) * 64, 4);
-              const isLast = i === MINI_BARS.length - 1;
+              const isLast = i === earningMonths.length - 1;
               return (
-                <View key={bar.label} style={styles.miniBarWrap}>
+                <View key={bar.key} style={styles.miniBarWrap}>
                   <View style={styles.miniValueRow}>
                     {isLast && <Text style={styles.miniBarValue}>{Math.round(bar.amount / 10000)}만</Text>}
                   </View>
@@ -416,8 +425,14 @@ export default function TrainerDashboardScreen() {
             })}
           </View>
           <View style={styles.earningsFooter}>
-            <MaterialCommunityIcons name="trending-up" size={14} color={D.success} />
-            <Text style={styles.earningsGrowth}>지난달 대비 +450,000원</Text>
+            <MaterialCommunityIcons
+              name={monthDiff >= 0 ? 'trending-up' : 'trending-down'}
+              size={14}
+              color={monthDiff >= 0 ? D.success : D.error}
+            />
+            <Text style={[styles.earningsGrowth, monthDiff < 0 && { color: D.error }]}>
+              지난달 대비 {monthDiff >= 0 ? '+' : '-'}{formatPrice(Math.abs(monthDiff))}
+            </Text>
           </View>
         </TouchableOpacity>
 

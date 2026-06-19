@@ -9,6 +9,7 @@ import { useBookingStore } from '../../store/bookingStore';
 import { useAuthStore } from '../../store/authStore';
 import { formatPrice, formatDate } from '../../utils/formatters';
 import { COLORS } from '../../utils/constants';
+import { monthlyEarnings, monthTransactions, sessionNet } from '../../utils/earnings';
 
 const TRAINER = '#4F63F5';
 
@@ -19,38 +20,8 @@ const CHART_PERIODS = [
 ] as const;
 type PeriodKey = typeof CHART_PERIODS[number]['key'];
 
-const MOCK_MONTHLY = [
-  { key: '2025-07', label: '7월', amount: 2400000, sessions: 18 },
-  { key: '2025-08', label: '8월', amount: 3100000, sessions: 24 },
-  { key: '2025-09', label: '9월', amount: 2900000, sessions: 21 },
-  { key: '2025-10', label: '10월', amount: 3500000, sessions: 26 },
-  { key: '2025-11', label: '11월', amount: 3800000, sessions: 28 },
-  { key: '2025-12', label: '12월', amount: 4000000, sessions: 30 },
-  { key: '2026-01', label: '1월', amount: 3200000, sessions: 23 },
-  { key: '2026-02', label: '2월', amount: 3700000, sessions: 27 },
-  { key: '2026-03', label: '3월', amount: 4100000, sessions: 31 },
-  { key: '2026-04', label: '4월', amount: 3900000, sessions: 29 },
-  { key: '2026-05', label: '5월', amount: 4350000, sessions: 33 },
-  { key: '2026-06', label: '6월', amount: 0, sessions: 0 },
-];
-
-const CURRENT_MONTH = '2026-05';
-const PREV_MONTH = '2026-04';
-
-const MOCK_TRANSACTIONS = [
-  { id: 't1',  date: '2026-05-20', member: '김지수', amount: 140000 },
-  { id: 't2',  date: '2026-05-19', member: '이준혁', amount: 140000 },
-  { id: 't3',  date: '2026-05-18', member: '박소연', amount: 126000 },
-  { id: 't4',  date: '2026-05-17', member: '최민준', amount: 140000 },
-  { id: 't5',  date: '2026-05-15', member: '김지수', amount: 140000 },
-  { id: 't6',  date: '2026-05-14', member: '이준혁', amount: 140000 },
-  { id: 't7',  date: '2026-05-13', member: '박소연', amount: 126000 },
-  { id: 't8',  date: '2026-05-12', member: '정하은', amount: 126000 },
-  { id: 't9',  date: '2026-05-11', member: '김지수', amount: 140000 },
-  { id: 't10', date: '2026-05-10', member: '최민준', amount: 140000 },
-  { id: 't11', date: '2026-05-08', member: '이준혁', amount: 140000 },
-  { id: 't12', date: '2026-05-07', member: '정하은', amount: 126000 },
-];
+const TODAY = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
+const CURRENT_MONTH = TODAY.slice(0, 7);
 
 export default function EarningsScreen() {
   const scrollRef = useRef<ScrollView>(null);
@@ -69,29 +40,40 @@ export default function EarningsScreen() {
   );
 
   const stats = useMemo(() => {
-    const completed = trainerBookings.filter((b) => b.status === 'completed');
-    const active = trainerBookings.filter((b) => b.status === 'active');
-    const totalEarnings = completed.reduce(
-      (sum, b) => sum + Math.round(b.usedSessions * b.pricePerSession * 0.9), 0
-    );
+    // 누적 수익·완료 세션은 예약 상태와 무관하게 '완료된 세션' 전체를 기준으로 한다
+    let totalEarnings = 0;
+    let totalSessions = 0;
+    for (const b of trainerBookings) {
+      if (b.type === 'consultation') continue;
+      const net = sessionNet(b);
+      for (const s of b.sessions) {
+        if (s.status === 'completed') { totalEarnings += net; totalSessions += 1; }
+      }
+    }
     const memberCount = new Set(trainerBookings.map((b) => b.memberId)).size;
-    const totalSessions = completed.reduce((sum, b) => sum + b.usedSessions, 0);
-    return { totalEarnings, memberCount, totalSessions, activeCount: active.length };
+    const activeCount = trainerBookings.filter((b) => b.status === 'active').length;
+    return { totalEarnings, memberCount, totalSessions, activeCount };
   }, [trainerBookings]);
 
-  const currentMonthData = MOCK_MONTHLY.find((d) => d.key === CURRENT_MONTH);
-  const prevMonthData = MOCK_MONTHLY.find((d) => d.key === PREV_MONTH);
-  const currentAmount = currentMonthData?.amount ?? 4350000;
-  const prevAmount = prevMonthData?.amount ?? 3900000;
+  // 실제 예약 데이터에서 월별 수익 산출 (현재월 포함 최근 12개월)
+  const months = useMemo(() => monthlyEarnings(trainerBookings, 12), [trainerBookings]);
+  const currentMonthData = months[months.length - 1];
+  const prevMonthData = months[months.length - 2];
+  const currentAmount = currentMonthData?.amount ?? 0;
+  const prevAmount = prevMonthData?.amount ?? 0;
   const diffAmount = currentAmount - prevAmount;
+
+  const transactions = useMemo(
+    () => monthTransactions(trainerBookings, CURRENT_MONTH),
+    [trainerBookings]
+  );
 
   const chartData = useMemo(() => {
     const n = period === '3m' ? 3 : period === '6m' ? 6 : 12;
-    const nonZero = MOCK_MONTHLY.filter((d) => d.amount > 0);
-    return nonZero.slice(-n);
-  }, [period]);
+    return months.slice(-n);
+  }, [period, months]);
 
-  const maxAmount = useMemo(() => Math.max(...chartData.map((d) => d.amount)), [chartData]);
+  const maxAmount = useMemo(() => Math.max(...chartData.map((d) => d.amount), 1), [chartData]);
 
   const recentEarnings = useMemo(() => {
     return trainerBookings
@@ -123,7 +105,7 @@ export default function EarningsScreen() {
 
           <View style={styles.heroStats}>
             <View style={styles.heroStatItem}>
-              <Text style={styles.heroStatVal}>{currentMonthData?.sessions ?? 33}</Text>
+              <Text style={styles.heroStatVal}>{currentMonthData?.sessions ?? 0}</Text>
               <Text style={styles.heroStatLabel}>이번 달 세션</Text>
             </View>
             <View style={styles.heroStatDivider} />
@@ -274,23 +256,29 @@ export default function EarningsScreen() {
           <View style={styles.txHRule} />
 
           {/* 거래 행 */}
-          {MOCK_TRANSACTIONS.map((tx, i) => (
-            <View
-              key={tx.id}
-              style={[
-                styles.txRow,
-                i < MOCK_TRANSACTIONS.length - 1 && styles.txRowBorder,
-              ]}
-            >
-              <Text style={[styles.txCell, { flex: 1.2 }]}>
-                {tx.date.slice(5).replace('-', '/')}
-              </Text>
-              <Text style={[styles.txCell, { flex: 2 }]}>{tx.member} 회원</Text>
-              <Text style={[styles.txAmount, { flex: 1, textAlign: 'right' }]}>
-                +{formatPrice(tx.amount)}
-              </Text>
+          {transactions.length === 0 ? (
+            <View style={styles.txEmpty}>
+              <Text style={styles.txEmptyText}>이번 달 완료된 세션이 없습니다</Text>
             </View>
-          ))}
+          ) : (
+            transactions.map((tx, i) => (
+              <View
+                key={tx.id}
+                style={[
+                  styles.txRow,
+                  i < transactions.length - 1 && styles.txRowBorder,
+                ]}
+              >
+                <Text style={[styles.txCell, { flex: 1.2 }]}>
+                  {tx.date.slice(5).replace('-', '/')}
+                </Text>
+                <Text style={[styles.txCell, { flex: 2 }]}>{tx.member} 회원</Text>
+                <Text style={[styles.txAmount, { flex: 1, textAlign: 'right' }]}>
+                  +{formatPrice(tx.amount)}
+                </Text>
+              </View>
+            ))
+          )}
 
           {/* 합계 행 */}
           <View style={styles.txFooter}>
@@ -303,13 +291,13 @@ export default function EarningsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>수익 구조 안내</Text>
           <View style={styles.feeList}>
-            <FeeRow icon="account" label="회원 총 결제" value="PT비 + 시설료 + 수수료" />
+            <FeeRow icon="account" label="회원 총 결제" value="PT비 + 시설 이용료" />
             <FeeRow icon="cash" label="트레이너 수취" value="PT비 × 90%" valueColor={COLORS.success} />
-            <FeeRow icon="percent" label="플랫폼 수수료" value="(PT비 + 시설료) × 10%" />
+            <FeeRow icon="percent" label="플랫폼 수수료" value="PT비 × 10%" />
           </View>
           <View style={styles.feeNotice}>
             <MaterialCommunityIcons name="information-outline" size={14} color={COLORS.primary} />
-            <Text style={styles.feeNoticeText}>수익은 매월 10일 자동 정산됩니다</Text>
+            <Text style={styles.feeNoticeText}>시설 이용료는 헬스장에 별도 정산 · 수익은 매월 10일 자동 정산됩니다</Text>
           </View>
         </View>
 
@@ -487,4 +475,6 @@ const styles = StyleSheet.create({
   },
   txFooterLabel: { fontSize: 14, fontWeight: '700', color: COLORS.text },
   txFooterAmount: { fontSize: 16, fontWeight: '900', color: TRAINER },
+  txEmpty: { paddingVertical: 18, alignItems: 'center' },
+  txEmptyText: { fontSize: 13, color: COLORS.textSecondary },
 });

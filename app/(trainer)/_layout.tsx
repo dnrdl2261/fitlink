@@ -97,11 +97,11 @@ export default function TrainerLayout() {
         }}
       />
       <Tabs.Screen
-        name="community"
+        name="members"
         options={{
-          tabBarLabel: '커뮤니티',
-          tabBarIcon: ({ color }) => <TabIcon name="account-group" color={color} />,
-          headerTitle: '커뮤니티',
+          tabBarLabel: '회원',
+          tabBarIcon: ({ color }) => <TabIcon name="account-group-outline" color={color} />,
+          headerShown: false,
         }}
       />
       <Tabs.Screen
@@ -124,7 +124,7 @@ export default function TrainerLayout() {
       {/* ── 숨김 탭 (탭바에 미표시) ── */}
       <Tabs.Screen name="map"      options={{ href: null, headerTitle: '헬스장 찾기' }} />
       <Tabs.Screen name="earnings" options={{ href: null, headerTitle: '매출 관리', headerLeft: () => <BackToMoreBtn /> }} />
-      <Tabs.Screen name="members"  options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="community" options={{ href: null, headerTitle: '커뮤니티', headerLeft: () => <BackToMoreBtn /> }} />
       <Tabs.Screen name="manage"   options={{ href: null, headerTitle: '예약·세션 관리', headerLeft: () => <BackToMoreBtn /> }} />
 
       <Tabs.Screen name="community-post"        options={{ href: null, headerShown: false }} />

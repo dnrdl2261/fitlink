@@ -93,15 +93,17 @@ export default function TrainerMembersScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: D.bg }}>
-      {/* 헤더 */}
+      {/* 헤더 — 메인 탭으로 진입한 경우(from 없음)엔 뒤로가기 숨김 */}
       <View style={styles.screenHeader}>
-        <TouchableOpacity
-          onPress={() => router.navigate((from === 'home' ? '/(trainer)/' : '/(trainer)/more') as any)}
-          style={styles.backBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Text style={styles.backText}>‹</Text>
-        </TouchableOpacity>
+        {from ? (
+          <TouchableOpacity
+            onPress={() => router.navigate((from === 'home' ? '/(trainer)/' : '/(trainer)/more') as any)}
+            style={styles.backBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.backText}>‹</Text>
+          </TouchableOpacity>
+        ) : null}
         <Text style={styles.screenTitle}>회원 관리</Text>
         <View style={styles.countChip}>
           <Text style={styles.countChipText}>{memberData.length}명</Text>
