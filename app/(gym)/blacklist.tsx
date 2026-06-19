@@ -15,7 +15,7 @@ import { useAuthStore } from '../../store/authStore';
 import { MOCK_TRAINERS } from '../../data/trainers';
 import { COLORS } from '../../utils/constants';
 
-const GYM  = '#2DD4BF';
+const GYM  = '#4F63F5';
 const DARK = '#0F172A';
 const SLATE = '#64748B';
 
@@ -98,7 +98,7 @@ export default function BlacklistScreen() {
                       <Text style={styles.trainerName}>{entry.trainerName} 트레이너</Text>
                       {trainer && (
                         <Text style={styles.trainerSub}>
-                          {trainer.region} · {trainer.specializations.slice(0, 2).join(', ')}
+                          {trainer.region} · {(trainer.trainingGoals ?? []).slice(0, 2).join(', ')}
                         </Text>
                       )}
                     </View>
@@ -182,7 +182,7 @@ export default function BlacklistScreen() {
                     <View style={styles.trainerInfo}>
                       <Text style={styles.trainerName}>{trainer.name} 트레이너</Text>
                       <Text style={styles.trainerSub}>
-                        {trainer.region} · {trainer.specializations.slice(0, 2).join(', ')}
+                        {trainer.region} · {(trainer.trainingGoals ?? []).slice(0, 2).join(', ')}
                       </Text>
                     </View>
                     <TouchableOpacity

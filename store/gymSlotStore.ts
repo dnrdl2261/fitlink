@@ -42,6 +42,8 @@ interface GymSlotState {
     gymName: string;
     trainerId: string;
     trainerName: string;
+    memberId?: string;
+    memberName?: string;
     date: string;
     startTime: string;
     memberCount: number;
@@ -50,6 +52,9 @@ interface GymSlotState {
 
   confirmSlot: (slotId: string) => void;
   cancelSlot: (slotId: string) => void;
+
+  // 관리자가 직접 등록하는 회원 이용 일정 (바로 confirmed)
+  addAdminSlot: (params: { gymId: string; gymName: string; memberName: string; date: string; startTime: string }) => void;
 
   getAvailableSlots: (gymId: string, date: string, trainerId: string) => SlotInfo[];
   getGymDaySlots: (gymId: string, date: string) => SlotInfo[];
@@ -64,8 +69,21 @@ interface GymSlotState {
   getBlacklist: (gymId: string) => BlacklistEntry[];
 }
 
+// 오늘 기준 상대 날짜 (QR 시연이 항상 가능하도록 confirmed 예약을 미리 시드)
+function slotDate(offset: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const SEED_SLOT_BOOKINGS: SlotBooking[] = [
+  { id: 'slot_seed_1', gymId: 'gym_001', gymName: '강남 피트니스 클럽', trainerId: 'trainer_001', trainerName: '김민준', memberId: 'member_001', memberName: '홍길동', date: slotDate(0), startTime: '10:00', memberCount: 1, facilityFee: 15000, status: 'confirmed', createdAt: slotDate(-2) },
+  { id: 'slot_seed_2', gymId: 'gym_002', gymName: '역삼 스포츠센터',   trainerId: 'trainer_001', trainerName: '김민준', memberId: 'member_002', memberName: '김영희', date: slotDate(2), startTime: '14:00', memberCount: 1, facilityFee: 12000, status: 'confirmed', createdAt: slotDate(-1) },
+  { id: 'slot_seed_3', gymId: 'gym_001', gymName: '강남 피트니스 클럽', trainerId: 'trainer_001', trainerName: '김민준', memberId: 'member_001', memberName: '홍길동', date: slotDate(3), startTime: '11:00', memberCount: 1, facilityFee: 15000, status: 'pending',   createdAt: slotDate(0) },
+];
+
 export const useGymSlotStore = create<GymSlotState>((set, get) => ({
-  slotBookings: [],
+  slotBookings: SEED_SLOT_BOOKINGS,
   capacityOverrides: {},
   blacklists: {},
   favoriteGyms: [],
@@ -80,7 +98,24 @@ export const useGymSlotStore = create<GymSlotState>((set, get) => ({
 
   isFavorite: (gymId) => get().favoriteGyms.includes(gymId),
 
-  bookSlot: ({ gymId, gymName, trainerId, trainerName, date, startTime, memberCount, facilityFee }) => {
+  addAdminSlot: ({ gymId, gymName, memberName, date, startTime }) => {
+    set((state) => ({
+      slotBookings: [{
+        id: `slot_admin_${Date.now()}`,
+        gymId, gymName,
+        trainerId: '',
+        trainerName: memberName, // 회원 이용 일정 → 회원명을 라벨로
+        memberName: undefined,
+        date, startTime,
+        memberCount: 1,
+        facilityFee: 0,
+        status: 'confirmed' as const,
+        createdAt: new Date().toISOString(),
+      }, ...state.slotBookings],
+    }));
+  },
+
+  bookSlot: ({ gymId, gymName, trainerId, trainerName, memberId, memberName, date, startTime, memberCount, facilityFee }) => {
     if (get().isBlacklisted(gymId, trainerId)) return null;
     const slots = get().getAvailableSlots(gymId, date, trainerId);
     const target = slots.find((s) => s.startTime === startTime);
@@ -95,6 +130,8 @@ export const useGymSlotStore = create<GymSlotState>((set, get) => ({
       gymName,
       trainerId,
       trainerName,
+      memberId,
+      memberName,
       date,
       startTime,
       memberCount,

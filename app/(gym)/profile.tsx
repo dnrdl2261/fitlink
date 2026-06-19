@@ -120,7 +120,7 @@ export default function GymProfileScreen() {
           onPress={() => {
             const doLogout = () => { logout(); router.replace('/login'); };
             if (Platform.OS === 'web') {
-              doLogout();
+              if (window.confirm('로그아웃 하시겠습니까?')) doLogout();
             } else {
               Alert.alert('로그아웃', '로그아웃 하시겠습니까?', [
                 { text: '취소', style: 'cancel' },
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   gymName: { fontSize: 22, fontWeight: '800', color: COLORS.text, flex: 1 },
   partnerBadge: {
-    backgroundColor: '#2DD4BF',
+    backgroundColor: '#4F63F5',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
   },
-  facilityText: { fontSize: 13, color: '#2DD4BF', fontWeight: '600' },
+  facilityText: { fontSize: 13, color: '#4F63F5', fontWeight: '600' },
   priceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -187,9 +187,9 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   priceLabel: { fontSize: 14, color: COLORS.text },
-  priceValue: { fontSize: 14, fontWeight: '700', color: '#2DD4BF' },
+  priceValue: { fontSize: 14, fontWeight: '700', color: '#4F63F5' },
   ruleItem: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
-  ruleBullet: { fontSize: 14, color: '#2DD4BF', lineHeight: 22, fontWeight: '700' },
+  ruleBullet: { fontSize: 14, color: '#4F63F5', lineHeight: 22, fontWeight: '700' },
   ruleText: { flex: 1, fontSize: 14, color: COLORS.text, lineHeight: 22 },
   adminInfo: { flexDirection: 'row', justifyContent: 'space-between' },
   adminLabel: { fontSize: 14, color: COLORS.textSecondary },

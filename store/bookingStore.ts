@@ -62,6 +62,9 @@ interface BookingState {
   addBooking: (params: NewBookingParams) => string;
   addConsultation: (params: ConsultationParams) => string;
   cancelBooking: (bookingId: string) => void;
+  confirmBooking: (bookingId: string) => void;
+  requestCompletion: (bookingId: string, sessionId: string) => void;
+  rejectCompletion: (bookingId: string, sessionId: string) => void;
   completeSession: (bookingId: string, sessionId: string) => void;
   getMyBookings: (memberId: string) => Booking[];
   getTrainerBookings: (trainerId: string) => Booking[];
@@ -89,7 +92,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       totalAmount: params.totalAmount,
       schedule: params.schedule,
       sessions,
-      status: 'active',
+      status: 'pending', // 회원 결제 완료 → 트레이너 확정 대기
       startDate: params.startDate,
       notes: params.notes,
       createdAt: new Date().toISOString(),
@@ -144,6 +147,43 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     }));
   },
 
+  // 트레이너가 회원 결제 건을 확정 → pending → active
+  confirmBooking: (bookingId) => {
+    set((s) => ({
+      bookings: s.bookings.map((b) =>
+        b.id === bookingId && b.status === 'pending'
+          ? { ...b, status: 'active', updatedAt: new Date().toISOString() }
+          : b
+      ),
+    }));
+  },
+
+  // 트레이너가 완료를 요청 → 회원 확인 대기(pending). 차감은 회원 확인 시까지 보류.
+  requestCompletion: (bookingId, sessionId) => {
+    set((s) => ({
+      bookings: s.bookings.map((b) => {
+        if (b.id !== bookingId) return b;
+        const sessions = b.sessions.map((sess) =>
+          sess.id === sessionId ? { ...sess, status: 'pending' as SessionStatus } : sess
+        );
+        return { ...b, sessions, updatedAt: new Date().toISOString() };
+      }),
+    }));
+  },
+
+  // 회원이 이의 제기 → 다시 예정(scheduled)으로 되돌림 (차감 없음)
+  rejectCompletion: (bookingId, sessionId) => {
+    set((s) => ({
+      bookings: s.bookings.map((b) => {
+        if (b.id !== bookingId) return b;
+        const sessions = b.sessions.map((sess) =>
+          sess.id === sessionId ? { ...sess, status: 'scheduled' as SessionStatus } : sess
+        );
+        return { ...b, sessions, updatedAt: new Date().toISOString() };
+      }),
+    }));
+  },
+
   completeSession: (bookingId, sessionId) => {
     set((s) => ({
       bookings: s.bookings.map((b) => {
@@ -171,7 +211,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       b.status === 'active' &&
       b.memberId === memberId &&
       b.sessions.some((sess) =>
-        sess.status === 'scheduled' &&
+        (sess.status === 'scheduled' || sess.status === 'pending') &&
         sess.date === date &&
         toMin(sess.startTime) < ne && toMin(sess.endTime) > ns
       )

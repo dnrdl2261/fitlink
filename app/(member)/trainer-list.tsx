@@ -205,7 +205,7 @@ export default function TrainerListScreen() {
 
       {/* 헤더 */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity onPress={() => router.navigate('/(member)/trainers' as any)} style={s.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <MaterialCommunityIcons name="chevron-left" size={26} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>트레이너 찾기</Text>

@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  SafeAreaView, Platform, Alert, Image,
+  SafeAreaView, Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useScrollToTop } from '@react-navigation/native';
@@ -15,7 +15,7 @@ import { usePartnerStore } from '../../store/partnerStore';
 import { COLORS } from '../../utils/constants';
 import { formatPrice } from '../../utils/formatters';
 
-const GYM  = '#2DD4BF';
+const GYM  = '#4F63F5';
 const DARK = '#0F172A';
 const SLATE = '#64748B';
 const BG   = '#F1F5F9';
@@ -26,7 +26,7 @@ export default function GymMoreScreen() {
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
   useScrollToTop(scrollRef);
-  const { gymAdmin, logout } = useAuthStore();
+  const { gymAdmin } = useAuthStore();
   const GYM_ID = gymAdmin?.gymId ?? 'gym_001';
   const baseGym = MOCK_GYMS.find(g => g.id === GYM_ID);
   const gymEditsRaw = useGymProfileStore(s => s.edits[GYM_ID]);
@@ -50,17 +50,6 @@ export default function GymMoreScreen() {
   const thisMonthRevenue = activeBookings
     .filter((b) => b.status === 'completed' && b.startDate.startsWith('2026-04'))
     .reduce((sum, b) => sum + Math.round(b.totalAmount * 0.05), 0);
-
-  const handleLogout = () => {
-    if (Platform.OS === 'web') {
-      if (window.confirm('로그아웃 하시겠습니까?')) { logout(); router.replace('/login'); }
-      return;
-    }
-    Alert.alert('로그아웃', '로그아웃 하시겠습니까?', [
-      { text: '취소', style: 'cancel' },
-      { text: '로그아웃', style: 'destructive', onPress: () => { logout(); router.replace('/login'); } },
-    ]);
-  };
 
   const sections = [
     {
@@ -181,12 +170,6 @@ export default function GymMoreScreen() {
           </View>
         ))}
 
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.7}>
-            <Text style={styles.logoutText}>로그아웃</Text>
-          </TouchableOpacity>
-        </View>
-
         <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
@@ -211,8 +194,6 @@ const styles = StyleSheet.create({
   menuSub: { fontSize: 12, color: SLATE, marginTop: 1 },
   menuArrow: { fontSize: 20, color: SLATE },
   divider: { height: 1, backgroundColor: BD, marginLeft: 64 },
-  logoutBtn: { backgroundColor: CARD, borderRadius: 14, borderWidth: 1, borderColor: BD, paddingVertical: 15, alignItems: 'center' },
-  logoutText: { fontSize: 15, fontWeight: '600', color: '#F87171' },
   menuBadge: { backgroundColor: COLORS.error, borderRadius: 9, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   menuBadgeText: { fontSize: 10, fontWeight: '800', color: '#fff' },
 });

@@ -9,7 +9,7 @@ import { useGymSlotStore } from '../../store/gymSlotStore';
 import { useBookingStore } from '../../store/bookingStore';
 import { COLORS, DAY_LABELS } from '../../utils/constants';
 
-const GYM   = '#2DD4BF';
+const GYM   = '#4F63F5';
 const DARK  = '#0F172A';
 const SLATE = '#64748B';
 const BG    = '#F1F5F9';
@@ -505,7 +505,7 @@ const s = StyleSheet.create({
   todayChipText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#0D9488',
+    color: '#3D4FD9',
     letterSpacing: 0.2,
   },
   dateHeaderText: {

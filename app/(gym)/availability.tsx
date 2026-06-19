@@ -12,12 +12,14 @@ import {
 } from 'react-native';
 import { MOCK_GYMS } from '../../data/gyms';
 import { useGymSlotStore } from '../../store/gymSlotStore';
+import { useGymProfileStore } from '../../store/gymProfileStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, DAY_LABELS } from '../../utils/constants';
+import { FacilityTag } from '../../types';
 
-const GYM  = '#2DD4BF';
+const GYM  = '#4F63F5';
 const BG   = '#F1F5F9';
 const CARD = '#FFFFFF';
 const BD   = '#E2E8F0';
@@ -28,7 +30,10 @@ const MINUTE_OPTIONS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 export default function AvailabilityScreen() {
   const { gymAdmin } = useAuthStore();
   const GYM_ID = gymAdmin?.gymId ?? 'gym_001';
-  const gym = MOCK_GYMS.find((g) => g.id === GYM_ID)!;
+  const baseGym = MOCK_GYMS.find((g) => g.id === GYM_ID)!;
+  const updateProfile = useGymProfileStore((s) => s.updateProfile);
+  const gymEdits = useGymProfileStore((s) => s.edits[GYM_ID]) ?? {};
+  const gym = { ...baseGym, ...gymEdits };
   const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
 
   const [ptEnabled, setPtEnabled] = useState(
@@ -109,6 +114,28 @@ export default function AvailabilityScreen() {
     setTimePickerVisible(false);
   };
 
+  // 운영 시간 + PT 설정 저장
+  const handleSaveHours = () => {
+    const operatingHours = gym.operatingHours.map((h) => ({
+      ...h,
+      openTime: hoursOverrides[h.dayOfWeek]?.openTime ?? h.openTime,
+      closeTime: hoursOverrides[h.dayOfWeek]?.closeTime ?? h.closeTime,
+      ptAvailable: ptEnabled[h.dayOfWeek],
+    }));
+    updateProfile(GYM_ID, { operatingHours });
+    Alert.alert('저장 완료', '운영 시간이 업데이트되었습니다.');
+  };
+
+  // 시설 이용료 저장
+  const handleSavePricing = () => {
+    const pricing = gym.pricing.map((p) => ({
+      ...p,
+      facilityFee: parseInt((pricingOverrides[p.sessionType] ?? '').replace(/\D/g, '')) || 0,
+    }));
+    updateProfile(GYM_ID, { pricing });
+    Alert.alert('저장 완료', '시설 이용료가 업데이트되었습니다.');
+  };
+
   const slotWeekDates = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() + i);
@@ -125,7 +152,9 @@ export default function AvailabilityScreen() {
       Alert.alert('중복', '이미 등록된 시설입니다.');
       return;
     }
-    setFacilitiesOverride((prev) => [...prev, trimmed]);
+    const next = [...facilitiesOverride, trimmed];
+    setFacilitiesOverride(next);
+    updateProfile(GYM_ID, { facilities: next as FacilityTag[] });
     setNewFacility('');
   };
 
@@ -135,7 +164,11 @@ export default function AvailabilityScreen() {
       {
         text: '삭제',
         style: 'destructive',
-        onPress: () => setFacilitiesOverride((prev) => prev.filter((item) => item !== f)),
+        onPress: () => {
+          const next = facilitiesOverride.filter((item) => item !== f);
+          setFacilitiesOverride(next);
+          updateProfile(GYM_ID, { facilities: next as FacilityTag[] });
+        },
       },
     ]);
   };
@@ -180,10 +213,7 @@ export default function AvailabilityScreen() {
               </TouchableOpacity>
             </View>
           ))}
-          <TouchableOpacity
-            style={styles.saveBtn}
-            onPress={() => Alert.alert('저장 완료', '운영 시간이 업데이트되었습니다.')}
-          >
+          <TouchableOpacity style={styles.saveBtn} onPress={handleSaveHours}>
             <Text style={styles.saveBtnText}>운영 시간 저장</Text>
           </TouchableOpacity>
         </View>
@@ -354,10 +384,7 @@ export default function AvailabilityScreen() {
               </View>
             </View>
           ))}
-          <TouchableOpacity
-            style={styles.saveBtn}
-            onPress={() => Alert.alert('저장 완료', '시설 이용료가 업데이트되었습니다.')}
-          >
+          <TouchableOpacity style={styles.saveBtn} onPress={handleSavePricing}>
             <Text style={styles.saveBtnText}>가격 저장</Text>
           </TouchableOpacity>
         </View>

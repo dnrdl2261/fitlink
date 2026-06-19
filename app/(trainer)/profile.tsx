@@ -79,9 +79,9 @@ export default function TrainerProfileScreen() {
           ) : null}
           <StarRating rating={trainer.rating} reviewCount={trainer.reviewCount} size="medium" />
           <View style={styles.specTags}>
-            {trainer.specializations.map((s) => (
-              <View key={s} style={styles.specTag}>
-                <Text style={styles.specText}>{s}</Text>
+            {(trainer.trainingGoals ?? []).map((g) => (
+              <View key={g} style={styles.specTag}>
+                <Text style={styles.specText}>{g}</Text>
               </View>
             ))}
           </View>
@@ -171,7 +171,7 @@ export default function TrainerProfileScreen() {
           onPress={() => {
             const doLogout = () => { logout(); router.replace('/login'); };
             if (Platform.OS === 'web') {
-              doLogout();
+              if (window.confirm('로그아웃 하시겠습니까?')) doLogout();
             } else {
               Alert.alert('로그아웃', '로그아웃 하시겠습니까?', [
                 { text: '취소', style: 'cancel' },

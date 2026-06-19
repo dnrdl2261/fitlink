@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import {
   View, Text, FlatList, StyleSheet,
-  TouchableOpacity, SafeAreaView, Alert,
+  TouchableOpacity, SafeAreaView, Alert, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import BookingCard from '../../components/BookingCard';
 import { useBookingStore } from '../../store/bookingStore';
 import { useReviewStore } from '../../store/reviewStore';
+import { useNotificationStore } from '../../store/notificationStore';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '../../utils/constants';
 import { BookingStatus, Booking } from '../../types';
@@ -68,27 +69,96 @@ function ConsultCard({ booking, onCancel }: { booking: Booking; onCancel?: () =>
 
 export default function BookingsScreen() {
   const router = useRouter();
-  const { bookings, cancelBooking } = useBookingStore();
+  const { bookings, cancelBooking, completeSession, rejectCompletion } = useBookingStore();
   const { hasReviewed } = useReviewStore();
+  const addNotification = useNotificationStore((s) => s.addNotification);
   const [activeTab, setActiveTab] = useState<TabKey>('active');
 
   const myBookings = bookings.filter((b) => b.memberId === 'member_001');
+
+  // 트레이너가 완료 요청한(pending) 세션 — 회원이 직접 확인/이의제기
+  const pendingConfirms = myBookings.flatMap((b) =>
+    b.sessions
+      .filter((s) => s.status === 'pending')
+      .map((s) => ({
+        bookingId: b.id,
+        sessionId: s.id,
+        trainerId: b.trainerId,
+        trainerName: b.trainerName,
+        date: s.date,
+        startTime: s.startTime,
+        ptLabel: b.type === 'consultation' ? '무료상담' : `PT ${b.usedSessions + 1}/${b.totalSessions}회`,
+      }))
+  );
   const ptBookings = myBookings.filter((b) => b.type !== 'consultation');
   const consultBookings = myBookings.filter((b) => b.type === 'consultation');
 
+  // '이용중' 탭은 확정 대기(pending)도 함께 노출
+  const matchTab = (b: Booking, tab: TabKey) =>
+    tab === 'active' ? (b.status === 'active' || b.status === 'pending') : b.status === tab;
+
   const filtered = activeTab === 'consultation'
     ? consultBookings
-    : ptBookings.filter((b) => b.status === activeTab);
+    : ptBookings.filter((b) => matchTab(b, activeTab));
 
   const getCount = (tab: TabKey) =>
     tab === 'consultation'
       ? consultBookings.length
-      : ptBookings.filter((b) => b.status === tab).length;
+      : ptBookings.filter((b) => matchTab(b, tab)).length;
 
   const handleCancel = (bookingId: string) => {
     Alert.alert('예약 취소', '예약을 취소하시겠습니까?\n취소된 예약은 복구할 수 없습니다.', [
       { text: '아니오', style: 'cancel' },
       { text: '취소하기', style: 'destructive', onPress: () => cancelBooking(bookingId) },
+    ]);
+  };
+
+  type PendingItem = (typeof pendingConfirms)[number];
+  const whenText = (p: PendingItem) => `${formatDate(p.date)} ${formatTime(p.startTime)}`;
+
+  const confirmComplete = (p: PendingItem) => {
+    const msg = `${p.trainerName} 트레이너 · ${p.ptLabel}\n${whenText(p)}\n\n완료로 확인하면 1회차가 차감됩니다.`;
+    const apply = () => {
+      completeSession(p.bookingId, p.sessionId);
+      addNotification({
+        type: 'session_confirmed',
+        title: '회원이 세션을 확인했습니다',
+        body: `${p.ptLabel} 세션(${whenText(p)})을 회원이 완료 확인했습니다.`,
+        targetRole: 'trainer',
+        userId: p.trainerId,
+        meta: { bookingId: p.bookingId, sessionId: p.sessionId },
+      });
+    };
+    if (Platform.OS === 'web') {
+      if (window.confirm(`[세션 완료 확인]\n\n${msg}`)) apply();
+      return;
+    }
+    Alert.alert('세션 완료 확인', msg, [
+      { text: '취소', style: 'cancel' },
+      { text: '확인', onPress: apply },
+    ]);
+  };
+
+  const disputeComplete = (p: PendingItem) => {
+    const msg = `${p.trainerName} 트레이너 · ${p.ptLabel}\n${whenText(p)}\n\n사실과 다른가요? 이의를 제기하면 완료 요청이 취소되고 트레이너에게 전달됩니다.`;
+    const apply = () => {
+      rejectCompletion(p.bookingId, p.sessionId);
+      addNotification({
+        type: 'session_disputed',
+        title: '회원이 이의를 제기했습니다',
+        body: `${p.ptLabel} 세션(${whenText(p)}) 완료 요청에 회원이 이의를 제기했습니다. 일정을 확인해 주세요.`,
+        targetRole: 'trainer',
+        userId: p.trainerId,
+        meta: { bookingId: p.bookingId, sessionId: p.sessionId },
+      });
+    };
+    if (Platform.OS === 'web') {
+      if (window.confirm(`[이의 제기]\n\n${msg}`)) apply();
+      return;
+    }
+    Alert.alert('이의 제기', msg, [
+      { text: '취소', style: 'cancel' },
+      { text: '이의 제기', style: 'destructive', onPress: apply },
     ]);
   };
 
@@ -116,6 +186,33 @@ export default function BookingsScreen() {
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
+        ListHeaderComponent={
+          pendingConfirms.length > 0 ? (
+            <View style={pend.wrap}>
+              <View style={pend.head}>
+                <MaterialCommunityIcons name="clipboard-check-outline" size={16} color={COLORS.primary} />
+                <Text style={pend.title}>완료 확인 요청 {pendingConfirms.length}건</Text>
+              </View>
+              <Text style={pend.sub}>
+                트레이너가 세션 완료를 요청했어요. 실제로 받았으면 확인, 아니면 이의를 제기하세요.
+              </Text>
+              {pendingConfirms.map((p) => (
+                <View key={p.sessionId} style={pend.item}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={pend.itemTitle}>{p.trainerName} 트레이너 · {p.ptLabel}</Text>
+                    <Text style={pend.itemWhen}>{whenText(p)}</Text>
+                  </View>
+                  <TouchableOpacity style={pend.disputeBtn} onPress={() => disputeComplete(p)}>
+                    <Text style={pend.disputeText}>이의</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={pend.confirmBtn} onPress={() => confirmComplete(p)}>
+                    <Text style={pend.confirmText}>확인</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          ) : null
+        }
         renderItem={({ item }) =>
           activeTab === 'consultation' ? (
             <ConsultCard
@@ -291,4 +388,41 @@ const cst = StyleSheet.create({
     alignItems: 'center',
   },
   cancelText: { color: COLORS.error, fontSize: 14, fontWeight: '600' },
+});
+
+const pend = StyleSheet.create({
+  wrap: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.primary + '40',
+  },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  title: { fontSize: 15, fontWeight: '800', color: COLORS.text },
+  sub: { fontSize: 12.5, color: COLORS.textSecondary, marginTop: 6, lineHeight: 18 },
+  item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.borderSubtle,
+  },
+  itemTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text },
+  itemWhen: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  disputeBtn: {
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 9,
+    borderWidth: 1, borderColor: COLORS.error,
+  },
+  disputeText: { fontSize: 13, fontWeight: '700', color: COLORS.error },
+  confirmBtn: {
+    paddingHorizontal: 16, paddingVertical: 9, borderRadius: 9,
+    backgroundColor: COLORS.primary,
+  },
+  confirmText: { fontSize: 13, fontWeight: '700', color: '#fff' },
 });

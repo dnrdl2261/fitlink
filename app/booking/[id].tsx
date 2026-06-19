@@ -12,6 +12,8 @@ import { useNotificationStore } from '../../store/notificationStore';
 import { formatDate, formatTime, formatPrice } from '../../utils/formatters';
 import { BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS, DAY_LABELS } from '../../utils/constants';
 
+const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 월→일 순서 (예약 폼과 통일)
+
 const D = {
   bg:          '#EEF2F9',
   surface:     '#FFFFFF',
@@ -50,8 +52,8 @@ export default function BookingDetailScreen() {
   const progressPct = booking.totalSessions > 0
     ? (booking.usedSessions / booking.totalSessions) * 100
     : 0;
-  const daysLabel = booking.schedule.daysOfWeek
-    .sort((a, b) => a - b)
+  const daysLabel = WEEKDAY_ORDER
+    .filter((d) => booking.schedule.daysOfWeek.includes(d))
     .map((d) => DAY_LABELS[d])
     .join('·');
 

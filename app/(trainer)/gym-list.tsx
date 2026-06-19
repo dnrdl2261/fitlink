@@ -1,12 +1,16 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TextInput,
-  TouchableOpacity, SafeAreaView, ScrollView, Image,
+  TouchableOpacity, SafeAreaView, Image,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { useScrollToTop } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MOCK_GYMS } from '../../data/gyms';
+import { useLocationStore } from '../../store/locationStore';
+import { useLocation } from '../../hooks/useLocation';
+import { calculateDistance, formatDistance } from '../../utils/distance';
+import GymMapView from '../../components/GymMapView';
 import { Gym } from '../../types';
 
 const D = {
@@ -23,33 +27,70 @@ const D = {
   success:     '#22C55E',
 };
 
-type SortType = 'rating' | 'reviewCount' | 'priceAsc' | 'priceDesc';
+type SortType = 'distance' | 'rating' | 'reviewCount' | 'priceAsc' | 'priceDesc';
 
 const SORT_OPTIONS: { key: SortType; label: string }[] = [
+  { key: 'distance',    label: '가까운 순' },
   { key: 'rating',      label: '평점순' },
   { key: 'reviewCount', label: '리뷰 많은순' },
   { key: 'priceAsc',    label: '이용료 낮은순' },
   { key: 'priceDesc',   label: '이용료 높은순' },
 ];
 
-const CITIES = ['전체', '서울', '부산', '경기', '인천', '대구', '대전', '광주', '울산', '강원', '충북', '충남', '세종', '전남', '전북', '제주'] as const;
-type CityFilter = typeof CITIES[number];
-
 export default function GymListScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const listRef = useRef<FlatList>(null);
   useScrollToTop(listRef);
 
+  useLocation(); // GPS 현재위치를 기본 기준으로 가져옴
+  const { currentLocation, selectedDong } = useLocationStore();
+
   const [query, setQuery]       = useState('');
-  const [city, setCity]         = useState<CityFilter>('전체');
-  const [sortBy, setSortBy]     = useState<SortType>('rating');
+  const [regionFilter, setRegionFilter] = useState<{ city: string; district?: string } | null>(null);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [sortBy, setSortBy]     = useState<SortType>('distance');
   const [sortOpen, setSortOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [selectedGymId, setSelectedGymId] = useState<string | null>(null);
+
+  // 지도 모드에서는 상단 네비게이션 헤더를 숨기고 지도 위 플로팅 뒤로가기로 대체
+  useEffect(() => {
+    navigation.setOptions({ headerShown: viewMode !== 'map' });
+  }, [viewMode, navigation]);
+
+  // 입력어에 대한 자동완성 후보 (지역 + 헬스장). 지역이 이미 선택된 경우 그 안에서만 헬스장 추천.
+  const suggestions = useMemo(() => {
+    const q = query.trim();
+    const empty = { regions: [] as { city: string; district?: string; label: string }[], gyms: [] as Gym[] };
+    if (!q) return empty;
+    const lq = q.toLowerCase();
+    const pool = regionFilter
+      ? MOCK_GYMS.filter(g => g.city === regionFilter.city && (!regionFilter.district || g.district === regionFilter.district))
+      : MOCK_GYMS;
+    const regionMap = new Map<string, { city: string; district?: string; label: string }>();
+    if (!regionFilter) {
+      MOCK_GYMS.forEach(g => {
+        if (g.city.includes(q)) regionMap.set(g.city, { city: g.city, label: g.city });
+        const cd = `${g.city} ${g.district}`;
+        if (g.district.includes(q) || cd.includes(q))
+          regionMap.set(cd, { city: g.city, district: g.district, label: cd });
+      });
+    }
+    return {
+      regions: Array.from(regionMap.values()).slice(0, 4),
+      gyms: pool.filter(g => g.name.toLowerCase().includes(lq)).slice(0, 5),
+    };
+  }, [query, regionFilter]);
 
   const filtered = useMemo(() => {
     let result = [...MOCK_GYMS];
 
-    if (city !== '전체')
-      result = result.filter(g => g.city === city);
+    if (regionFilter)
+      result = result.filter(g =>
+        g.city === regionFilter.city &&
+        (!regionFilter.district || g.district === regionFilter.district)
+      );
 
     if (query.trim()) {
       const q = query.toLowerCase();
@@ -61,6 +102,10 @@ export default function GymListScreen() {
       );
     }
 
+    if (sortBy === 'distance')
+      return result.sort((a, b) =>
+        calculateDistance(currentLocation, a.coordinate) - calculateDistance(currentLocation, b.coordinate)
+      );
     if (sortBy === 'rating')      return result.sort((a, b) => b.rating - a.rating);
     if (sortBy === 'reviewCount') return result.sort((a, b) => b.reviewCount - a.reviewCount);
     if (sortBy === 'priceAsc') {
@@ -78,65 +123,197 @@ export default function GymListScreen() {
       });
     }
     return result;
-  }, [query, city, sortBy]);
+  }, [query, regionFilter, sortBy, currentLocation]);
 
   const currentSort = SORT_OPTIONS.find(o => o.key === sortBy)!;
+  const selectedMapGym = filtered.find(g => g.id === selectedGymId);
 
-  const ListHeader = (
-    <View>
-      {/* 검색 바 */}
-      <View style={s.searchWrap}>
-        <MaterialCommunityIcons name="magnify" size={18} color={D.textMuted} />
-        <TextInput
-          style={s.searchInput}
-          placeholder="헬스장 이름, 지역, 시설 검색"
-          value={query}
-          onChangeText={setQuery}
-          placeholderTextColor={D.textMuted}
-        />
-        {query.length > 0 && (
-          <TouchableOpacity onPress={() => setQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <MaterialCommunityIcons name="close-circle" size={16} color={D.textMuted} />
+  const suggestOpenNow = suggestOpen && query.trim().length > 0 && (suggestions.regions.length > 0 || suggestions.gyms.length > 0);
+
+  // 자동완성 후보 항목 (지역 + 헬스장) — 목록·지도 검색 공용
+  const renderSuggestItems = () => (
+    <>
+      {suggestions.regions.map(r => (
+        <TouchableOpacity
+          key={'r-' + r.label} style={s.suggestItem}
+          onPress={() => { setRegionFilter({ city: r.city, district: r.district }); setQuery(''); setSuggestOpen(false); }}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="map-marker-outline" size={16} color={D.primary} />
+          <Text style={s.suggestText} numberOfLines={1}>{r.label}</Text>
+          <Text style={s.suggestTag}>지역</Text>
+        </TouchableOpacity>
+      ))}
+      {suggestions.gyms.map(g => (
+        <TouchableOpacity
+          key={'g-' + g.id} style={s.suggestItem}
+          onPress={() => { setQuery(g.name); setSuggestOpen(false); }}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="dumbbell" size={16} color={D.primary} />
+          <Text style={s.suggestText} numberOfLines={1}>{g.name}</Text>
+          <Text style={s.suggestTag}>헬스장</Text>
+        </TouchableOpacity>
+      ))}
+    </>
+  );
+
+  // 선택지역 칩 — 목록·지도 공용
+  const renderRegionChip = () => (
+    regionFilter ? (
+      <View style={s.regionChipRow}>
+        <View style={s.regionChip}>
+          <MaterialCommunityIcons name="map-marker" size={13} color={D.primary} />
+          <Text style={s.regionChipText}>
+            {regionFilter.district ? `${regionFilter.city} ${regionFilter.district}` : regionFilter.city}
+          </Text>
+          <TouchableOpacity onPress={() => setRegionFilter(null)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+            <MaterialCommunityIcons name="close" size={14} color={D.textSec} />
           </TouchableOpacity>
+        </View>
+      </View>
+    ) : null
+  );
+
+  // 검색바 + 자동완성 + 선택지역 칩 (목록 모드 — 전체 너비)
+  const renderSearchZone = () => (
+    <>
+      <View style={s.searchZone}>
+        <View style={s.searchWrap}>
+          <MaterialCommunityIcons name="magnify" size={18} color={D.textMuted} />
+          <TextInput
+            style={s.searchInput}
+            placeholder="지역·헬스장 이름·시설 검색"
+            value={query}
+            onChangeText={(t) => { setQuery(t); setSuggestOpen(true); }}
+            placeholderTextColor={D.textMuted}
+          />
+          {query.length > 0 && (
+            <TouchableOpacity onPress={() => { setQuery(''); setSuggestOpen(false); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <MaterialCommunityIcons name="close-circle" size={16} color={D.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+        {suggestOpenNow && (
+          <View style={s.suggestPanel}>{renderSuggestItems()}</View>
         )}
       </View>
-
-      {/* 지역 필터 */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={s.filterScroll}
-        style={s.filterScrollWrap}
-      >
-        {CITIES.map(c => {
-          const active = city === c;
-          return (
-            <TouchableOpacity
-              key={c}
-              style={[s.filterChip, active && s.filterChipActive]}
-              onPress={() => setCity(c)}
-              activeOpacity={0.75}
-            >
-              <Text style={[s.filterChipText, active && s.filterChipTextActive]}>{c}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      {/* 정렬 */}
-      <View style={s.sortBar}>
-        <Text style={s.resultCount}>{filtered.length}개의 헬스장</Text>
-        <TouchableOpacity style={s.sortBtn} onPress={() => setSortOpen(true)} activeOpacity={0.7}>
-          <MaterialCommunityIcons name="sort" size={14} color={D.primary} />
-          <Text style={s.sortBtnText}>{currentSort.label}</Text>
-          <MaterialCommunityIcons name="chevron-down" size={14} color={D.textSec} />
-        </TouchableOpacity>
-      </View>
-    </View>
+      {renderRegionChip()}
+    </>
   );
 
   return (
     <SafeAreaView style={s.container}>
+      {viewMode === 'list' && (<>
+      {/* 기준 위치 (탭하면 지역 선택) */}
+      <TouchableOpacity style={s.locBar} onPress={() => router.push('/location-picker' as any)} activeOpacity={0.7}>
+        <MaterialCommunityIcons name="map-marker" size={16} color={D.primary} />
+        <Text style={s.locBarText} numberOfLines={1}>{selectedDong ? selectedDong : '현재 위치 기준'}</Text>
+        <MaterialCommunityIcons name="chevron-down" size={16} color={D.textSec} />
+      </TouchableOpacity>
+
+      {/* 통합 검색바 + 자동완성 + 선택지역 */}
+      {renderSearchZone()}
+
+      {/* 정렬 + 목록/지도 토글 */}
+      <View style={s.sortBar}>
+        <Text style={s.resultCount}>{filtered.length}개의 헬스장</Text>
+        <View style={s.sortBarRight}>
+          {viewMode === 'list' && (
+            <TouchableOpacity style={s.sortBtn} onPress={() => setSortOpen(true)} activeOpacity={0.7}>
+              <MaterialCommunityIcons name="sort" size={14} color={D.primary} />
+              <Text style={s.sortBtnText}>{currentSort.label}</Text>
+              <MaterialCommunityIcons name="chevron-down" size={14} color={D.textSec} />
+            </TouchableOpacity>
+          )}
+          <View style={s.viewToggle}>
+            <TouchableOpacity
+              style={[s.toggleBtn, s.toggleBtnActive]}
+              onPress={() => setViewMode('list')} activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="format-list-bulleted" size={16} color={'#fff'} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.toggleBtn}
+              onPress={() => setViewMode('map')} activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="map-outline" size={16} color={D.textSec} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+      </>)}
+
+      {viewMode === 'map' ? (
+        <View style={s.mapWrap}>
+          <GymMapView
+            gyms={filtered}
+            currentLocation={currentLocation}
+            selectedGymId={selectedGymId}
+            onSelectGym={setSelectedGymId}
+            bottomInset={selectedMapGym ? 100 : 16}
+            fitToGyms={query.trim().length > 0 || !!regionFilter}
+          />
+
+          {/* 지도 위 플로팅 상단: 위치·검색·토글 한 줄 */}
+          <View pointerEvents="box-none" style={s.mapOverlayTop}>
+            <View style={s.mapTopRow}>
+              <TouchableOpacity style={s.mapLocChip} onPress={() => router.push('/location-picker' as any)} activeOpacity={0.8}>
+                <MaterialCommunityIcons name="map-marker" size={14} color={D.primary} />
+                <Text style={s.mapLocChipText} numberOfLines={1}>{selectedDong ? selectedDong : '현재 위치 기준'}</Text>
+                <MaterialCommunityIcons name="chevron-down" size={14} color={D.textSec} />
+              </TouchableOpacity>
+
+              <View style={s.mapSearch}>
+                <View style={s.mapSearchInput}>
+                  <MaterialCommunityIcons name="magnify" size={16} color={D.textMuted} />
+                  <TextInput
+                    style={s.searchInput}
+                    placeholder="검색"
+                    value={query}
+                    onChangeText={(t) => { setQuery(t); setSuggestOpen(true); }}
+                    placeholderTextColor={D.textMuted}
+                  />
+                  {query.length > 0 && (
+                    <TouchableOpacity onPress={() => { setQuery(''); setSuggestOpen(false); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <MaterialCommunityIcons name="close-circle" size={15} color={D.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {suggestOpenNow && (
+                  <View style={s.suggestPanelMap}>{renderSuggestItems()}</View>
+                )}
+              </View>
+
+              <View style={s.viewToggle}>
+                <TouchableOpacity style={s.toggleBtn} onPress={() => setViewMode('list')} activeOpacity={0.7}>
+                  <MaterialCommunityIcons name="format-list-bulleted" size={16} color={D.textSec} />
+                </TouchableOpacity>
+                <TouchableOpacity style={[s.toggleBtn, s.toggleBtnActive]} onPress={() => setViewMode('map')} activeOpacity={0.7}>
+                  <MaterialCommunityIcons name="map-outline" size={16} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </View>
+            {renderRegionChip()}
+          </View>
+          {selectedMapGym && (
+            <TouchableOpacity
+              style={s.mapCard}
+              onPress={() => router.push({ pathname: `/gym/${selectedMapGym.id}` as any, params: { from: 'trainer' } })}
+              activeOpacity={0.9}
+            >
+              <Image source={{ uri: selectedMapGym.images[0] }} style={s.mapCardImg} />
+              <View style={s.mapCardInfo}>
+                <Text style={s.mapCardName} numberOfLines={1}>{selectedMapGym.name}</Text>
+                <Text style={s.mapCardMeta} numberOfLines={1}>
+                  ⭐ {selectedMapGym.rating.toFixed(1)} · {selectedMapGym.district} {selectedMapGym.dong} · 📍 {formatDistance(calculateDistance(currentLocation, selectedMapGym.coordinate))}
+                </Text>
+              </View>
+              <Text style={s.mapCardArrow}>›</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : (
       <FlatList
         ref={listRef}
         data={filtered}
@@ -168,6 +345,8 @@ export default function GymListScreen() {
                     <Text style={s.reviewCnt}>({item.reviewCount})</Text>
                     <Text style={s.dot}>·</Text>
                     <Text style={s.location}>{item.district} {item.dong}</Text>
+                    <Text style={s.dot}>·</Text>
+                    <Text style={s.location}>📍 {formatDistance(calculateDistance(currentLocation, item.coordinate))}</Text>
                   </View>
 
                   {/* 주소 */}
@@ -200,7 +379,6 @@ export default function GymListScreen() {
             </TouchableOpacity>
           );
         }}
-        ListHeaderComponent={ListHeader}
         ListEmptyComponent={
           <View style={s.empty}>
             <MaterialCommunityIcons name="dumbbell" size={52} color={D.textMuted} />
@@ -211,6 +389,7 @@ export default function GymListScreen() {
         style={s.list}
         contentContainerStyle={{ paddingBottom: 32 }}
       />
+      )}
 
       {/* 정렬 모달 */}
       {sortOpen && (
@@ -252,22 +431,83 @@ const s = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 14, color: D.text, padding: 0 },
 
-  filterScrollWrap: { marginTop: 8 },
-  filterScroll: { paddingHorizontal: 16, gap: 8, paddingBottom: 4 },
-  filterChip: {
-    paddingHorizontal: 14, paddingVertical: 7,
-    borderRadius: 20, backgroundColor: D.surface,
-    borderWidth: 1, borderColor: D.border,
+  locBar: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 2 },
+  locBarText: { fontSize: 15, fontWeight: '700', color: D.text, flexShrink: 1 },
+
+  searchZone: { position: 'relative', zIndex: 20 },
+  suggestPanel: {
+    position: 'absolute', top: 56, left: 16, right: 16, zIndex: 30,
+    backgroundColor: D.surface, borderRadius: 12, borderWidth: 1, borderColor: D.border,
+    paddingVertical: 4, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
   },
-  filterChipActive: { backgroundColor: D.primary, borderColor: D.primary },
-  filterChipText: { fontSize: 13, fontWeight: '600', color: D.textSec },
-  filterChipTextActive: { color: '#fff' },
+  suggestItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 11 },
+  suggestText: { flex: 1, fontSize: 14, color: D.text },
+  suggestTag: { fontSize: 11, fontWeight: '600', color: D.textMuted },
+  regionChipRow: { paddingHorizontal: 16, paddingTop: 4 },
+  regionChip: {
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6,
+    paddingLeft: 10, paddingRight: 8, paddingVertical: 6, borderRadius: 16,
+    backgroundColor: D.primaryGlow, borderWidth: 1, borderColor: D.primary + '40',
+  },
+  regionChipText: { fontSize: 13, fontWeight: '600', color: D.text },
 
   sortBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 10,
   },
+  sortBarRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  viewToggle: {
+    flexDirection: 'row', backgroundColor: D.surface,
+    borderRadius: 8, borderWidth: 1, borderColor: D.border, overflow: 'hidden',
+  },
+  toggleBtn: { paddingHorizontal: 10, paddingVertical: 6 },
+  toggleBtnActive: { backgroundColor: D.primary },
   resultCount: { fontSize: 13, color: D.textSec, fontWeight: '600' },
+
+  mapWrap: { flex: 1, position: 'relative' },
+  mapOverlayTop: {
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
+    paddingTop: 12,
+  },
+  mapTopRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 16,
+  },
+  mapLocChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
+    borderWidth: 1, borderColor: D.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 4,
+  },
+  mapLocChipText: { fontSize: 13, fontWeight: '700', color: D.text, flexShrink: 1 },
+  mapSearch: { flex: 1, position: 'relative' },
+  mapSearchInput: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 9,
+    borderWidth: 1, borderColor: D.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 4,
+  },
+  suggestPanelMap: {
+    position: 'absolute', top: 46, left: 0, right: 0, zIndex: 30,
+    backgroundColor: D.surface, borderRadius: 12, borderWidth: 1, borderColor: D.border,
+    paddingVertical: 4, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
+  },
+  mapCard: {
+    position: 'absolute', left: 16, right: 16, bottom: 20,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: D.surface, borderRadius: 16, padding: 10,
+    borderWidth: 1, borderColor: D.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
+  },
+  mapCardImg: { width: 60, height: 60, borderRadius: 12 },
+  mapCardInfo: { flex: 1 },
+  mapCardName: { fontSize: 15, fontWeight: '700', color: D.text, marginBottom: 4 },
+  mapCardMeta: { fontSize: 12, color: D.textSec },
+  mapCardArrow: { fontSize: 24, color: D.textMuted, paddingRight: 6 },
   sortBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: D.surface, borderRadius: 8,

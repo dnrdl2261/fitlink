@@ -11,20 +11,9 @@ interface TrainerCardProps {
   distance?: number;
 }
 
-const SPEC_COLORS: Record<string, { bg: string; text: string }> = {
-  '체중감량':      { bg: '#FEF3C7', text: '#D97706' },
-  '근육증가':      { bg: '#DBEAFE', text: '#2563EB' },
-  '재활':          { bg: '#D1FAE5', text: '#059669' },
-  '체력향상':      { bg: '#EDE9FE', text: '#7C3AED' },
-  '크로스핏':      { bg: '#FEE2E2', text: '#DC2626' },
-  '필라테스':      { bg: '#FCE7F3', text: '#DB2777' },
-  '요가':          { bg: '#ECFDF5', text: '#10B981' },
-  '스포츠퍼포먼스':{ bg: '#FFF7ED', text: '#EA580C' },
-};
-
 export default function TrainerCard({ trainer, onPress, distance }: TrainerCardProps) {
   const isMale = trainer.gender === 'male';
-  const specs = trainer.specializations.slice(0, 2);
+  const specs = (trainer.trainingGoals ?? []).slice(0, 2);
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.72}>
@@ -49,14 +38,11 @@ export default function TrainerCard({ trainer, onPress, distance }: TrainerCardP
 
         {/* 전문 분야 칩 */}
         <View style={styles.specRow}>
-          {specs.map((s) => {
-            const col = SPEC_COLORS[s] ?? { bg: '#F3F4F6', text: '#6B7280' };
-            return (
-              <View key={s} style={[styles.specChip, { backgroundColor: col.bg }]}>
-                <Text style={[styles.specText, { color: col.text }]}>{s}</Text>
-              </View>
-            );
-          })}
+          {specs.map((s) => (
+            <View key={s} style={styles.specChip}>
+              <Text style={styles.specText} numberOfLines={1}>{s}</Text>
+            </View>
+          ))}
         </View>
 
         {/* 위치 */}
@@ -109,10 +95,9 @@ const styles = StyleSheet.create({
   exp: { fontSize: 11, color: '#9CA3AF', fontWeight: '500' },
   specRow: { flexDirection: 'row', gap: 6 },
   specChip: {
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 12,
+    paddingVertical: 3,
   },
-  specText: { fontSize: 11, fontWeight: '700' },
+  specText: { fontSize: 11, fontWeight: '700', color: COLORS.textSecondary },
   location: { fontSize: 11, color: '#9CA3AF' },
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },

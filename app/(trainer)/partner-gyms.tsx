@@ -41,6 +41,8 @@ export default function PartnerGymsScreen() {
 
   const [applyModal, setApplyModal] = useState(false);
   const [applySearch, setApplySearch] = useState('');
+  const [regionFilter, setRegionFilter] = useState<{ city: string; district?: string } | null>(null);
+  const [suggestOpen, setSuggestOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
 
   if (!trainer) return null;
@@ -80,25 +82,62 @@ export default function PartnerGymsScreen() {
     [myRequests]
   );
 
-  const applyableGyms = useMemo(() => {
-    let list = MOCK_GYMS.filter(g =>
+  // 신청 가능한 헬스장 풀 (이미 파트너이거나 신청 대기 중인 곳 제외)
+  const applyableBase = useMemo(
+    () => MOCK_GYMS.filter(g =>
       !allPartnerGymIds.includes(g.id) && !pendingGymIds.includes(g.id)
-    );
+    ),
+    [allPartnerGymIds, pendingGymIds]
+  );
+
+  // 입력어에 대한 자동완성 후보 (지역 + 헬스장). 지역이 이미 선택된 경우 그 안에서만 헬스장 추천.
+  const suggestions = useMemo(() => {
+    const q = applySearch.trim();
+    const empty = { regions: [] as { city: string; district?: string; label: string }[], gyms: [] as Gym[] };
+    if (!q) return empty;
+    const lq = q.toLowerCase();
+    const pool = regionFilter
+      ? applyableBase.filter(g => g.city === regionFilter.city && (!regionFilter.district || g.district === regionFilter.district))
+      : applyableBase;
+
+    const regionMap = new Map<string, { city: string; district?: string; label: string }>();
+    if (!regionFilter) {
+      applyableBase.forEach(g => {
+        if (g.city.includes(q)) regionMap.set(g.city, { city: g.city, label: g.city });
+        const cd = `${g.city} ${g.district}`;
+        if (g.district.includes(q) || cd.includes(q))
+          regionMap.set(cd, { city: g.city, district: g.district, label: cd });
+      });
+    }
+    return {
+      regions: Array.from(regionMap.values()).slice(0, 4),
+      gyms: pool.filter(g => g.name.toLowerCase().includes(lq)).slice(0, 5),
+    };
+  }, [applyableBase, applySearch, regionFilter]);
+
+  const applyableGyms = useMemo(() => {
+    let list = applyableBase;
+    if (regionFilter)
+      list = list.filter(g =>
+        g.city === regionFilter.city &&
+        (!regionFilter.district || g.district === regionFilter.district)
+      );
     if (applySearch.trim()) {
       const q = applySearch.toLowerCase();
       list = list.filter(g =>
         g.name.toLowerCase().includes(q) ||
-        g.address.toLowerCase().includes(q)
+        g.address.toLowerCase().includes(q) ||
+        g.facilities.some(f => f.toLowerCase().includes(q))
       );
     }
     return list;
-  }, [allPartnerGymIds, pendingGymIds, applySearch]);
+  }, [applyableBase, regionFilter, applySearch]);
 
   const handleApply = (gym: Gym) => {
     applyToGym({
       gymId: gym.id, gymName: gym.name,
       trainerId: trainer.id, trainerName: trainer.name,
-      trainerTagline: trainer.tagline, trainerSpecializations: trainer.specializations,
+      trainerTagline: trainer.tagline, trainerSpecializations: trainer.trainingGoals,
     });
     const gymAdminId = MOCK_GYM_ADMINS.find((a) => a.gymId === gym.id)?.id ?? '';
     if (gymAdminId) {
@@ -374,7 +413,7 @@ export default function PartnerGymsScreen() {
       </ScrollView>
 
       {/* FAB */}
-      <TouchableOpacity style={st.fab} onPress={() => { setApplySearch(''); setApplyModal(true); }}>
+      <TouchableOpacity style={st.fab} onPress={() => { setApplySearch(''); setRegionFilter(null); setSuggestOpen(false); setApplyModal(true); }}>
         <MaterialCommunityIcons name="plus" size={20} color="#fff" />
         <Text style={st.fabText}>새 헬스장 신청</Text>
       </TouchableOpacity>
@@ -460,17 +499,67 @@ export default function PartnerGymsScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={st.modalSearchBox}>
-            <MaterialCommunityIcons name="magnify" size={18} color={COLORS.textSecondary} />
-            <TextInput
-              style={st.modalSearchInput}
-              placeholder="헬스장 이름 또는 주소 검색"
-              value={applySearch}
-              onChangeText={setApplySearch}
-              placeholderTextColor={COLORS.textSecondary}
-              autoFocus
-            />
+          <View style={st.searchZone}>
+            <View style={st.modalSearchBox}>
+              <MaterialCommunityIcons name="magnify" size={18} color={COLORS.textSecondary} />
+              <TextInput
+                style={st.modalSearchInput}
+                placeholder="지역·헬스장 이름·시설 검색"
+                value={applySearch}
+                onChangeText={(t) => { setApplySearch(t); setSuggestOpen(true); }}
+                placeholderTextColor={COLORS.textSecondary}
+                autoFocus
+              />
+              {applySearch.length > 0 && (
+                <TouchableOpacity onPress={() => { setApplySearch(''); setSuggestOpen(false); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <MaterialCommunityIcons name="close-circle" size={16} color={COLORS.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* 자동완성 추천 */}
+            {suggestOpen && applySearch.trim().length > 0 && (suggestions.regions.length > 0 || suggestions.gyms.length > 0) && (
+              <View style={st.suggestPanel}>
+                {suggestions.regions.map(r => (
+                  <TouchableOpacity
+                    key={'r-' + r.label} style={st.suggestItem}
+                    onPress={() => { setRegionFilter({ city: r.city, district: r.district }); setApplySearch(''); setSuggestOpen(false); }}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons name="map-marker-outline" size={16} color={ACCENT} />
+                    <Text style={st.suggestText} numberOfLines={1}>{r.label}</Text>
+                    <Text style={st.suggestTag}>지역</Text>
+                  </TouchableOpacity>
+                ))}
+                {suggestions.gyms.map(g => (
+                  <TouchableOpacity
+                    key={'g-' + g.id} style={st.suggestItem}
+                    onPress={() => { setApplySearch(g.name); setSuggestOpen(false); }}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons name="dumbbell" size={16} color={ACCENT} />
+                    <Text style={st.suggestText} numberOfLines={1}>{g.name}</Text>
+                    <Text style={st.suggestTag}>헬스장</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
+
+          {/* 선택된 지역 */}
+          {regionFilter && (
+            <View style={st.regionChipRow}>
+              <View style={st.regionChip}>
+                <MaterialCommunityIcons name="map-marker" size={13} color={ACCENT} />
+                <Text style={st.regionChipText}>
+                  {regionFilter.district ? `${regionFilter.city} ${regionFilter.district}` : regionFilter.city}
+                </Text>
+                <TouchableOpacity onPress={() => setRegionFilter(null)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                  <MaterialCommunityIcons name="close" size={14} color={COLORS.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           <FlatList
             data={applyableGyms}
@@ -710,6 +799,23 @@ const st = StyleSheet.create({
     borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, gap: 8,
   },
   modalSearchInput: { flex: 1, fontSize: 14, color: COLORS.text },
+  searchZone: { position: 'relative', zIndex: 20 },
+  suggestPanel: {
+    position: 'absolute', top: 56, left: 12, right: 12, zIndex: 30,
+    backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: COLORS.border,
+    paddingVertical: 4, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
+  },
+  suggestItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 11 },
+  suggestText: { flex: 1, fontSize: 14, color: COLORS.text },
+  suggestTag: { fontSize: 11, fontWeight: '600', color: COLORS.textSecondary },
+  regionChipRow: { paddingHorizontal: 12, paddingBottom: 6 },
+  regionChip: {
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6,
+    paddingLeft: 10, paddingRight: 8, paddingVertical: 6, borderRadius: 16,
+    backgroundColor: ACCENT + '14', borderWidth: 1, borderColor: ACCENT + '40',
+  },
+  regionChipText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
   applyListContent: { paddingHorizontal: 16, paddingBottom: 40 },
   separator: { height: StyleSheet.hairlineWidth, backgroundColor: COLORS.border, marginLeft: 70 },
   applyGymItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 12 },

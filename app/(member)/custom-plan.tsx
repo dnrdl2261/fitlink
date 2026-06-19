@@ -141,7 +141,7 @@ export default function CustomPlanScreen() {
   const handleBack = () => {
     if (showResult) { setShowResult(false); return; }
     if (stepIdx > 0) { setStepIdx(s => s - 1); return; }
-    router.back();
+    router.navigate('/(member)/trainers' as any);
   };
 
   const recommended = useMemo(() => {

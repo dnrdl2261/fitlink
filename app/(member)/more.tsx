@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  SafeAreaView, Platform, Alert, Modal, TouchableWithoutFeedback, Image,
+  SafeAreaView, Modal, TouchableWithoutFeedback, Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useScrollToTop } from '@react-navigation/native';
@@ -45,7 +45,7 @@ export default function MemberMoreScreen() {
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
   useScrollToTop(scrollRef);
-  const { member, logout } = useAuthStore();
+  const { member } = useAuthStore();
   const [followModal, setFollowModal] = useState<'followers' | 'following' | null>(null);
 
   const { bookings } = useBookingStore();
@@ -75,20 +75,6 @@ export default function MemberMoreScreen() {
       .slice(0, 2);
     return { activeCount: activeBookings.length, totalRemaining, monthDone, upcoming };
   }, [bookings]);
-
-  const handleLogout = () => {
-    if (Platform.OS === 'web') {
-      if (window.confirm('로그아웃 하시겠습니까?')) {
-        logout();
-        router.replace('/login');
-      }
-      return;
-    }
-    Alert.alert('로그아웃', '로그아웃 하시겠습니까?', [
-      { text: '취소', style: 'cancel' },
-      { text: '로그아웃', style: 'destructive', onPress: () => { logout(); router.replace('/login'); } },
-    ]);
-  };
 
   const sections: { title: string; items: MenuItem[] }[] = [
     {
@@ -229,13 +215,6 @@ export default function MemberMoreScreen() {
           </View>
         ))}
 
-        {/* 로그아웃 */}
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.7}>
-            <Text style={styles.logoutText}>로그아웃</Text>
-          </TouchableOpacity>
-        </View>
-
         <View style={{ height: 32 }} />
       </ScrollView>
 
@@ -332,8 +311,6 @@ const styles = StyleSheet.create({
   menuSub: { fontSize: 12, color: COLORS.textSecondary, marginTop: 1 },
   menuArrow: { fontSize: 20, color: COLORS.border },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: COLORS.borderSubtle, marginLeft: 64 },
-  logoutBtn: { backgroundColor: COLORS.surface, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, paddingVertical: 15, alignItems: 'center' },
-  logoutText: { fontSize: 16, fontWeight: '500', color: COLORS.error },
 
   // PT 현황 대시보드 카드
   dashCard: {

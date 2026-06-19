@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { FacilityTag, PricingTier } from '../types';
+import { FacilityTag, PricingTier, GymTimeSlot } from '../types';
 
 export interface GymProfileEdits {
   name?: string;
@@ -8,6 +8,7 @@ export interface GymProfileEdits {
   facilities?: FacilityTag[];
   pricing?: PricingTier[];
   usageRules?: string[];
+  operatingHours?: GymTimeSlot[];
 }
 
 interface GymProfileState {

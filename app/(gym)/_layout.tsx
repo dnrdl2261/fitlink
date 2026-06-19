@@ -85,7 +85,7 @@ export default function GymLayout() {
     <Tabs
       initialRouteName="bookings"
       screenOptions={{
-        tabBarActiveTintColor: '#2DD4BF',
+        tabBarActiveTintColor: '#4F63F5',
         tabBarInactiveTintColor: '#64748B',
         tabBarStyle: TAB_BAR,
         tabBarItemStyle: { justifyContent: 'flex-start', paddingTop: 9 },
@@ -137,7 +137,7 @@ export default function GymLayout() {
       <Tabs.Screen
         name="more"
         options={{
-          tabBarLabel: '마이',
+          tabBarLabel: '내정보',
           tabBarIcon: ({ color }) => <TabIcon name="account" color={color} />,
           headerTitle: '내 정보',
         }}

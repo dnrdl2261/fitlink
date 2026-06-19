@@ -1,4 +1,4 @@
-import { Tabs, useRouter } from 'expo-router';
+import { Tabs, useRouter, useLocalSearchParams } from 'expo-router';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
@@ -15,11 +15,14 @@ const TAB_BAR = {
   height: 90,
 };
 
+// 진입 출처에 따라 뒤로가기 목적지 결정 (홈에서 왔으면 홈, 아니면 내정보)
 function BackToMoreBtn() {
   const router = useRouter();
+  const { from } = useLocalSearchParams<{ from?: string }>();
+  const target = from === 'home' ? '/(trainer)/' : '/(trainer)/more';
   return (
     <TouchableOpacity
-      onPress={() => router.navigate('/(trainer)/more' as any)}
+      onPress={() => router.navigate(target as any)}
       style={{ paddingLeft: 16, paddingRight: 8 }}
       hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
     >
@@ -112,7 +115,7 @@ export default function TrainerLayout() {
       <Tabs.Screen
         name="more"
         options={{
-          tabBarLabel: '설정',
+          tabBarLabel: '내정보',
           tabBarIcon: ({ color }) => <TabIcon name="cog-outline" color={color} />,
           headerTitle: '설정',
         }}
@@ -122,6 +125,7 @@ export default function TrainerLayout() {
       <Tabs.Screen name="map"      options={{ href: null, headerTitle: '헬스장 찾기' }} />
       <Tabs.Screen name="earnings" options={{ href: null, headerTitle: '매출 관리', headerLeft: () => <BackToMoreBtn /> }} />
       <Tabs.Screen name="members"  options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="manage"   options={{ href: null, headerTitle: '예약·세션 관리', headerLeft: () => <BackToMoreBtn /> }} />
 
       <Tabs.Screen name="community-post"        options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="community-write"       options={{ href: null, headerShown: false }} />
@@ -132,13 +136,13 @@ export default function TrainerLayout() {
         options={{ href: null, headerShown: false, tabBarStyle: { display: 'none' } }}
       />
 
-      <Tabs.Screen name="slots"        options={{ href: null, headerShown: false }} />
-      <Tabs.Screen name="profile"      options={{ href: null, headerTitle: '내 프로필' }} />
+      <Tabs.Screen name="slots"        options={{ href: null, headerShown: false, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="profile"      options={{ href: null, headerTitle: '내 프로필', headerLeft: () => <BackToMoreBtn /> }} />
       <Tabs.Screen name="edit-profile" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="partner-gyms" options={{ href: null, headerShown: false }} />
-      <Tabs.Screen name="slot-add"     options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="slot-add"     options={{ href: null, headerShown: false, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="package-manage" options={{ href: null, headerShown: false }} />
-      <Tabs.Screen name="gym-book-pay"   options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="gym-book-pay"   options={{ href: null, headerShown: false, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="my-slot-bookings" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="notifications"  options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="safety"         options={{ href: null, headerShown: false }} />

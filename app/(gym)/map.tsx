@@ -74,7 +74,7 @@ export default function GymMapScreen() {
           const isMyGym = gym.id === myGymId;
           const el = document.createElement('div');
           el.style.cssText = [
-            `background:${isMyGym ? '#2DD4BF' : '#666'}`,
+            `background:${isMyGym ? '#4F63F5' : '#666'}`,
             'color:#fff',
             'width:28px',
             'height:28px',
@@ -154,7 +154,7 @@ export default function GymMapScreen() {
       const sel = gymId === selectedGymId;
       if (sel) {
         el.style.cssText = [
-          `background:${isMyGym ? '#2DD4BF' : COLORS.secondary}`,
+          `background:${isMyGym ? '#4F63F5' : COLORS.secondary}`,
           'color:#fff',
           'padding:6px 13px',
           'border-radius:20px',
@@ -162,7 +162,7 @@ export default function GymMapScreen() {
           'font-weight:700',
           'white-space:nowrap',
           'cursor:pointer',
-          `box-shadow:0 4px 14px ${isMyGym ? '#2DD4BF' : COLORS.secondary}55`,
+          `box-shadow:0 4px 14px ${isMyGym ? '#4F63F5' : COLORS.secondary}55`,
           'border:2px solid rgba(255,255,255,0.4)',
           'user-select:none',
           'transition:all 0.15s',
@@ -172,7 +172,7 @@ export default function GymMapScreen() {
         el.textContent = isMyGym ? `⭐ ${gym.name} (내 헬스장)` : `🏠 ${gym.name}`;
       } else {
         el.style.cssText = [
-          `background:${isMyGym ? '#2DD4BF' : '#666'}`,
+          `background:${isMyGym ? '#4F63F5' : '#666'}`,
           'color:#fff',
           'width:34px',
           'height:34px',
@@ -215,7 +215,7 @@ export default function GymMapScreen() {
 
         {!mapReady && !mapError && (
           <View style={styles.loadOverlay}>
-            <ActivityIndicator size="large" color={'#2DD4BF'} />
+            <ActivityIndicator size="large" color={'#4F63F5'} />
             <Text style={styles.loadText}>지도를 불러오는 중...</Text>
           </View>
         )}
@@ -231,14 +231,14 @@ export default function GymMapScreen() {
           <View style={styles.topBar}>
             <View style={styles.locChip}>
               {hasPermission === null
-                ? <><ActivityIndicator size="small" color={'#2DD4BF'} style={{ marginRight: 5 }} /><Text style={styles.locChipText}>위치 확인 중</Text></>
+                ? <><ActivityIndicator size="small" color={'#4F63F5'} style={{ marginRight: 5 }} /><Text style={styles.locChipText}>위치 확인 중</Text></>
                 : hasPermission
                   ? <Text style={styles.locChipText}>📍 현재 위치 기준</Text>
                   : <Text style={styles.locChipText}>⚠️ 서울 중심 기준</Text>
               }
             </View>
             <View style={styles.legendChip}>
-              <View style={[styles.legendDot, { backgroundColor: '#2DD4BF' }]} />
+              <View style={[styles.legendDot, { backgroundColor: '#4F63F5' }]} />
               <Text style={styles.locChipText}>내 헬스장</Text>
               <View style={[styles.legendDot, { backgroundColor: '#666' }]} />
               <Text style={styles.locChipText}>주변</Text>
@@ -358,7 +358,7 @@ export default function GymMapScreen() {
         {gyms.map(gym => (
           <Marker key={gym.id} coordinate={gym.coordinate}
             onPress={() => setSelectedGymId(gym.id)}
-            pinColor={gym.id === selectedGymId ? COLORS.secondary : (gym.id === myGymId ? '#2DD4BF' : '#888')}
+            pinColor={gym.id === selectedGymId ? COLORS.secondary : (gym.id === myGymId ? '#4F63F5' : '#888')}
             title={gym.name}
           />
         ))}
@@ -450,11 +450,11 @@ const styles = StyleSheet.create({
   selInfo: { flex: 1, gap: 4 },
   selNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   selName: { fontSize: 15, fontWeight: '700', color: COLORS.text, flex: 1 },
-  selDist: { fontSize: 12, color: '#2DD4BF', fontWeight: '600' },
+  selDist: { fontSize: 12, color: '#4F63F5', fontWeight: '600' },
   selArrow: { fontSize: 22, color: COLORS.textSecondary, paddingRight: 4 },
   selClose: { padding: 6 },
   selCloseText: { fontSize: 14, color: COLORS.textSecondary, fontWeight: '700' },
-  myGymBadge: { backgroundColor: '#2DD4BF', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
+  myGymBadge: { backgroundColor: '#4F63F5', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
   myGymBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
 
   listModalOverlay: { flex: 1, justifyContent: 'flex-end' },
@@ -478,14 +478,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12,
     borderBottomWidth: 1, borderBottomColor: COLORS.border, gap: 12,
   },
-  gymRowSel: { backgroundColor: '#2DD4BF' + '12', borderLeftWidth: 3, borderLeftColor: '#2DD4BF', paddingLeft: 13 },
+  gymRowSel: { backgroundColor: '#4F63F5' + '12', borderLeftWidth: 3, borderLeftColor: '#4F63F5', paddingLeft: 13 },
   gymThumb: { width: 56, height: 56, borderRadius: 10, backgroundColor: COLORS.border },
   gymInfo: { flex: 1, gap: 3 },
   gymNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   gymName: { fontSize: 14, fontWeight: '700', color: COLORS.text, flex: 1 },
   gymAddr: { fontSize: 12, color: COLORS.textSecondary },
   gymMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  gymDist: { fontSize: 11, color: '#2DD4BF', fontWeight: '600' },
+  gymDist: { fontSize: 11, color: '#4F63F5', fontWeight: '600' },
   gymArrow: { fontSize: 18, color: COLORS.textSecondary },
 
   listBtnNative: {

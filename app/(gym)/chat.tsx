@@ -12,7 +12,7 @@ import { formatChatTime } from '../../utils/formatters';
 import { MOCK_TRAINERS } from '../../data/trainers';
 import { COLORS } from '../../utils/constants';
 
-const GYM  = '#2DD4BF';
+const GYM  = '#4F63F5';
 const DARK = '#0F172A';
 const SLATE = '#64748B';
 
@@ -118,7 +118,7 @@ export default function GymChatScreen() {
                   </View>
                   <View style={styles.trainerInfo}>
                     <Text style={styles.trainerName}>{t.name} 트레이너</Text>
-                    <Text style={styles.trainerSub}>{t.specializations.slice(0, 2).join(' · ')}</Text>
+                    <Text style={styles.trainerSub}>{(t.trainingGoals ?? []).slice(0, 2).join(' · ')}</Text>
                   </View>
                   {alreadyChatting.has(t.id) && (
                     <Text style={styles.existingLabel}>대화 중</Text>
@@ -164,14 +164,14 @@ const styles = StyleSheet.create({
   convTime: { fontSize: 11, color: COLORS.textSecondary },
   convLast: { fontSize: 13, color: COLORS.textSecondary },
   unreadBadge: {
-    backgroundColor: '#2DD4BF', borderRadius: 10,
+    backgroundColor: '#4F63F5', borderRadius: 10,
     minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6,
   },
   unreadText: { fontSize: 11, fontWeight: '800', color: '#fff' },
 
   fab: {
     position: 'absolute', bottom: 20, right: 20,
-    backgroundColor: '#2DD4BF', borderRadius: 24,
+    backgroundColor: '#4F63F5', borderRadius: 24,
     paddingHorizontal: 20, paddingVertical: 13,
     shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
     elevation: 6,
@@ -194,5 +194,5 @@ const styles = StyleSheet.create({
   trainerInfo: { flex: 1, gap: 2 },
   trainerName: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   trainerSub: { fontSize: 12, color: COLORS.textSecondary },
-  existingLabel: { fontSize: 12, color: '#2DD4BF', fontWeight: '600' },
+  existingLabel: { fontSize: 12, color: '#4F63F5', fontWeight: '600' },
 });

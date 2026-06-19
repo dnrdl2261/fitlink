@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  SafeAreaView, Platform, Alert, Modal, TouchableWithoutFeedback, Image,
+  SafeAreaView, Modal, TouchableWithoutFeedback, Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useScrollToTop } from '@react-navigation/native';
@@ -38,7 +38,7 @@ export default function TrainerMoreScreen() {
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
   useScrollToTop(scrollRef);
-  const { trainer, logout } = useAuthStore();
+  const { trainer } = useAuthStore();
   const [followModal, setFollowModal] = useState<'followers' | 'following' | null>(null);
   const { bookings } = useBookingStore();
 
@@ -67,30 +67,16 @@ export default function TrainerMoreScreen() {
     return { todaySessions, monthEarnings, activeCount };
   }, [bookings, trainer]);
 
-  const handleLogout = () => {
-    if (Platform.OS === 'web') {
-      if (window.confirm('로그아웃 하시겠습니까?')) {
-        logout();
-        router.replace('/login');
-      }
-      return;
-    }
-    Alert.alert('로그아웃', '로그아웃 하시겠습니까?', [
-      { text: '취소', style: 'cancel' },
-      { text: '로그아웃', style: 'destructive', onPress: () => { logout(); router.replace('/login'); } },
-    ]);
-  };
-
   const sections = [
     {
       title: '운영',
       items: [
         { icon: '👥', label: '회원 관리', sub: '담당 회원 및 PT 현황', onPress: () => router.push('/(trainer)/members' as any) },
         { icon: '📅', label: '스케줄 관리', sub: '예약 일정 확인', onPress: () => router.push('/(trainer)/schedule') },
-        { icon: '📋', label: '내 예약', sub: '헬스장 슬롯 예약 현황', onPress: () => router.push('/(trainer)/my-slot-bookings' as any) },
+        { icon: '🤝', label: '파트너 헬스장 예약', sub: '입점 신청 및 파트너 관리', onPress: () => router.push('/(trainer)/partner-gyms') },
+        { icon: '📋', label: '파트너 헬스장 예약현황', sub: '헬스장 슬롯 예약 현황', onPress: () => router.push('/(trainer)/my-slot-bookings' as any) },
+        { icon: '🏋️', label: '파트너 헬스장 신청', sub: '헬스장 목록 및 슬롯 예약', onPress: () => router.push('/(trainer)/gym-list' as any) },
         { icon: '💰', label: '수익 현황', sub: '정산 및 수입 확인', onPress: () => router.push('/(trainer)/earnings') },
-        { icon: '🏋️', label: '헬스장 예약', sub: '헬스장 목록 및 슬롯 예약', onPress: () => router.push('/(trainer)/gym-list' as any) },
-        { icon: '🤝', label: '파트너 헬스장', sub: '입점 신청 및 파트너 관리', onPress: () => router.push('/(trainer)/partner-gyms') },
         { icon: '🎫', label: '패키지 관리', sub: '다회권 상품 등록 및 관리', onPress: () => router.push('/(trainer)/package-manage') },
       ],
     },
@@ -215,12 +201,6 @@ export default function TrainerMoreScreen() {
             </View>
           </View>
         ))}
-
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.7}>
-            <Text style={styles.logoutText}>로그아웃</Text>
-          </TouchableOpacity>
-        </View>
 
         <View style={{ height: 32 }} />
       </ScrollView>
@@ -360,8 +340,6 @@ const styles = StyleSheet.create({
   menuSub: { fontSize: 12, color: COLORS.textSecondary, marginTop: 1 },
   menuArrow: { fontSize: 20, color: COLORS.textSecondary },
   divider: { height: 1, backgroundColor: COLORS.border, marginLeft: 64 },
-  logoutBtn: { backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, paddingVertical: 15, alignItems: 'center' },
-  logoutText: { fontSize: 15, fontWeight: '600', color: '#FF3B30' },
 
   // 팔로워/팔로잉 모달
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { UserRole, Member, GymAdmin, Trainer } from '../types';
 import { MOCK_MEMBER, MOCK_TRAINER_USER, MOCK_GYM_ADMINS } from '../data/users';
+import { useTrainerStore } from './trainerStore';
 
 // 테스트용 계정 (프로토타입)
 const MOCK_CREDENTIALS: Array<{
@@ -42,7 +43,7 @@ function buildUserState(role: UserRole, name?: string, email?: string, gymId?: s
     role,
     isLoggedIn: true,
     member:   role === 'member'    ? { ...MOCK_MEMBER,   ...(name ? { name } : {}), ...(email ? { email } : {}) } : null,
-    trainer:  role === 'trainer'   ? { ...MOCK_TRAINER_USER } : null,
+    trainer:  role === 'trainer'   ? { ...(useTrainerStore.getState().getTrainer(MOCK_TRAINER_USER.id) ?? MOCK_TRAINER_USER) } : null,
     gymAdmin: gymAdminBase ? { ...gymAdminBase, ...(name ? { name } : {}), ...(email ? { email } : {}) } : null,
   };
 }
@@ -98,9 +99,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   updateTrainer: (data) => {
-    set((state) => ({
-      trainer: state.trainer ? { ...state.trainer, ...data } : null,
-    }));
+    const trainer = useAuthStore.getState().trainer;
+    if (!trainer) return;
+    const updated = { ...trainer, ...data };
+    // 공유 트레이너 스토어에도 반영 → 회원 화면/로그아웃 후에도 유지
+    useTrainerStore.getState().updateTrainer(updated.id, data);
+    set({ trainer: updated });
   },
 
   updateGymAdmin: (data) => {

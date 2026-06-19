@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useScrollToTop } from '@react-navigation/native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useBookingStore } from '../../store/bookingStore';
 import { useGymSlotStore } from '../../store/gymSlotStore';
 import { useAuthStore } from '../../store/authStore';
@@ -13,19 +13,20 @@ import { useNotificationStore } from '../../store/notificationStore';
 import { MOCK_TRAINERS } from '../../data/trainers';
 import { MOCK_GYMS } from '../../data/gyms';
 import { formatTime, formatPrice } from '../../utils/formatters';
-import { COLORS, BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS, DAY_LABELS } from '../../utils/constants';
+import { COLORS, BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS, DAY_LABELS, WEEKDAY_ORDER } from '../../utils/constants';
 import { SlotBooking } from '../../types';
 import StarRating from '../../components/StarRating';
+import GymScheduleView from '../../components/GymScheduleView';
 
-const GYM   = '#2DD4BF';
+const GYM   = '#4F63F5';
 const NAVY  = '#0F172A';
-const BG    = '#F1F5F9';
+const BG    = '#EEF2F9';
 const CARD  = '#FFFFFF';
 const CARD2 = '#F8F9FA';
 const BD    = '#E2E8F0';
 const TXT   = '#0F172A';
 const SEC   = '#64748B';
-const ORANGE = '#F59E0B';
+const ORANGE = '#4F63F5'; // 액션 버튼 강조색 (블루로 통일)
 const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
 
 function formatHeaderDate(): string {
@@ -93,7 +94,7 @@ function SlotRequestCard({ booking, onDetail }: { booking: SlotBooking; onDetail
             <Text style={st.reqTrainerName}>{booking.trainerName} 트레이너</Text>
             {trainer && (
               <Text style={st.reqSpec} numberOfLines={1}>
-                {trainer.specializations?.slice(0, 2).join(' · ')} · {trainer.experienceYears}년 경력
+                {(trainer.trainingGoals ?? []).slice(0, 2).join(' · ')} · {trainer.experienceYears}년 경력
               </Text>
             )}
             <View style={st.reqMetaRow}>
@@ -169,7 +170,7 @@ function TrainerGroupCard({ group, onApprove, onReject, highlighted }: {
             <Text style={st.groupTrainerName}>{group.trainerName} 트레이너</Text>
             {trainer && (
               <Text style={st.groupSpec} numberOfLines={1}>
-                {trainer.specializations?.slice(0, 2).join(' · ')} · {trainer.experienceYears}년 경력
+                {(trainer.trainingGoals ?? []).slice(0, 2).join(' · ')} · {trainer.experienceYears}년 경력
               </Text>
             )}
           </View>
@@ -200,6 +201,12 @@ function TrainerGroupCard({ group, onApprove, onReject, highlighted }: {
                 <View style={[st.groupSlotInfo, !on && { opacity: 0.35 }]}>
                   <Text style={st.groupSlotDate}>{parseDateLabel(slot.date)}</Text>
                   <Text style={st.groupSlotTime}>{slot.startTime} – {addMinutes(slot.startTime, 30)}</Text>
+                  {slot.memberName && (
+                    <View style={st.groupSlotMemberRow}>
+                      <MaterialCommunityIcons name="account" size={11} color={GYM} />
+                      <Text style={st.groupSlotMember}>{slot.memberName} 회원</Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={[st.groupSlotFee, !on && { opacity: 0.35 }]}>{formatPrice(slot.facilityFee)}</Text>
               </TouchableOpacity>
@@ -274,7 +281,9 @@ function BookingGroupCard({ trainerId, trainerName, slots, onQR }: {
             <View key={slot.id} style={[st.bgRow, i > 0 && st.bgRowDivider]}>
               <MaterialCommunityIcons name={cfg.icon as any} size={13} color={cfg.text} />
               <View style={st.bgSlotInfo}>
-                <Text style={st.bgSlotDate}>{parseDateLabel(slot.date)}</Text>
+                <Text style={st.bgSlotDate}>
+                  {parseDateLabel(slot.date)}{slot.memberName ? ` · ${slot.memberName} 회원` : ''}
+                </Text>
                 <Text style={[st.bgSlotTime, { color: GYM }]}>{slot.startTime} – {endTime}</Text>
               </View>
               <View style={[st.bgBadge, { backgroundColor: cfg.bg }]}>
@@ -356,10 +365,10 @@ function BookingStatusCard({ booking, onQR }: {
 // ── PT 예약 카드 ──────────────────────────────────────────────
 function PTBookingCard({ item }: { item: any }) {
   const statusColor = BOOKING_STATUS_COLORS[item.status] ?? COLORS.textSecondary;
-  const daysLabel = item.schedule.daysOfWeek
-    .sort((a: number, b: number) => a - b)
-    .map((d: number) => DAY_LABELS[d])
-    .join(' · ');
+  const daysLabel = WEEKDAY_ORDER
+    .filter((d) => item.schedule.daysOfWeek.includes(d))
+    .map((d) => DAY_LABELS[d])
+    .join('·');
   const todaySessions = item.sessions.filter((s: any) => s.date === today && s.status === 'scheduled');
   const progress = item.totalSessions > 0 ? (1 - item.remainingSessions / item.totalSessions) : 0;
   return (
@@ -434,7 +443,7 @@ function TrainerDetailSheet({ booking, onClose, onApprove, onReject }: {
               <>
                 <StarRating rating={trainer.rating} reviewCount={trainer.reviewCount} size="small" />
                 <Text style={st.sheetSpec} numberOfLines={1}>
-                  {trainer.specializations?.slice(0, 3).join(' · ') ?? ''}
+                  {(trainer.trainingGoals ?? []).slice(0, 3).join(' · ')}
                 </Text>
               </>
             )}
@@ -683,6 +692,12 @@ function QRVerifyModal({ booking, onClose }: { booking: SlotBooking | null; onCl
           <Text style={st.qrModalTitle}>QR 입장 확인</Text>
           <TrainerAvatar trainerId={booking.trainerId} trainerName={booking.trainerName} size={64} />
           <Text style={st.qrTrainerName}>{booking.trainerName} 트레이너</Text>
+          {booking.memberName && (
+            <View style={st.qrMemberRow}>
+              <MaterialCommunityIcons name="account-check" size={13} color={GYM} />
+              <Text style={st.qrMemberText}>{booking.memberName} 회원</Text>
+            </View>
+          )}
           <View style={st.qrTimeRow}>
             <MaterialCommunityIcons name="clock-outline" size={14} color={COLORS.textSecondary} />
             <Text style={st.qrTime}>{booking.startTime} ~ {endTime}</Text>
@@ -718,7 +733,8 @@ function QRVerifyModal({ booking, onClose }: { booking: SlotBooking | null; onCl
 const SLOT_TIMES   = ['06:00','07:00','08:00','09:00','10:00','11:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
 const MOCK_MEMBERS = ['김지수','이준혁','박소연','최민준','정유진','한서현'];
 
-function AddScheduleModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+function AddScheduleModal({ visible, onClose, gymId, gymName }: { visible: boolean; onClose: () => void; gymId: string; gymName: string }) {
+  const addAdminSlot = useGymSlotStore((s) => s.addAdminSlot);
   const [done, setDone] = useState(false);
   const [selMember, setSelMember] = useState('');
   const [selDate, setSelDate]     = useState('');
@@ -773,7 +789,7 @@ function AddScheduleModal({ visible, onClose }: { visible: boolean; onClose: () 
                 </TouchableOpacity>
               ))}
             </View>
-            <TouchableOpacity style={[as.submitBtn, !canSubmit && as.submitOff]} onPress={() => { if (canSubmit) setDone(true); }} activeOpacity={canSubmit ? 0.85 : 1}>
+            <TouchableOpacity style={[as.submitBtn, !canSubmit && as.submitOff]} onPress={() => { if (canSubmit) { addAdminSlot({ gymId, gymName, memberName: selMember, date: selDate, startTime: selTime }); setDone(true); } }} activeOpacity={canSubmit ? 0.85 : 1}>
               <Text style={as.submitTxt}>등록하기</Text>
             </TouchableOpacity>
             <View style={{ height: 20 }} />
@@ -813,12 +829,34 @@ const TAB_ICONS: Record<MainTab, string> = {
   '완료':      'flag-checkered',
 };
 
+// 홈 빠른 실행 (트레이너 홈과 동일한 패턴)
+const QUICK_ACTIONS = [
+  { icon: 'chart-box-outline',      label: '운영현황',   route: '/(gym)/dashboard' },
+  { icon: 'cog-outline',            label: '시설설정',   route: '/(gym)/availability' },
+  { icon: 'account-group-outline',  label: '트레이너',   route: '/(gym)/trainers' },
+  { icon: 'cash-multiple',          label: '정산',       route: '/(gym)/earnings' },
+  { icon: 'account-cancel-outline', label: '블랙리스트', route: '/(gym)/blacklist' },
+] as const;
+
+// 이번 달 매출 미니 차트(시연용 목 데이터)
+const REV_BARS = [
+  { label: '12월', amount: 18500000 },
+  { label: '1월',  amount: 21200000 },
+  { label: '2월',  amount: 19800000 },
+  { label: '3월',  amount: 23400000 },
+  { label: '4월',  amount: 22100000 },
+  { label: '5월',  amount: 24800000 },
+];
+
 export default function GymBookingsScreen() {
   const scrollRef = useRef<any>(null);
   useScrollToTop(scrollRef);
+  const router = useRouter();
   const { gymAdmin } = useAuthStore();
   const GYM_ID = gymAdmin?.gymId ?? 'gym_001';
   const gym    = MOCK_GYMS.find((g) => g.id === GYM_ID);
+  const revMax = Math.max(...REV_BARS.map((b) => b.amount));
+  const greeting = (() => { const h = new Date().getHours(); return h < 12 ? '좋은 아침이에요' : h < 17 ? '좋은 오후예요' : '오늘도 수고하셨어요'; })();
 
   const { bookings }                               = useBookingStore();
   const { slotBookings, confirmSlot, cancelSlot }  = useGymSlotStore();
@@ -827,6 +865,7 @@ export default function GymBookingsScreen() {
 
   const [mainTab,      setMainTab]      = useState<MainTab>('슬롯 요청');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [viewMode,     setViewMode]     = useState<'dashboard' | 'manage'>('dashboard');
 
   // 알림(슬롯 요청)에서 진입 시 슬롯 요청 탭으로 전환하고 해당 트레이너 그룹을 잠시 강조
   const { highlight } = useLocalSearchParams<{ highlight?: string }>();
@@ -923,10 +962,28 @@ export default function GymBookingsScreen() {
     }));
   }, [filteredSlots]);
 
-  const allPTBookings       = bookings.filter((b) => b.status !== 'cancelled');
+  const allPTBookings       = bookings.filter((b) => b.status === 'active' || b.status === 'completed');
   const todayPTBookings     = allPTBookings.filter((b) => b.sessions.some((s) => s.date === today && s.status === 'scheduled'));
   const activePTBookings    = allPTBookings.filter((b) => b.status === 'active');
   const completedPTBookings = allPTBookings.filter((b) => b.status === 'completed');
+
+  // 오늘 일정 타임라인 = 오늘 확정 슬롯 + 오늘 예정 PT 세션 (시간순)
+  type TimelineItem = { id: string; time: string; type: 'slot' | 'pt'; title: string; sub: string; slot?: SlotBooking };
+  const todayTimeline = useMemo<TimelineItem[]>(() => {
+    const items: TimelineItem[] = [];
+    todayConfirmed.forEach((s) => items.push({
+      id: 'slot_' + s.id, time: s.startTime, type: 'slot',
+      title: `${s.trainerName} 트레이너`,
+      sub: `${s.memberName ? `${s.memberName} 회원 · ` : ''}시설 이용 · ${formatPrice(s.facilityFee)}`, slot: s,
+    }));
+    todayPTBookings.forEach((b) => {
+      b.sessions.filter((s) => s.date === today && s.status === 'scheduled').forEach((s) => items.push({
+        id: 'pt_' + s.id, time: s.startTime, type: 'pt',
+        title: `${b.memberName} 회원`, sub: `${b.trainerName} 트레이너 · PT`,
+      }));
+    });
+    return items.sort((a, b) => a.time.localeCompare(b.time));
+  }, [todayConfirmed, todayPTBookings]);
 
   const filterCounts = {
     all:       mySlots.length,
@@ -935,64 +992,191 @@ export default function GymBookingsScreen() {
     cancelled: mySlots.filter((b) => b.status === 'cancelled').length,
   };
 
+  // 인사말 헤더 + 통계 카드 (홈에서는 스크롤과 함께 움직이고, 관리 화면에서는 상단 고정)
+  const header = (
+    <View style={st.gymHeader}>
+      <View style={st.gymHeaderTop}>
+        <View style={st.gymHeaderTextBox}>
+          <Text style={st.gymGreeting}>{greeting} 👋</Text>
+          <Text style={st.gymHeaderName}>{gymAdmin?.name ?? '관리자'}</Text>
+          <Text style={st.gymHeaderSub}>{gym?.name ?? '헬스장'} · {formatHeaderDate()}</Text>
+        </View>
+        <View style={st.gymIconBox}>
+          <MaterialCommunityIcons name="dumbbell" size={20} color={GYM} />
+        </View>
+      </View>
+
+      <View style={st.gymStatRow}>
+        <View style={st.gymStatCard}>
+          <MaterialCommunityIcons name="clock-alert-outline" size={18} color="#F59E0B" />
+          <Text style={[st.gymStatNum, { color: '#F59E0B' }]}>{pendingSlots.length}</Text>
+          <Text style={st.gymStatLabel}>처리 대기</Text>
+        </View>
+
+        <View style={st.gymStatCard}>
+          <MaterialCommunityIcons name="calendar-check-outline" size={18} color={GYM} />
+          <Text style={[st.gymStatNum, { color: GYM }]}>{todayConfirmed.length}</Text>
+          <Text style={st.gymStatLabel}>오늘 확정</Text>
+        </View>
+
+        <View style={st.gymStatCard}>
+          <MaterialCommunityIcons name="human-male-board" size={18} color="#818CF8" />
+          <Text style={[st.gymStatNum, { color: '#818CF8' }]}>{todayPTBookings.length}</Text>
+          <Text style={st.gymStatLabel}>오늘 수업</Text>
+        </View>
+
+        <View style={st.gymStatCard}>
+          <MaterialCommunityIcons name="check-circle-outline" size={18} color="#34D399" />
+          <Text style={[st.gymStatNum, { color: '#34D399' }]}>{confirmedSlots.length}</Text>
+          <Text style={st.gymStatLabel}>승인 완료</Text>
+        </View>
+      </View>
+    </View>
+  );
+
   return (
     <SafeAreaView style={st.container}>
 
-      {/* ── 프리미엄 헤더 ── */}
-      <View style={st.gymHeader}>
-        <View style={st.gymHeaderTop}>
-          <View style={st.gymIconBox}>
-            <MaterialCommunityIcons name="dumbbell" size={20} color={GYM} />
-          </View>
-          <View style={st.gymHeaderTextBox}>
-            <Text style={st.gymHeaderSub}>관리 중인 헬스장</Text>
-            <Text style={st.gymHeaderName}>{gym?.name ?? '헬스장'}</Text>
-          </View>
-          <View style={st.gymHeaderDateBox}>
-            <MaterialCommunityIcons name="calendar-outline" size={12} color={COLORS.textSecondary} />
-            <Text style={st.gymHeaderDate}>{formatHeaderDate()}</Text>
-          </View>
-        </View>
+      {/* ════════ 대시보드 (홈) ════════ */}
+      {viewMode === 'dashboard' && (
+        <ScrollView
+          ref={scrollRef}
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100 }}
+        >
+          {/* 헤더(인사말+통계 카드) — 콘텐츠와 함께 스크롤 */}
+          {header}
 
-        <View style={st.gymStatRow}>
-          <TouchableOpacity
-            style={[st.gymStatCard, { borderColor: 'rgba(245,158,11,0.25)' }]}
-            onPress={() => { setMainTab('슬롯 요청'); setStatusFilter('pending'); }}
-            activeOpacity={0.75}
-          >
-            <MaterialCommunityIcons name="clock-alert-outline" size={17} color="#F59E0B" />
-            <Text style={[st.gymStatNum, { color: '#F59E0B' }]}>{pendingSlots.length}</Text>
-            <Text style={st.gymStatLabel}>처리 대기</Text>
+          {/* 빠른 실행 */}
+          <View style={st.quickRow}>
+            {QUICK_ACTIONS.map((q) => (
+              <TouchableOpacity key={q.label} style={st.quickItem} onPress={() => router.push(q.route as any)} activeOpacity={0.7}>
+                <View style={st.quickIcon}>
+                  <MaterialCommunityIcons name={q.icon as any} size={22} color={GYM} />
+                </View>
+                <Text style={st.quickLabel}>{q.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* 승인 대기 (최우선) */}
+          {pendingGroups.length > 0 && (
+            <View style={st.sectionBlock}>
+              <View style={st.sectionHeader}>
+                <View style={st.sectionHeaderLeft}>
+                  <View style={[st.sectionIconBox, { backgroundColor: '#FEF3C7' }]}>
+                    <MaterialCommunityIcons name="clock-alert" size={14} color="#D97706" />
+                  </View>
+                  <Text style={st.sectionTitle}>승인 대기</Text>
+                </View>
+                <View style={st.sectionCount}>
+                  <Text style={st.sectionCountText}>{pendingSlots.length}건</Text>
+                </View>
+              </View>
+              <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 8, gap: 10 }}>
+                {pendingGroups.map((group) => (
+                  <TrainerGroupCard
+                    key={group.trainerId + '-' + group.slots.map((s) => s.id).join(',')}
+                    group={group}
+                    highlighted={hlTrainer === group.trainerId}
+                    onApprove={(slots) => handleGroupApprove(slots, group)}
+                    onReject={(slots) => handleGroupReject(slots, group)}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* 오늘 일정 타임라인 */}
+          <View style={st.sectionBlock}>
+            <View style={st.sectionHeader}>
+              <View style={st.sectionHeaderLeft}>
+                <View style={[st.sectionIconBox, { backgroundColor: GYM + '18' }]}>
+                  <MaterialCommunityIcons name="calendar-today" size={14} color={GYM} />
+                </View>
+                <Text style={st.sectionTitle}>일정</Text>
+              </View>
+              <TouchableOpacity onPress={() => { setViewMode('manage'); setMainTab('오늘 수업'); }}>
+                <Text style={st.tlSeeAll}>목록보기</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ paddingTop: 6 }}>
+              <GymScheduleView gymId={GYM_ID} />
+            </View>
+          </View>
+
+          {/* 이번 달 매출 미니차트 */}
+          <View style={st.sectionBlock}>
+            <TouchableOpacity style={st.revCard} activeOpacity={0.92} onPress={() => router.push('/(gym)/earnings' as any)}>
+              <View style={st.revHead}>
+                <View>
+                  <Text style={st.revTitle}>이번 달 매출</Text>
+                  <Text style={st.revAmount}>{formatPrice(REV_BARS[REV_BARS.length - 1].amount)}</Text>
+                </View>
+                <View style={st.revGrowth}>
+                  <MaterialCommunityIcons name="trending-up" size={12} color="#10B981" />
+                  <Text style={st.revGrowthText}>+12.2%</Text>
+                </View>
+              </View>
+              <View style={st.revChart}>
+                {REV_BARS.map((bar, i) => {
+                  const barH = Math.max((bar.amount / revMax) * 64, 4);
+                  const isLast = i === REV_BARS.length - 1;
+                  return (
+                    <View key={bar.label} style={st.revBarWrap}>
+                      <View style={st.revValRow}>
+                        {isLast && <Text style={st.revBarVal}>{Math.round(bar.amount / 10000)}만</Text>}
+                      </View>
+                      <View style={st.revBarTrack}>
+                        <View style={[st.revBar, { height: barH }, isLast && st.revBarActive]} />
+                      </View>
+                      <Text style={[st.revBarLabel, isLast && st.revBarLabelActive]}>{bar.label}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* 예약 관리 메뉴 */}
+          <View style={st.sectionBlock}>
+            <View style={st.sectionHeader}>
+              <View style={st.sectionHeaderLeft}>
+                <View style={[st.sectionIconBox, { backgroundColor: '#EEF2FF' }]}>
+                  <MaterialCommunityIcons name="folder-open-outline" size={14} color="#6366F1" />
+                </View>
+                <Text style={st.sectionTitle}>예약 관리</Text>
+              </View>
+            </View>
+            <View style={st.manageGrid}>
+              {([
+                ['전체 예약', 'format-list-bulleted', '슬롯 요청', 'all'],
+                ['이용중 PT', 'run-fast', '이용중', null],
+                ['완료',      'flag-checkered', '완료', null],
+              ] as [string, string, MainTab, StatusFilter | null][]).map(([label, icon, tab, filter]) => (
+                <TouchableOpacity
+                  key={label}
+                  style={st.manageItem}
+                  activeOpacity={0.8}
+                  onPress={() => { setViewMode('manage'); setMainTab(tab); if (filter) setStatusFilter(filter); }}
+                >
+                  <MaterialCommunityIcons name={icon as any} size={20} color={GYM} />
+                  <Text style={st.manageItemText}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
+      )}
+
+      {/* ════════ 예약 관리 (상세 보기) ════════ */}
+      {viewMode === 'manage' && (
+        <>
+          <TouchableOpacity style={st.backRow} onPress={() => setViewMode('dashboard')} activeOpacity={0.7}>
+            <MaterialCommunityIcons name="chevron-left" size={20} color={GYM} />
+            <Text style={st.backRowText}>홈으로</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[st.gymStatCard, { borderColor: 'rgba(45,212,191,0.25)' }]}
-            onPress={() => { setMainTab('슬롯 요청'); setStatusFilter('confirmed'); }}
-            activeOpacity={0.75}
-          >
-            <MaterialCommunityIcons name="calendar-check-outline" size={17} color={GYM} />
-            <Text style={[st.gymStatNum, { color: GYM }]}>{todayConfirmed.length}</Text>
-            <Text style={st.gymStatLabel}>오늘 확정</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[st.gymStatCard, { borderColor: 'rgba(129,140,248,0.25)' }]}
-            onPress={() => setMainTab('오늘 수업')}
-            activeOpacity={0.75}
-          >
-            <MaterialCommunityIcons name="human-male-board" size={17} color="#818CF8" />
-            <Text style={[st.gymStatNum, { color: '#818CF8' }]}>{todayPTBookings.length}</Text>
-            <Text style={st.gymStatLabel}>오늘 수업</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[st.gymStatCard, { borderColor: 'rgba(52,211,153,0.25)' }]}
-            onPress={() => { setMainTab('슬롯 요청'); setStatusFilter('confirmed'); }}
-            activeOpacity={0.75}
-          >
-            <MaterialCommunityIcons name="check-circle-outline" size={17} color="#34D399" />
-            <Text style={[st.gymStatNum, { color: '#34D399' }]}>{confirmedSlots.length}</Text>
-            <Text style={st.gymStatLabel}>승인 완료</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
 
       {/* ── 대기 알림 배너 ── */}
       {pendingSlots.length > 0 && mainTab === '슬롯 요청' && (
@@ -1192,6 +1376,8 @@ export default function GymBookingsScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+        </>
+      )}
 
       {/* FAB */}
       <TouchableOpacity style={st.fab} onPress={() => setAddModalOpen(true)} activeOpacity={0.85}>
@@ -1199,7 +1385,7 @@ export default function GymBookingsScreen() {
         <Text style={st.fabLabel}>일정 추가</Text>
       </TouchableOpacity>
 
-      <AddScheduleModal visible={addModalOpen} onClose={() => setAddModalOpen(false)} />
+      <AddScheduleModal visible={addModalOpen} onClose={() => setAddModalOpen(false)} gymId={GYM_ID} gymName={gym?.name ?? '헬스장'} />
       <QRVerifyModal booking={qrTarget} onClose={() => setQrTarget(null)} />
 
       {/* ── 일괄 승인/거부 확인 모달 ── */}
@@ -1258,19 +1444,60 @@ const st = StyleSheet.create({
   container: { flex: 1, backgroundColor: BG },
 
   // ── 헤더 ──
-  gymHeader: { backgroundColor: CARD, paddingTop: 6, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: BD },
+  gymHeader: { paddingTop: 8, paddingBottom: 4 },
   gymHeaderTop: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 14 },
   gymIconBox: { width: 42, height: 42, borderRadius: 13, backgroundColor: GYM + '22', alignItems: 'center', justifyContent: 'center' },
   gymHeaderTextBox: { flex: 1 },
-  gymHeaderSub:  { fontSize: 11, color: SEC, fontWeight: '600', marginBottom: 2 },
-  gymHeaderName: { fontSize: 18, fontWeight: '800', color: TXT },
-  gymHeaderDateBox: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  gymHeaderDate: { fontSize: 11, color: SEC, fontWeight: '500' },
+  gymGreeting:   { fontSize: 13, color: SEC, fontWeight: '500', marginBottom: 1 },
+  gymHeaderSub:  { fontSize: 11, color: SEC, fontWeight: '600', marginTop: 2 },
+  gymHeaderName: { fontSize: 20, fontWeight: '800', color: TXT },
 
-  gymStatRow: { flexDirection: 'row', paddingHorizontal: 12, gap: 8 },
-  gymStatCard: { flex: 1, borderRadius: 14, paddingVertical: 10, alignItems: 'center', gap: 5, backgroundColor: CARD2, borderWidth: 1 },
-  gymStatNum:   { fontSize: 19, fontWeight: '800' },
-  gymStatLabel: { fontSize: 10, color: SEC, fontWeight: '600', textAlign: 'center' },
+  gymStatRow: { flexDirection: 'row', gap: 8, marginHorizontal: 16 },
+  gymStatCard: {
+    flex: 1, backgroundColor: CARD, borderRadius: 16,
+    paddingVertical: 14, paddingHorizontal: 4,
+    alignItems: 'center', gap: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+  },
+  gymStatNum: { fontSize: 19, fontWeight: '900' },
+  gymStatLabel: { fontSize: 10.5, color: SEC, fontWeight: '600' },
+
+  // ── 대시보드: 오늘 일정 타임라인 ──
+  tlSeeAll: { fontSize: 13, color: GYM, fontWeight: '700' },
+  tlEmpty: { alignItems: 'center', paddingVertical: 24, gap: 8 },
+  tlEmptyText: { fontSize: 13, color: SEC },
+  tlRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: CARD, borderRadius: 14, padding: 12, marginBottom: 8,
+    borderWidth: 1, borderColor: BD,
+  },
+  tlTime: { width: 62, fontSize: 13, fontWeight: '800', color: TXT },
+  tlDot: { width: 8, height: 8, borderRadius: 4 },
+  tlInfo: { flex: 1 },
+  tlTitle: { fontSize: 14, fontWeight: '700', color: TXT },
+  tlSub: { fontSize: 11.5, color: SEC, marginTop: 2 },
+  tlQr: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: GYM, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 9,
+  },
+  tlQrText: { fontSize: 11, fontWeight: '800', color: '#fff' },
+
+  // ── 대시보드: 예약 관리 메뉴 ──
+  manageGrid: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 12 },
+  manageItem: {
+    flex: 1, alignItems: 'center', gap: 7,
+    backgroundColor: CARD, borderRadius: 14, paddingVertical: 16,
+    borderWidth: 1, borderColor: BD,
+  },
+  manageItemText: { fontSize: 12, fontWeight: '700', color: TXT },
+
+  // ── 예약 관리: 뒤로가기 ──
+  backRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 2,
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
+  backRowText: { fontSize: 14, fontWeight: '700', color: GYM },
 
   // ── 배너 ──
   pendingBanner: {
@@ -1298,7 +1525,38 @@ const st = StyleSheet.create({
   tabBadgeTextActive:{ color: '#fff' },
 
   // ── 섹션 헤더 ──
-  sectionBlock: { backgroundColor: CARD, borderBottomWidth: 4, borderBottomColor: BG },
+  quickRow:   { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 16 },
+  quickItem:  { flex: 1, alignItems: 'center', gap: 6 },
+  quickIcon:  {
+    width: 52, height: 52, borderRadius: 16, backgroundColor: CARD,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+  },
+  quickLabel: { fontSize: 11, fontWeight: '600', color: SEC },
+
+  revCard: {
+    marginHorizontal: 16, marginTop: 14, backgroundColor: CARD, borderRadius: 18,
+    padding: 16, gap: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 10, elevation: 3,
+  },
+  revHead:        { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  revTitle:       { fontSize: 13, fontWeight: '700', color: SEC },
+  revAmount:      { fontSize: 22, fontWeight: '900', color: GYM, marginTop: 3 },
+  revGrowth:      { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#ECFDF5', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 },
+  revGrowthText:  { fontSize: 12, fontWeight: '800', color: '#10B981' },
+  revChart:       { flexDirection: 'row', justifyContent: 'space-around', gap: 4 },
+  revBarWrap:     { flex: 1, alignItems: 'center', gap: 5 },
+  revValRow:      { height: 15, justifyContent: 'flex-end' },
+  revBarVal:      { fontSize: 11, fontWeight: '800', color: GYM },
+  revBarTrack:    { height: 64, justifyContent: 'flex-end' },
+  revBar:         { width: 20, borderRadius: 6, backgroundColor: GYM + '22' },
+  revBarActive:   { backgroundColor: GYM },
+  revBarLabel:    { fontSize: 10, color: '#94A3B8', fontWeight: '500' },
+  revBarLabelActive: { color: GYM, fontWeight: '700' },
+
+  sectionBlock: { paddingTop: 6, paddingBottom: 4 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 2 },
   sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sectionIconBox: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
@@ -1318,7 +1576,7 @@ const st = StyleSheet.create({
   listPad: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 100, gap: 10 },
 
   // ── 트레이너 그룹 카드 ──
-  groupCard: { flexDirection: 'row', backgroundColor: CARD, borderRadius: 14, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 3, borderWidth: 1, borderColor: 'rgba(245,158,11,0.25)' },
+  groupCard: { flexDirection: 'row', backgroundColor: CARD, borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 10, elevation: 3, borderWidth: 1, borderColor: BD },
   groupCardHL: { borderWidth: 2, borderColor: GYM, shadowColor: GYM, shadowOpacity: 0.4, shadowRadius: 12, elevation: 6 },
   groupAccentBar: { width: 4, backgroundColor: '#F59E0B' },
   groupInner: { flex: 1, padding: 14, gap: 12 },
@@ -1335,6 +1593,8 @@ const st = StyleSheet.create({
   groupSlotInfo: { flex: 1, gap: 1 },
   groupSlotDate: { fontSize: 11, color: SEC },
   groupSlotTime: { fontSize: 13, fontWeight: '700', color: GYM },
+  groupSlotMemberRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
+  groupSlotMember: { fontSize: 11.5, fontWeight: '700', color: GYM },
   groupSlotFee: { fontSize: 12, fontWeight: '700', color: TXT },
   groupTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: CARD2, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
   groupTotalLabel: { fontSize: 12, color: SEC },
@@ -1346,7 +1606,7 @@ const st = StyleSheet.create({
   groupApproveText: { fontSize: 13, fontWeight: '800', color: '#fff' },
 
   // ── 예약 현황 그룹 카드 ──
-  bgCard:      { flexDirection: 'row', backgroundColor: CARD, borderRadius: 14, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 2 },
+  bgCard:      { flexDirection: 'row', backgroundColor: CARD, borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: BD },
   bgAccentBar: { width: 4 },
   bgInner:     { flex: 1, padding: 13, gap: 10 },
   bgHeader:    { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -1411,7 +1671,7 @@ const st = StyleSheet.create({
   confirmedTagText:{ fontSize: 12, color: '#34D399', fontWeight: '600' },
 
   // ── PT 카드 ──
-  ptCard: { flexDirection: 'row', backgroundColor: CARD, borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 2 },
+  ptCard: { flexDirection: 'row', backgroundColor: CARD, borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: BD },
   ptAccentBar: { width: 4 },
   ptContent:   { flex: 1, padding: 13, gap: 10 },
   ptTopRow:    { flexDirection: 'row', alignItems: 'center', gap: 11 },
@@ -1519,6 +1779,8 @@ const st = StyleSheet.create({
   qrClose:      { position: 'absolute', top: 16, right: 16, width: 30, height: 30, borderRadius: 15, backgroundColor: CARD2, alignItems: 'center', justifyContent: 'center' },
   qrModalTitle:  { fontSize: 17, fontWeight: '800', color: TXT, marginTop: 4 },
   qrTrainerName: { fontSize: 16, fontWeight: '700', color: TXT },
+  qrMemberRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, backgroundColor: GYM + '14', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  qrMemberText:  { fontSize: 13, fontWeight: '700', color: GYM },
   qrTimeRow:     { flexDirection: 'row', alignItems: 'center', gap: 5 },
   qrTime:        { fontSize: 14, color: SEC },
   qrFrame:       { width: 200, height: 200, borderRadius: 20, borderWidth: 2.5, borderColor: GYM, alignItems: 'center', justifyContent: 'center', backgroundColor: CARD2, gap: 8 },

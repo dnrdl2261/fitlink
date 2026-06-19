@@ -1,5 +1,7 @@
-export type BookingStatus = 'active' | 'completed' | 'cancelled';
-export type SessionStatus = 'scheduled' | 'completed' | 'cancelled';
+export type BookingStatus = 'pending' | 'active' | 'completed' | 'cancelled';
+// pending = 회원 결제 완료, 트레이너 확정 대기 (확정 시 active)
+export type SessionStatus = 'scheduled' | 'pending' | 'completed' | 'cancelled';
+// pending = 트레이너가 완료를 요청하고 회원 확인을 기다리는 상태 (확인 시 completed로 차감)
 
 export interface WeeklySchedule {
   daysOfWeek: number[]; // 0=일, 1=월, ..., 6=토

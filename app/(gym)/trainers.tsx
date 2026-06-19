@@ -77,7 +77,7 @@ export default function GymTrainersScreen() {
       const q = searchQuery.toLowerCase();
       list = list.filter(t =>
         t.name.toLowerCase().includes(q) ||
-        t.specializations.some(s => s.includes(q))
+        (t.trainingGoals ?? []).some(s => s.includes(q))
       );
     }
     return list;
@@ -92,7 +92,7 @@ export default function GymTrainersScreen() {
       const q = inviteSearch.toLowerCase();
       list = list.filter(t =>
         t.name.toLowerCase().includes(q) ||
-        t.specializations.some(s => s.includes(q))
+        (t.trainingGoals ?? []).some(s => s.includes(q))
       );
     }
     return list;
@@ -114,7 +114,7 @@ export default function GymTrainersScreen() {
     inviteTrainer({
       gymId: GYM_ID, gymName: GYM_NAME,
       trainerId: trainer.id, trainerName: trainer.name,
-      trainerTagline: trainer.tagline, trainerSpecializations: trainer.specializations,
+      trainerTagline: trainer.tagline, trainerSpecializations: trainer.trainingGoals,
     });
     addNotification({
       type: 'partner_invite', targetRole: 'trainer', userId: trainer.id,
@@ -134,7 +134,7 @@ export default function GymTrainersScreen() {
         title: '파트너 승인 완료',
         body: `${GYM_NAME}과(와)의 파트너 계약이 승인되었습니다.`,
       });
-      setConfirmAction({ kind: 'done', icon: 'check-circle', iconColor: '#2DD4BF', message: `${confirmAction.name} 트레이너가 파트너로 승인되었습니다.` });
+      setConfirmAction({ kind: 'done', icon: 'check-circle', iconColor: '#4F63F5', message: `${confirmAction.name} 트레이너가 파트너로 승인되었습니다.` });
     } else if (confirmAction.kind === 'reject') {
       const req = allRequests.find(r => r.id === confirmAction.requestId);
       reject(confirmAction.requestId);
@@ -153,7 +153,7 @@ export default function GymTrainersScreen() {
       setConfirmAction({ kind: 'done', icon: 'account-alert', iconColor: '#EF4444', message: `${confirmAction.trainerName} 트레이너를\n블랙리스트에 등록했습니다.` });
     } else if (confirmAction.kind === 'unblacklist') {
       unblacklistTrainer(GYM_ID, confirmAction.trainerId);
-      setConfirmAction({ kind: 'done', icon: 'account-check', iconColor: '#2DD4BF', message: `${confirmAction.trainerName} 트레이너를\n블랙리스트에서 해제했습니다.` });
+      setConfirmAction({ kind: 'done', icon: 'account-check', iconColor: '#4F63F5', message: `${confirmAction.trainerName} 트레이너를\n블랙리스트에서 해제했습니다.` });
     }
   };
 
@@ -433,9 +433,9 @@ export default function GymTrainersScreen() {
                           {trainer?.tagline ? (
                             <Text style={styles.blTagline} numberOfLines={1}>{trainer.tagline}</Text>
                           ) : null}
-                          {trainer?.specializations && trainer.specializations.length > 0 && (
+                          {(trainer?.trainingGoals ?? []).length > 0 && (
                             <View style={styles.blSpecRow}>
-                              {trainer.specializations.slice(0, 2).map(s => (
+                              {(trainer?.trainingGoals ?? []).slice(0, 2).map(s => (
                                 <View key={s} style={styles.blSpecChip}>
                                   <Text style={styles.blSpecText}>{s}</Text>
                                 </View>
@@ -484,7 +484,7 @@ export default function GymTrainersScreen() {
             {confirmAction?.kind === 'approve' && (
               <>
                 <View style={[cfStyles.iconBox, { backgroundColor: '#ECFDF9' }]}>
-                  <MaterialCommunityIcons name="account-check-outline" size={36} color="#2DD4BF" />
+                  <MaterialCommunityIcons name="account-check-outline" size={36} color="#4F63F5" />
                 </View>
                 <Text style={cfStyles.title}>입점 신청 승인</Text>
                 <Text style={cfStyles.body}>{confirmAction.name} 트레이너를{'\n'}파트너로 승인하시겠습니까?</Text>
@@ -631,7 +631,7 @@ export default function GymTrainersScreen() {
                     <Text style={styles.inviteItemTagline} numberOfLines={1}>{item.tagline}</Text>
                   ) : null}
                   <View style={styles.inviteSpecRow}>
-                    {item.specializations.slice(0, 2).map(s => (
+                    {(item.trainingGoals ?? []).slice(0, 2).map(s => (
                       <View key={s} style={styles.inviteSpecChip}>
                         <Text style={styles.inviteSpecText}>{s}</Text>
                       </View>
@@ -667,10 +667,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2.5,
     borderBottomColor: 'transparent',
   },
-  tabActive: { borderBottomColor: '#2DD4BF' },
+  tabActive: { borderBottomColor: '#4F63F5' },
   tabActiveRed: { borderBottomColor: '#7C3AED' },
   tabText: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary },
-  tabTextActive: { color: '#2DD4BF' },
+  tabTextActive: { color: '#4F63F5' },
   tabTextRed: { color: '#7C3AED', fontWeight: '700' },
   tabLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   badge: {
@@ -744,9 +744,9 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute', bottom: 24, right: 20,
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#2DD4BF',
+    backgroundColor: '#4F63F5',
     paddingHorizontal: 18, paddingVertical: 13, borderRadius: 28,
-    shadowColor: '#2DD4BF', shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#4F63F5', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35, shadowRadius: 8, elevation: 6,
   },
   fabText: { fontSize: 15, fontWeight: '700', color: '#fff' },
@@ -804,7 +804,7 @@ const styles = StyleSheet.create({
   profileLinkText: { fontSize: 13, color: COLORS.primary, fontWeight: '600' },
   actionRow: { flexDirection: 'row', gap: 8 },
   actionBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
-  approveBtn: { backgroundColor: '#2DD4BF' },
+  approveBtn: { backgroundColor: '#4F63F5' },
   approveBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
   rejectBtn: { backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border },
   rejectBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.textSecondary },
@@ -914,22 +914,22 @@ const styles = StyleSheet.create({
   },
   inviteAvatar: {
     width: 46, height: 46, borderRadius: 23,
-    backgroundColor: '#2DD4BF' + '20',
+    backgroundColor: '#4F63F5' + '20',
     alignItems: 'center', justifyContent: 'center',
   },
-  inviteAvatarText: { fontSize: 18, fontWeight: '700', color: '#2DD4BF' },
+  inviteAvatarText: { fontSize: 18, fontWeight: '700', color: '#4F63F5' },
   inviteInfo: { flex: 1, gap: 3 },
   inviteItemName: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   inviteItemTagline: { fontSize: 12, color: COLORS.primary, fontStyle: 'italic' },
   inviteSpecRow: { flexDirection: 'row', gap: 4, flexWrap: 'wrap', marginTop: 2 },
   inviteSpecChip: {
-    backgroundColor: '#2DD4BF' + '15',
+    backgroundColor: '#4F63F5' + '15',
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
   },
-  inviteSpecText: { fontSize: 11, fontWeight: '600', color: '#2DD4BF' },
+  inviteSpecText: { fontSize: 11, fontWeight: '600', color: '#4F63F5' },
   inviteItemBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#2DD4BF',
+    backgroundColor: '#4F63F5',
     paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10,
   },
   inviteItemBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
@@ -960,12 +960,12 @@ const cfStyles = StyleSheet.create({
   cancelText: { fontSize: 14, fontWeight: '700', color: COLORS.textSecondary },
   confirmBtn: {
     flex: 1, paddingVertical: 13, borderRadius: 12,
-    alignItems: 'center', backgroundColor: '#2DD4BF',
+    alignItems: 'center', backgroundColor: '#4F63F5',
   },
   rejectConfirmBtn: { backgroundColor: COLORS.error },
   confirmText: { fontSize: 14, fontWeight: '700', color: '#fff' },
   singleBtn: {
     marginTop: 6, width: '100%', paddingVertical: 13, borderRadius: 12,
-    alignItems: 'center', backgroundColor: '#2DD4BF',
+    alignItems: 'center', backgroundColor: '#4F63F5',
   },
 });

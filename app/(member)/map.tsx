@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput,
   SafeAreaView, Platform, ActivityIndicator, Image, Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFilteredGyms } from '../../hooks/useFilteredGyms';
 import { useLocation } from '../../hooks/useLocation';
 import { useLocationStore } from '../../store/locationStore';
@@ -23,12 +24,20 @@ export default function MapScreen() {
   const router = useRouter();
   const { gyms } = useFilteredGyms();
   const { hasPermission } = useLocation();
-  const { currentLocation } = useLocationStore();
+  const { currentLocation, selectedDong } = useLocationStore();
 
   const [selectedGymId, setSelectedGymId] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const [listVisible, setListVisible] = useState(false);
+
+  // 목록 모달 통합 검색 (지역 + 헬스장)
+  const [gymQuery, setGymQuery] = useState('');
+  const [gymRegion, setGymRegion] = useState<{ city: string; district?: string } | null>(null);
+  const [gymSuggestOpen, setGymSuggestOpen] = useState(false);
+
+  // 검색/지역 필터는 지도 핀에도 반영되므로 목록을 다시 열 때 유지한다(추천 패널만 닫음)
+  const openList = () => { setGymSuggestOpen(false); setListVisible(true); };
 
   const kakaoMapRef     = useRef<any>(null);
   const mapContainerRef = useRef<any>(null);
@@ -45,6 +54,114 @@ export default function MapScreen() {
   };
 
   const selectedGym = gyms.find(g => g.id === selectedGymId);
+
+  // 거리순 정렬된 gyms 위에 지역/검색어 필터를 얹어 목록 표시
+  const displayGyms = useMemo(() => {
+    let list = gyms;
+    if (gymRegion)
+      list = list.filter(g =>
+        g.city === gymRegion.city &&
+        (!gymRegion.district || g.district === gymRegion.district)
+      );
+    if (gymQuery.trim()) {
+      const q = gymQuery.toLowerCase();
+      list = list.filter(g =>
+        g.name.toLowerCase().includes(q) ||
+        g.address.toLowerCase().includes(q) ||
+        g.facilities.some(f => f.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [gyms, gymRegion, gymQuery]);
+
+  const gymSuggestions = useMemo(() => {
+    const q = gymQuery.trim();
+    const empty = { regions: [] as { city: string; district?: string; label: string }[], gyms: [] as typeof gyms };
+    if (!q) return empty;
+    const lq = q.toLowerCase();
+    const pool = gymRegion
+      ? gyms.filter(g => g.city === gymRegion.city && (!gymRegion.district || g.district === gymRegion.district))
+      : gyms;
+    const regionMap = new Map<string, { city: string; district?: string; label: string }>();
+    if (!gymRegion) {
+      gyms.forEach(g => {
+        if (g.city.includes(q)) regionMap.set(g.city, { city: g.city, label: g.city });
+        const cd = `${g.city} ${g.district}`;
+        if (g.district.includes(q) || cd.includes(q))
+          regionMap.set(cd, { city: g.city, district: g.district, label: cd });
+      });
+    }
+    return {
+      regions: Array.from(regionMap.values()).slice(0, 4),
+      gyms: pool.filter(g => g.name.toLowerCase().includes(lq)).slice(0, 5),
+    };
+  }, [gyms, gymQuery, gymRegion]);
+
+  const gymSuggestOpenNow = gymSuggestOpen && gymQuery.trim().length > 0 && (gymSuggestions.regions.length > 0 || gymSuggestions.gyms.length > 0);
+
+  // 자동완성 후보 항목 (지역 + 헬스장) — 지도·목록 공용
+  const renderGymSuggestItems = () => (
+    <>
+      {gymSuggestions.regions.map(r => (
+        <TouchableOpacity key={'r-' + r.label} style={styles.suggestItem}
+          onPress={() => { setGymRegion({ city: r.city, district: r.district }); setGymQuery(''); setGymSuggestOpen(false); }} activeOpacity={0.7}>
+          <MaterialCommunityIcons name="map-marker-outline" size={16} color={COLORS.primary} />
+          <Text style={styles.suggestText} numberOfLines={1}>{r.label}</Text>
+          <Text style={styles.suggestTag}>지역</Text>
+        </TouchableOpacity>
+      ))}
+      {gymSuggestions.gyms.map(g => (
+        <TouchableOpacity key={'g-' + g.id} style={styles.suggestItem}
+          onPress={() => { setGymQuery(g.name); setGymSuggestOpen(false); }} activeOpacity={0.7}>
+          <MaterialCommunityIcons name="dumbbell" size={16} color={COLORS.primary} />
+          <Text style={styles.suggestText} numberOfLines={1}>{g.name}</Text>
+          <Text style={styles.suggestTag}>헬스장</Text>
+        </TouchableOpacity>
+      ))}
+    </>
+  );
+
+  // 선택지역 칩 — 지도·목록 공용
+  const renderGymRegionChip = () => (
+    gymRegion ? (
+      <View style={styles.regionChipRow}>
+        <View style={styles.regionChip}>
+          <MaterialCommunityIcons name="map-marker" size={13} color={COLORS.primary} />
+          <Text style={styles.regionChipText}>{gymRegion.district ? `${gymRegion.city} ${gymRegion.district}` : gymRegion.city}</Text>
+          <TouchableOpacity onPress={() => setGymRegion(null)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+            <MaterialCommunityIcons name="close" size={14} color={COLORS.textSecondary} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    ) : null
+  );
+
+  // 통합 검색바 + 자동완성 + 선택지역 칩 (목록 모달 — 전체 너비)
+  const renderGymSearch = () => (
+    <>
+      <View style={styles.searchZone}>
+        <View style={styles.searchWrap}>
+          <MaterialCommunityIcons name="magnify" size={18} color={COLORS.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="지역·헬스장 이름·시설 검색"
+            value={gymQuery}
+            onChangeText={(t) => { setGymQuery(t); setGymSuggestOpen(true); }}
+            placeholderTextColor={COLORS.textMuted}
+          />
+          {gymQuery.length > 0 && (
+            <TouchableOpacity onPress={() => { setGymQuery(''); setGymSuggestOpen(false); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <MaterialCommunityIcons name="close-circle" size={16} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+        {gymSuggestOpenNow && (
+          <View style={styles.suggestPanel}>{renderGymSuggestItems()}</View>
+        )}
+      </View>
+      {renderGymRegionChip()}
+    </>
+  );
 
   // ── 웹: 카카오맵 초기화
   useEffect(() => {
@@ -185,6 +302,27 @@ export default function MapScreen() {
     });
   }, [selectedGymId, gyms]);
 
+  // ── 웹: 검색/지역 필터에 맞춰 마커 표시·숨김 (하이라이트 effect 뒤에 적용)
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const visible = new Set(displayGyms.map(g => g.id));
+    Object.entries(markerEls.current).forEach(([gymId, el]) => {
+      el.style.display = visible.has(gymId) ? '' : 'none';
+    });
+  }, [displayGyms, selectedGymId, mapReady]);
+
+  // ── 웹: 검색/지역 필터 시 결과 영역에 맞춰 지도 이동·줌
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !mapReady || !kakaoMapRef.current) return;
+    const win = window as any;
+    if (!win.kakao) return;
+    const active = gymQuery.trim().length > 0 || !!gymRegion;
+    if (!active || displayGyms.length === 0) return;
+    const bounds = new win.kakao.maps.LatLngBounds();
+    displayGyms.forEach(g => bounds.extend(new win.kakao.maps.LatLng(g.coordinate.latitude, g.coordinate.longitude)));
+    kakaoMapRef.current.setBounds(bounds);
+  }, [displayGyms, gymQuery, gymRegion, mapReady]);
+
   // ── 네이티브: 위치 이동
   useEffect(() => {
     if (Platform.OS === 'web' || !hasPermission || !nativeMapRef.current) return;
@@ -220,21 +358,41 @@ export default function MapScreen() {
           </View>
         )}
 
-        {/* 상단 위치 배지 */}
+        {/* 상단: 위치 배지 + 검색바 */}
         <SafeAreaView pointerEvents="box-none" style={styles.topOverlay}>
           <View style={styles.topBar}>
-            <View style={styles.locChip}>
-              {hasPermission === null
-                ? <><ActivityIndicator size="small" color={COLORS.primary} style={{ marginRight: 5 }} /><Text style={styles.locChipText}>위치 확인 중</Text></>
-                : hasPermission
-                  ? <Text style={styles.locChipText}>📍 현재 위치 기준</Text>
-                  : <Text style={styles.locChipText}>⚠️ 서울 중심 기준</Text>
-              }
-            </View>
-            <View style={styles.countChip}>
-              <Text style={styles.countChipText}>헬스장 {gyms.length}개</Text>
+            <TouchableOpacity style={styles.locChip} onPress={() => router.push('/location-picker' as any)} activeOpacity={0.8}>
+              {hasPermission === null ? (
+                <><ActivityIndicator size="small" color={COLORS.primary} style={{ marginRight: 5 }} /><Text style={styles.locChipText}>위치 확인 중</Text></>
+              ) : (
+                <Text style={styles.locChipText} numberOfLines={1}>
+                  {selectedDong ? `📍 ${selectedDong}` : hasPermission ? '📍 현재 위치 기준' : '⚠️ 서울 중심 기준'} ▾
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.mapSearch}>
+              <View style={styles.mapSearchInput}>
+                <MaterialCommunityIcons name="magnify" size={16} color={COLORS.textMuted} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="검색"
+                  value={gymQuery}
+                  onChangeText={(t) => { setGymQuery(t); setGymSuggestOpen(true); }}
+                  placeholderTextColor={COLORS.textMuted}
+                />
+                {gymQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => { setGymQuery(''); setGymSuggestOpen(false); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <MaterialCommunityIcons name="close-circle" size={15} color={COLORS.textMuted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              {gymSuggestOpenNow && (
+                <View style={styles.suggestPanelMap}>{renderGymSuggestItems()}</View>
+              )}
             </View>
           </View>
+          {renderGymRegionChip()}
         </SafeAreaView>
 
         {/* 내 위치 버튼 */}
@@ -246,7 +404,7 @@ export default function MapScreen() {
 
         {/* 하단 목록 버튼 */}
         <View style={[styles.bottomBtns, selectedGym ? styles.bottomBtnsWithCard : null]}>
-          <TouchableOpacity style={styles.listBtn} onPress={() => setListVisible(true)} activeOpacity={0.85}>
+          <TouchableOpacity style={styles.listBtn} onPress={openList} activeOpacity={0.85}>
             <Text style={styles.listBtnText}>≡  목록 보기</Text>
           </TouchableOpacity>
         </View>
@@ -284,11 +442,18 @@ export default function MapScreen() {
               <View {...swipeHandlers}>
                 <View style={styles.listPanelHandle} />
                 <View style={styles.listPanelHeader}>
-                  <Text style={styles.listPanelTitle}>헬스장 {gyms.length}개{hasPermission ? ' · 가까운 순' : ''}</Text>
+                  <Text style={styles.listPanelTitle}>헬스장 {displayGyms.length}개{!gymRegion && hasPermission ? ' · 가까운 순' : ''}</Text>
                 </View>
               </View>
+
+              {/* 통합 검색바 + 자동완성 + 선택지역 */}
+              {renderGymSearch()}
+
               <ScrollView showsVerticalScrollIndicator={false}>
-                {gyms.map(gym => (
+                {displayGyms.length === 0 && (
+                  <Text style={styles.listEmpty}>검색 결과가 없어요</Text>
+                )}
+                {displayGyms.map(gym => (
                   <TouchableOpacity
                     key={gym.id}
                     style={[styles.gymRow, gym.id === selectedGymId && styles.gymRowSel]}
@@ -340,7 +505,7 @@ export default function MapScreen() {
         showsUserLocation={hasPermission === true}
         showsMyLocationButton={false}
       >
-        {gyms.map(gym => (
+        {displayGyms.map(gym => (
           <Marker key={gym.id} coordinate={gym.coordinate}
             onPress={() => setSelectedGymId(gym.id)}
             pinColor={gym.id === selectedGymId ? '#FF6B6B' : COLORS.primary}
@@ -364,7 +529,7 @@ export default function MapScreen() {
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity style={styles.listBtnNative} onPress={() => setListVisible(true)}>
+      <TouchableOpacity style={styles.listBtnNative} onPress={openList}>
         <Text style={styles.listBtnText}>≡  목록 보기</Text>
       </TouchableOpacity>
     </View>
@@ -388,20 +553,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6,
   },
   locChip: {
-    flexDirection: 'row', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', flexShrink: 1,
     backgroundColor: 'rgba(255,255,255,0.95)',
     paddingHorizontal: 12, paddingVertical: 7,
     borderRadius: 20,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.12, shadowRadius: 4, elevation: 3,
   },
   locChipText: { fontSize: 12, fontWeight: '600', color: COLORS.text },
-  countChip: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    paddingHorizontal: 10, paddingVertical: 7,
-    borderRadius: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.12, shadowRadius: 4, elevation: 3,
+  mapSearch: { flex: 1, position: 'relative' },
+  mapSearchInput: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8,
+    borderWidth: 1, borderColor: COLORS.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 4,
   },
-  countChipText: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary },
+  suggestPanelMap: {
+    position: 'absolute', top: 44, left: 0, right: 0, zIndex: 30,
+    backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: COLORS.border,
+    paddingVertical: 4, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
+  },
 
   // 내 위치 버튼
   myLocBtn: {
@@ -464,6 +636,32 @@ const styles = StyleSheet.create({
   },
   listPanelTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   listPanelClose: { fontSize: 18, color: COLORS.textSecondary, padding: 4 },
+
+  searchZone: { position: 'relative', zIndex: 20, paddingTop: 10 },
+  searchWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: COLORS.surfaceSubtle,
+    marginHorizontal: 16, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+    borderWidth: 1, borderColor: COLORS.border,
+  },
+  searchInput: { flex: 1, fontSize: 14, color: COLORS.text, padding: 0 },
+  suggestPanel: {
+    position: 'absolute', top: 62, left: 16, right: 16, zIndex: 30,
+    backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: COLORS.border,
+    paddingVertical: 4, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 6,
+  },
+  suggestItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 11 },
+  suggestText: { flex: 1, fontSize: 14, color: COLORS.text },
+  suggestTag: { fontSize: 11, fontWeight: '600', color: COLORS.textMuted },
+  regionChipRow: { paddingHorizontal: 16, paddingTop: 8 },
+  regionChip: {
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6,
+    paddingLeft: 10, paddingRight: 8, paddingVertical: 6, borderRadius: 16,
+    backgroundColor: COLORS.primaryPale, borderWidth: 1, borderColor: COLORS.primary + '40',
+  },
+  regionChipText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
+  listEmpty: { textAlign: 'center', color: COLORS.textMuted, fontSize: 14, paddingVertical: 40 },
 
   gymRow: {
     flexDirection: 'row', alignItems: 'center',

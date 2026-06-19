@@ -117,7 +117,7 @@ export default function MemberChatScreen() {
                   </View>
                   <View style={styles.trainerInfo}>
                     <Text style={styles.trainerName}>{t.name} 트레이너</Text>
-                    <Text style={styles.trainerSub}>{t.specializations.slice(0, 2).join(' · ')}</Text>
+                    <Text style={styles.trainerSub}>{(t.trainingGoals ?? []).slice(0, 2).join(' · ')}</Text>
                   </View>
                   {alreadyChatting.has(t.id) && (
                     <Text style={styles.existingLabel}>대화 중</Text>

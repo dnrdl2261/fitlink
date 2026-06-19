@@ -13,6 +13,7 @@ import { useFollowStore } from '../../store/followStore';
 import { usePackageStore } from '../../store/packageStore';
 import { useReviewStore } from '../../store/reviewStore';
 import { MOCK_TRAINERS } from '../../data/trainers';
+import { useTrainerStore } from '../../store/trainerStore';
 import { MOCK_GYMS } from '../../data/gyms';
 import { formatPrice, formatRelativeDate } from '../../utils/formatters';
 import { COLORS } from '../../utils/constants';
@@ -72,7 +73,8 @@ export default function TrainerDetailScreen() {
   const pvScrollRef = useRef<ScrollView>(null);
 
   const { role, member, trainer: myTrainer, gymAdmin } = useAuthStore();
-  const trainerFromMock = MOCK_TRAINERS.find((t) => t.id === id);
+  const storeTrainers = useTrainerStore((s) => s.trainers);
+  const trainerFromMock = storeTrainers.find((t) => t.id === id);
   const trainer = (myTrainer?.id === id) ? myTrainer : trainerFromMock;
   const allReviews = useReviewStore((s) => s.reviews);
   const realReviews = allReviews.filter((r) => r.trainerId === (id ?? ''));
@@ -219,9 +221,9 @@ export default function TrainerDetailScreen() {
           <View style={st.heroOverlay}>
             {/* 전문분야 칩들 */}
             <View style={st.heroSpecRow}>
-              {trainer.specializations.slice(0, 3).map(s => (
-                <View key={s} style={st.heroSpecChip}>
-                  <Text style={st.heroSpecText}>{s}</Text>
+              {(trainer.trainingGoals ?? []).slice(0, 3).map(g => (
+                <View key={g} style={st.heroSpecChip}>
+                  <Text style={st.heroSpecText}>{g}</Text>
                 </View>
               ))}
             </View>
@@ -313,19 +315,14 @@ export default function TrainerDetailScreen() {
             <View style={st.section}>
               <Text style={st.sectionTitle}>전문 분야</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.tagScroll}>
-                {trainer.specializations.map(s => (
-                  <View key={s} style={st.tagPrimary}>
-                    <Text style={st.tagPrimaryText}>{s}</Text>
+                {(trainer.trainingGoals ?? []).map(g => (
+                  <View key={g} style={st.tagPrimary}>
+                    <Text style={st.tagPrimaryText}>{g}</Text>
                   </View>
                 ))}
                 {(trainer.exerciseTypes ?? []).slice(0, 4).map(e => (
                   <View key={e} style={st.tagSecondary}>
                     <Text style={st.tagSecondaryText}>{e}</Text>
-                  </View>
-                ))}
-                {(trainer.trainingGoals ?? []).slice(0, 3).map(g => (
-                  <View key={g} style={st.tagSecondary}>
-                    <Text style={st.tagSecondaryText}>{g}</Text>
                   </View>
                 ))}
               </ScrollView>

@@ -852,4 +852,48 @@ export const MOCK_GYMS: Gym[] = [
     partnerTrainerIds: [], rating: 4.4, reviewCount: 86, isPartner: true, adminUserId: 'admin_040',
     usageRules: ['운동복 및 실내 운동화 착용 필수', '기구 사용 후 소독 필수'],
   },
+
+  // ── 경북 ──────────────────────────────────────────────
+  {
+    id: 'gym_041', name: '포항 피트니스', description: '경북 포항 남구 대잠동 종합 스포츠센터.',
+    address: '경북 포항시 남구 중흥로 87', city: '경북', district: '포항시', dong: '남구',
+    coordinate: { latitude: 36.0098, longitude: 129.3568 }, phoneNumber: '054-1111-2222',
+    images: ['https://picsum.photos/seed/gym41a/800/400', 'https://picsum.photos/seed/gym41b/800/400'],
+    facilities: ['샤워실', '주차장', '락커룸', '사우나'], operatingHours: makeHours(3),
+    pricing: [{ sessionType: 'single', facilityFee: 9000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 78000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.2, reviewCount: 61, isPartner: true, adminUserId: 'admin_041',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '기구 사용 후 소독 필수'],
+  },
+  {
+    id: 'gym_042', name: '구미 스포츠센터', description: '경북 구미 산업단지 인근 직장인 특화 피트니스.',
+    address: '경북 구미시 송정대로 90', city: '경북', district: '구미시', dong: '송정동',
+    coordinate: { latitude: 36.1196, longitude: 128.3446 }, phoneNumber: '054-2222-3333',
+    images: ['https://picsum.photos/seed/gym42a/800/400'],
+    facilities: ['샤워실', '락커룸', '주차장'], operatingHours: makeHours(2),
+    pricing: [{ sessionType: 'single', facilityFee: 8000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 70000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.0, reviewCount: 37, isPartner: false, adminUserId: 'admin_042',
+    usageRules: ['운동복 및 실내 운동화 착용 필수'],
+  },
+
+  // ── 경남 ──────────────────────────────────────────────
+  {
+    id: 'gym_043', name: '창원 성산 피트니스', description: '경남 창원 성산구 상남동 대형 피트니스 클럽.',
+    address: '경남 창원시 성산구 중앙대로 99', city: '경남', district: '창원시', dong: '성산구',
+    coordinate: { latitude: 35.2280, longitude: 128.6811 }, phoneNumber: '055-1111-2222',
+    images: ['https://picsum.photos/seed/gym43a/800/400', 'https://picsum.photos/seed/gym43b/800/400'],
+    facilities: ['샤워실', '주차장', '락커룸', '사우나'], operatingHours: makeHours(3),
+    pricing: [{ sessionType: 'single', facilityFee: 10000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 85000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.3, reviewCount: 72, isPartner: true, adminUserId: 'admin_043',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '기구 사용 후 소독 필수'],
+  },
+  {
+    id: 'gym_044', name: '김해 스포츠센터', description: '경남 김해 내외동 가족 친화형 종합 스포츠센터.',
+    address: '경남 김해시 분성로 261', city: '경남', district: '김해시', dong: '내외동',
+    coordinate: { latitude: 35.2285, longitude: 128.8894 }, phoneNumber: '055-2222-3333',
+    images: ['https://picsum.photos/seed/gym44a/800/400'],
+    facilities: ['샤워실', '락커룸', '주차장'], operatingHours: makeHours(2),
+    pricing: [{ sessionType: 'single', facilityFee: 9000, label: '1회 이용' }, { sessionType: 'package_10', facilityFee: 74000, label: '10회 패키지' }],
+    partnerTrainerIds: [], rating: 4.1, reviewCount: 44, isPartner: true, adminUserId: 'admin_044',
+    usageRules: ['운동복 및 실내 운동화 착용 필수', '기구 사용 후 소독 필수'],
+  },
 ];

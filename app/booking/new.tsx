@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
   TouchableOpacity, SafeAreaView, TextInput,
@@ -10,7 +10,7 @@ import { useBookingStore, calcEndTime } from '../../store/bookingStore';
 import { usePackageStore } from '../../store/packageStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
-import { formatDate, formatTime, formatPrice } from '../../utils/formatters';
+import { formatTime, formatPrice } from '../../utils/formatters';
 import { PAY_METHODS } from '../../utils/constants';
 
 const D = {
@@ -30,8 +30,9 @@ const D = {
 };
 
 const DURATION = 60;
-const STEP_LABELS = ['시간 선택', '수업 선택', '결제', '예약 완료'];
+const STEP_LABELS = ['희망 일정', '수업 선택', '결제', '예약 완료'];
 const DAY_SHORT = ['일', '월', '화', '수', '목', '금', '토'];
+const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 const AM_SLOTS: string[] = [];
 for (let h = 6; h <= 11; h++) {
@@ -47,16 +48,24 @@ for (let h = 12; h <= 21; h++) {
 const CLASS_TYPES = [
   { id: '1:1 PT',    label: '1:1 PT',    icon: 'account-outline',    desc: '트레이너와 1대1 집중 트레이닝' },
   { id: '그룹 PT',   label: '그룹 PT',   icon: 'account-group-outline', desc: '소그룹 (2~4명) 함께하는 트레이닝' },
-  { id: '온라인 PT', label: '온라인 PT', icon: 'video-outline',       desc: '화상으로 진행하는 비대면 PT' },
 ];
 
+// 회원 '운동 목적'(trainers.tsx SPEC_FILTERS) 키워드와 통일. '기타'만 추가 유지.
 const CLASS_PURPOSES = [
-  { id: '체중감량',   label: '체중감량',   icon: 'run-fast' },
-  { id: '근력증가',   label: '근력증가',   icon: 'arm-flex-outline' },
-  { id: '재활/교정',  label: '재활/교정',  icon: 'human-handsup' },
-  { id: '바디프로필', label: '바디프로필', icon: 'camera-outline' },
-  { id: '체력향상',   label: '체력향상',   icon: 'lightning-bolt-outline' },
-  { id: '유연성',     label: '유연성',     icon: 'yoga' },
+  { id: '다이어트',     label: '다이어트',     icon: 'run-fast' },
+  { id: '체형교정',     label: '체형교정',     icon: 'human-handsup' },
+  { id: '근력향상',     label: '근력향상',     icon: 'arm-flex-outline' },
+  { id: '기초체력',     label: '기초체력',     icon: 'lightning-bolt-outline' },
+  { id: '바디프로필',   label: '바디프로필',   icon: 'camera-outline' },
+  { id: '벌크업',       label: '벌크업',       icon: 'dumbbell' },
+  { id: '재활운동',     label: '재활운동',     icon: 'medical-bag' },
+  { id: '통증관리',     label: '통증관리',     icon: 'heart-pulse' },
+  { id: '산전산후',     label: '산전산후',     icon: 'baby-face-outline' },
+  { id: '대회준비',     label: '대회준비',     icon: 'trophy-outline' },
+  { id: '유연성증진',   label: '유연성증진',   icon: 'yoga' },
+  { id: '웨딩케어',     label: '웨딩케어',     icon: 'ring' },
+  { id: '선수레슨',     label: '선수레슨',     icon: 'whistle' },
+  { id: '기타',         label: '기타',         icon: '' },
 ];
 
 const SESSION_COUNTS = [
@@ -81,15 +90,21 @@ function timeLabel(t: string): string {
   return `${h12}:${String(m).padStart(2, '0')}`;
 }
 
-function buildCalendar(year: number, month: number): (string | null)[] {
-  const firstDow = new Date(year, month - 1, 1).getDay();
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const cells: (string | null)[] = Array(firstDow).fill(null);
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push(`${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
+function formatDays(days: number[]): string {
+  return WEEKDAY_ORDER.filter((d) => days.includes(d)).map((d) => DAY_SHORT[d]).join('·');
+}
+
+// 선택한 희망 요일 중 가장 가까운 미래 날짜를 시작일로 계산 (트레이너가 추후 조정)
+function nextDateForDays(days: number[]): string {
+  const base = new Date();
+  for (let i = 1; i <= 14; i++) {
+    const d = new Date(base);
+    d.setDate(base.getDate() + i);
+    if (days.includes(d.getDay())) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
   }
-  while (cells.length % 7 !== 0) cells.push(null);
-  return cells;
+  return '';
 }
 
 function StepIndicator({ step }: { step: number }) {
@@ -138,17 +153,15 @@ export default function NewBookingScreen() {
   const { addNotification } = useNotificationStore();
   const trainerFromMock = MOCK_TRAINERS.find((t) => t.id === trainerId);
   const trainer = myTrainer?.id === trainerId ? myTrainer : trainerFromMock;
-  const { addBooking, isSlotTaken, findScheduleConflict } = useBookingStore();
+  const { addBooking } = useBookingStore();
   const { getTrainerProducts } = usePackageStore();
   const trainerPackages = trainer ? getTrainerProducts(trainer.id).filter((p) => p.isActive) : [];
   const hasPackages = trainerPackages.length > 0;
 
   const scrollRef = useRef<ScrollView>(null);
   const [step, setStep] = useState(1);
-  const [startDate, setStartDate] = useState('');
+  const [preferredDays, setPreferredDays] = useState<number[]>([]);
   const [startTime, setStartTime] = useState('');
-  const [calYear, setCalYear] = useState(new Date().getFullYear());
-  const [calMonth, setCalMonth] = useState(new Date().getMonth() + 1);
 
   const [classType, setClassType] = useState('');
   const [classPurpose, setClassPurpose] = useState('');
@@ -163,8 +176,6 @@ export default function NewBookingScreen() {
   const [appliedCoupon, setAppliedCoupon] = useState<{ label: string; discount: number } | null>(null);
   const [couponError, setCouponError] = useState('');
 
-  const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
-  const calCells = useMemo(() => buildCalendar(calYear, calMonth), [calYear, calMonth]);
   const endTime = startTime ? calcEndTime(startTime, DURATION) : '';
 
   const basePrice = trainer?.sessionPrice ?? 60000;
@@ -182,32 +193,14 @@ export default function NewBookingScreen() {
   const finalPrice    = Math.max(0, rawTotal - couponDiscount - usedPoints);
   const earnedPoints  = Math.round(finalPrice * 0.01);
 
-  // 반복 세션 충돌: 횟수가 정해진 뒤(step2 이후) 생성될 모든 주간 세션을 검사
-  const scheduleConflict =
-    startDate && startTime && sessionCount > 0
-      ? findScheduleConflict(
-          { daysOfWeek: [new Date(startDate).getDay()], startTime, duration: DURATION },
-          startDate, sessionCount
-        )
-      : null;
-
   const canProceed =
-    step === 1 ? startDate !== '' && startTime !== '' :
+    step === 1 ? preferredDays.length > 0 && startTime !== '' :
     step === 2 ? classType !== '' && classPurpose !== '' && sessionCount > 0 :
-    step === 3 ? !scheduleConflict : false;
+    step === 3 ? true : false;
 
   const goNext = () => {
     setStep((prev) => prev + 1);
     setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: false }), 0);
-  };
-
-  const goPrevMonth = () => {
-    if (calMonth === 1) { setCalYear((y) => y - 1); setCalMonth(12); }
-    else setCalMonth((m) => m - 1);
-  };
-  const goNextMonth = () => {
-    if (calMonth === 12) { setCalYear((y) => y + 1); setCalMonth(1); }
-    else setCalMonth((m) => m + 1);
   };
 
   const handleApplyCoupon = () => {
@@ -219,8 +212,8 @@ export default function NewBookingScreen() {
 
   const handleConfirm = () => {
     if (!trainer) return;
-    if (scheduleConflict) { setStep(1); return; }
-    const dayOfWeek = new Date(startDate).getDay();
+    const sortedDays = [...preferredDays].sort();
+    const startDate = nextDateForDays(sortedDays);
     const bookingId = addBooking({
       trainerId: trainer.id,
       trainerName: trainer.name,
@@ -228,7 +221,7 @@ export default function NewBookingScreen() {
       totalSessions: sessionCount,
       pricePerSession,
       totalAmount: finalPrice,
-      schedule: { daysOfWeek: [dayOfWeek], startTime, duration: DURATION },
+      schedule: { daysOfWeek: sortedDays, startTime, duration: DURATION },
       startDate,
       notes: `${classType} · ${classPurpose}`,
     });
@@ -276,8 +269,8 @@ export default function NewBookingScreen() {
           <Text style={s.doneSub}>PT 예약이 성공적으로 완료되었습니다</Text>
           <View style={s.doneSummaryCard}>
             <DoneRow icon="account"         label="트레이너"  value={`${trainer.name} 트레이너`} />
-            <DoneRow icon="calendar"        label="날짜"      value={`${formatDate(startDate)} (${DAY_SHORT[new Date(startDate).getDay()]}요일)`} />
-            <DoneRow icon="clock-outline"   label="시간"      value={`${formatTime(startTime)} ~ ${formatTime(endTime)}`} />
+            <DoneRow icon="calendar"        label="희망 요일"  value={`매주 ${formatDays(preferredDays)}요일`} />
+            <DoneRow icon="clock-outline"   label="희망 시간"  value={`${formatTime(startTime)} ~ ${formatTime(endTime)}`} />
             <DoneRow icon="dumbbell"        label="수업 유형" value={classType} />
             <DoneRow icon="target"          label="수업 목적" value={classPurpose} />
             <View style={s.doneDivider} />
@@ -323,107 +316,71 @@ export default function NewBookingScreen() {
 
       <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
 
-        {/* ── Step 1: 시간 선택 ── */}
+        {/* ── Step 1: 희망 일정 ── */}
         {step === 1 && (
           <>
-            <Text style={s.stepTitle}>날짜와 시간을 선택하세요</Text>
+            <Text style={s.stepTitle}>희망 요일과 시간을 선택하세요</Text>
 
             <View style={s.card}>
-              <Text style={s.cardLabel}>날짜 선택</Text>
-              <View style={s.calNavRow}>
-                <TouchableOpacity onPress={goPrevMonth} style={s.calNavBtn}>
-                  <Text style={s.calNavArrow}>‹</Text>
-                </TouchableOpacity>
-                <Text style={s.calNavTitle}>{calYear}년 {calMonth}월</Text>
-                <TouchableOpacity onPress={goNextMonth} style={s.calNavBtn}>
-                  <Text style={s.calNavArrow}>›</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={s.calDowRow}>
-                {DAY_SHORT.map((d, i) => (
-                  <Text key={d} style={[s.calDowLabel,
-                    i === 0 && { color: D.error },
-                    i === 6 && { color: '#6C8EF5' },
-                  ]}>{d}</Text>
-                ))}
-              </View>
-              <View style={s.calGrid}>
-                {calCells.map((dateStr, idx) => {
-                  if (!dateStr) return <View key={`e${idx}`} style={s.calCell} />;
-                  const d = parseInt(dateStr.slice(8));
-                  const dow = new Date(dateStr).getDay();
-                  const isPast = dateStr < today;
-                  const isSelected = startDate === dateStr;
-                  const isToday = today === dateStr;
+              <Text style={s.cardLabel}>희망 요일</Text>
+              <View style={s.dayGrid}>
+                {WEEKDAY_ORDER.map((d) => {
+                  const active = preferredDays.includes(d);
                   return (
                     <TouchableOpacity
-                      key={dateStr}
-                      style={[s.calCell,
-                        isToday && !isSelected && s.calCellToday,
-                        isSelected && s.calCellSelected,
-                      ]}
-                      onPress={() => { if (!isPast) { setStartDate(dateStr); setStartTime(''); } }}
-                      disabled={isPast}
+                      key={d}
+                      style={[s.dayBtn, active && s.dayBtnActive]}
+                      onPress={() => setPreferredDays((prev) =>
+                        prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]
+                      )}
                       activeOpacity={0.7}
                     >
-                      <Text style={[s.calDayNum,
-                        isPast && s.calDayPast,
-                        isSelected && s.calDaySelected,
-                        !isSelected && !isPast && dow === 0 && { color: D.error },
-                        !isSelected && !isPast && dow === 6 && { color: '#6C8EF5' },
-                      ]}>
-                        {d}
-                      </Text>
+                      <Text style={[s.dayBtnText, active && s.dayBtnTextActive,
+                        !active && d === 0 && { color: D.error },
+                        !active && d === 6 && { color: '#6C8EF5' },
+                      ]}>{DAY_SHORT[d]}</Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
-              {startDate
-                ? <Text style={s.selectedDateText}>{formatDate(startDate)} ({DAY_SHORT[new Date(startDate).getDay()]}요일)</Text>
-                : <Text style={s.selectedDateHint}>날짜를 선택해주세요</Text>
+              {preferredDays.length > 0
+                ? <Text style={s.selectedDateText}>매주 {formatDays(preferredDays)}요일</Text>
+                : <Text style={s.selectedDateHint}>희망 요일을 선택해주세요 (복수 선택 가능)</Text>
               }
             </View>
 
             <View style={s.card}>
               <View style={s.cardLabelRow}>
-                <Text style={s.cardLabel}>시작 시간</Text>
+                <Text style={s.cardLabel}>희망 시간</Text>
                 <View style={s.fixedChip}>
                   <Text style={s.fixedChipText}>1시간 고정</Text>
                 </View>
               </View>
               <Text style={s.periodLabel}>오전</Text>
               <View style={s.timeGrid}>
-                {AM_SLOTS.map((t) => {
-                  const taken = !!startDate && isSlotTaken(startDate, t, calcEndTime(t, DURATION));
-                  return (
-                    <TouchableOpacity
-                      key={t}
-                      style={[s.timeBtn, startTime === t && s.timeBtnActive, taken && s.timeBtnDisabled]}
-                      onPress={() => setStartTime(t)}
-                      disabled={taken}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[s.timeBtnText, startTime === t && s.timeBtnTextActive, taken && s.timeBtnTextDisabled]}>{timeLabel(t)}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                {AM_SLOTS.map((t) => (
+                  <TouchableOpacity
+                    key={t}
+                    style={[s.timeBtn, startTime === t && s.timeBtnActive]}
+                    onPress={() => setStartTime(t)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[s.timeBtnText, startTime === t && s.timeBtnTextActive]}>{timeLabel(t)}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
               <Text style={[s.periodLabel, { marginTop: 14 }]}>오후</Text>
               <View style={s.timeGrid}>
-                {PM_SLOTS.map((t) => {
-                  const taken = !!startDate && isSlotTaken(startDate, t, calcEndTime(t, DURATION));
-                  return (
-                    <TouchableOpacity
-                      key={t}
-                      style={[s.timeBtn, startTime === t && s.timeBtnActive, taken && s.timeBtnDisabled]}
-                      onPress={() => setStartTime(t)}
-                      disabled={taken}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[s.timeBtnText, startTime === t && s.timeBtnTextActive, taken && s.timeBtnTextDisabled]}>{timeLabel(t)}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                {PM_SLOTS.map((t) => (
+                  <TouchableOpacity
+                    key={t}
+                    style={[s.timeBtn, startTime === t && s.timeBtnActive]}
+                    onPress={() => setStartTime(t)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[s.timeBtnText, startTime === t && s.timeBtnTextActive]}>{timeLabel(t)}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
               {startTime ? (
                 <View style={s.selectedTimeBox}>
@@ -433,9 +390,14 @@ export default function NewBookingScreen() {
               ) : (
                 <View style={s.selectedTimeHintBox}>
                   <MaterialCommunityIcons name="clock-outline" size={14} color={D.textMuted} />
-                  <Text style={s.selectedTimeHint}>시간을 선택해주세요</Text>
+                  <Text style={s.selectedTimeHint}>희망 시간을 선택해주세요</Text>
                 </View>
               )}
+            </View>
+
+            <View style={s.payNotice}>
+              <MaterialCommunityIcons name="information-outline" size={16} color={D.success} />
+              <Text style={s.payNoticeText}>선택하신 희망 요일·시간을 바탕으로 트레이너가 일정을 확정합니다</Text>
             </View>
           </>
         )}
@@ -448,7 +410,7 @@ export default function NewBookingScreen() {
             <View style={s.schedulePreview}>
               <MaterialCommunityIcons name="calendar-check" size={15} color={D.primary} />
               <Text style={s.schedulePreviewText}>
-                {formatDate(startDate)} ({DAY_SHORT[new Date(startDate).getDay()]}요일) · {formatTime(startTime)} ~ {formatTime(endTime)}
+                매주 {formatDays(preferredDays)}요일 · {formatTime(startTime)} ~ {formatTime(endTime)}
               </Text>
             </View>
 
@@ -490,8 +452,10 @@ export default function NewBookingScreen() {
                       onPress={() => setClassPurpose(cp.id)}
                       activeOpacity={0.7}
                     >
-                      <MaterialCommunityIcons name={cp.icon as any} size={20} color={active ? '#fff' : D.textSec} />
-                      <Text style={[s.purposeText, active && s.purposeTextActive]}>{cp.label}</Text>
+                      {cp.icon !== '' && (
+                        <MaterialCommunityIcons name={cp.icon as any} size={18} color={active ? '#fff' : D.textSec} />
+                      )}
+                      <Text numberOfLines={1} style={[s.purposeText, active && s.purposeTextActive]}>{cp.label}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -577,8 +541,8 @@ export default function NewBookingScreen() {
             <View style={s.summaryCard}>
               <Text style={s.summaryTitle}>예약 내역</Text>
               <SRow label="트레이너"   value={`${trainer.name} 트레이너`} />
-              <SRow label="날짜"       value={`${formatDate(startDate)} (${DAY_SHORT[new Date(startDate).getDay()]}요일)`} />
-              <SRow label="시간"       value={`${formatTime(startTime)} ~ ${formatTime(endTime)}`} />
+              <SRow label="희망 요일"  value={`매주 ${formatDays(preferredDays)}요일`} />
+              <SRow label="희망 시간"  value={`${formatTime(startTime)} ~ ${formatTime(endTime)}`} />
               <SRow label="수업 유형"  value={classType} />
               <SRow label="수업 목적"  value={classPurpose} />
               <View style={s.divider} />
@@ -750,21 +714,11 @@ export default function NewBookingScreen() {
 
             <View style={s.payNotice}>
               <MaterialCommunityIcons name="shield-check" size={16} color={D.success} />
-              <Text style={s.payNoticeText}>결제 즉시 예약이 완료됩니다</Text>
+              <Text style={s.payNoticeText}>결제 후 트레이너 확정을 거쳐 예약이 완료됩니다</Text>
             </View>
           </>
         )}
       </ScrollView>
-
-      {/* 반복 일정 충돌 경고 */}
-      {step === 3 && scheduleConflict && (
-        <View style={s.conflictWarn}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={18} color={D.error} />
-          <Text style={s.conflictWarnText}>
-            {formatDate(scheduleConflict)} ({DAY_SHORT[new Date(scheduleConflict).getDay()]}) 일정이 기존 예약과 겹칩니다. 시간을 다시 선택해주세요.
-          </Text>
-        </View>
-      )}
 
       {/* 하단 버튼 */}
       <View style={s.bottomBar}>
@@ -877,20 +831,16 @@ const s = StyleSheet.create({
   fixedChip:    { backgroundColor: D.primaryGlow, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   fixedChipText:{ fontSize: 11, fontWeight: '700', color: D.primary },
 
-  /* 달력 */
-  calNavRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  calNavBtn:  { width: 36, height: 36, borderRadius: 18, backgroundColor: D.bg, alignItems: 'center', justifyContent: 'center' },
-  calNavArrow:{ fontSize: 22, color: D.text, fontWeight: '700', lineHeight: 26 },
-  calNavTitle:{ fontSize: 17, fontWeight: '700', color: D.text },
-  calDowRow:  { flexDirection: 'row', marginBottom: 6 },
-  calDowLabel:{ flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '700', color: D.textMuted, paddingVertical: 4 },
-  calGrid:         { flexDirection: 'row', flexWrap: 'wrap' },
-  calCell:         { width: '14.285%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
-  calCellToday:    { borderWidth: 2, borderColor: D.primary },
-  calCellSelected: { backgroundColor: D.primary },
-  calDayNum:       { fontSize: 14, fontWeight: '600', color: D.text },
-  calDayPast:      { color: D.textMuted },
-  calDaySelected:  { color: '#fff', fontWeight: '800' },
+  /* 희망 요일 */
+  dayGrid:        { flexDirection: 'row', gap: 6 },
+  dayBtn: {
+    flex: 1, aspectRatio: 1, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: D.bg, borderWidth: 1.5, borderColor: D.border,
+  },
+  dayBtnActive:    { backgroundColor: D.primary, borderColor: D.primary },
+  dayBtnText:      { fontSize: 14, fontWeight: '700', color: D.textSec },
+  dayBtnTextActive:{ color: '#fff' },
   selectedDateText:{ fontSize: 13, color: D.primary, fontWeight: '600', textAlign: 'center', marginTop: 12 },
   selectedDateHint:{ fontSize: 13, color: D.textSec, textAlign: 'center', marginTop: 12 },
 
@@ -902,10 +852,8 @@ const s = StyleSheet.create({
     backgroundColor: D.bg, borderWidth: 1.5, borderColor: D.border,
   },
   timeBtnActive:     { backgroundColor: D.primary, borderColor: D.primary },
-  timeBtnDisabled:   { backgroundColor: D.border, borderColor: D.border, opacity: 0.5 },
   timeBtnText:       { fontSize: 12, fontWeight: '600', color: D.textSec },
   timeBtnTextActive: { color: '#fff', fontWeight: '700' },
-  timeBtnTextDisabled: { color: D.textMuted, textDecorationLine: 'line-through' },
   selectedTimeBox: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     marginTop: 14, paddingVertical: 12, paddingHorizontal: 14,
@@ -1114,13 +1062,6 @@ const s = StyleSheet.create({
   },
   payNoticeText: { fontSize: 13, color: D.success, fontWeight: '600' },
 
-  conflictWarn: {
-    position: 'absolute', bottom: 96, left: 16, right: 16,
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: D.error + '12', borderColor: D.error, borderWidth: 1,
-    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12,
-  },
-  conflictWarnText: { flex: 1, fontSize: 12.5, color: D.error, fontWeight: '600', lineHeight: 18 },
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', padding: 16, paddingBottom: 28,

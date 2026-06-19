@@ -1,18 +1,20 @@
 import React, { useState, useMemo, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TextInput,
-  TouchableOpacity, SafeAreaView, Modal, ScrollView, Image,
+  TouchableOpacity, SafeAreaView, Modal, Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useScrollToTop } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { MOCK_TRAINERS } from '../../data/trainers';
+import { useTrainerStore } from '../../store/trainerStore';
 import { MOCK_GYMS } from '../../data/gyms';
 import { Trainer } from '../../types';
 import { useLocation } from '../../hooks/useLocation';
 import { useLocationStore } from '../../store/locationStore';
+import { useAuthStore } from '../../store/authStore';
+import { useBookingStore } from '../../store/bookingStore';
 import { calculateDistance, formatDistance } from '../../utils/distance';
-import { formatPrice } from '../../utils/formatters';
+import { formatPrice, formatTime } from '../../utils/formatters';
 
 const D = {
   bg:          '#EEF2F9',
@@ -26,6 +28,15 @@ const D = {
   amber:       '#F59E0B',
 };
 
+const TODAY = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
+
+const QUICK_ACTIONS = [
+  { icon: 'calendar-plus',          label: '예약',   route: '/(member)/trainer-list' },
+  { icon: 'clipboard-text-outline', label: '내 예약', route: '/(member)/bookings' },
+  { icon: 'message-outline',        label: '채팅',   route: '/(member)/chat' },
+  { icon: 'package-variant-closed', label: '패키지', route: '/(member)/my-packages' },
+] as const;
+
 type SortType = 'nearby' | 'rating' | 'priceAsc' | 'priceDesc';
 
 const SORT_OPTIONS: { key: SortType; label: string; desc: string }[] = [
@@ -36,82 +47,183 @@ const SORT_OPTIONS: { key: SortType; label: string; desc: string }[] = [
 ];
 
 const SPEC_FILTERS = [
-  '전체', '체중감량', '근육증가', '필라테스', '크로스핏',
-  '재활', '체력향상', '스포츠퍼포먼스', '요가',
+  '전체', '다이어트', '체형교정', '근력향상', '기초체력', '바디프로필',
+  '벌크업', '재활운동', '통증관리', '산전산후', '대회준비',
+  '유연성증진', '웨딩케어', '선수레슨',
 ] as const;
 type SpecFilter = typeof SPEC_FILTERS[number];
 
-const SPEC_COLORS: Record<string, { bg: string; text: string }> = {
-  '체중감량':       { bg: '#FEF3C7', text: '#D97706' },
-  '근육증가':       { bg: '#DBEAFE', text: '#2563EB' },
-  '재활':           { bg: '#D1FAE5', text: '#059669' },
-  '체력향상':       { bg: '#EDE9FE', text: '#7C3AED' },
-  '크로스핏':       { bg: '#FEE2E2', text: '#DC2626' },
-  '필라테스':       { bg: '#FCE7F3', text: '#DB2777' },
-  '요가':           { bg: '#ECFDF5', text: '#10B981' },
-  '스포츠퍼포먼스': { bg: '#FFF7ED', text: '#EA580C' },
+// 운동 목적 키워드 아이콘 (PT 등록 '수업 목적'과 동일)
+const GOAL_ICONS: Record<string, string> = {
+  '전체':       'view-grid-outline',
+  '다이어트':   'run-fast',
+  '체형교정':   'human-handsup',
+  '근력향상':   'arm-flex-outline',
+  '기초체력':   'lightning-bolt-outline',
+  '바디프로필': 'camera-outline',
+  '벌크업':     'dumbbell',
+  '재활운동':   'medical-bag',
+  '통증관리':   'heart-pulse',
+  '산전산후':   'baby-face-outline',
+  '대회준비':   'trophy-outline',
+  '유연성증진': 'yoga',
+  '웨딩케어':   'ring',
+  '선수레슨':   'whistle',
 };
 
-const FEATURED_IDS = MOCK_TRAINERS
-  .slice()
-  .sort((a, b) => b.rating - a.rating)
-  .slice(0, 5)
-  .map((t) => t.id);
-
-export default function TrainersScreen() {
+export default function MemberHomeScreen() {
   const router = useRouter();
   const listRef = useRef<FlatList>(null);
   useScrollToTop(listRef);
 
-  const [query, setQuery]               = useState('');
-  const [sortBy, setSortBy]             = useState<SortType>('rating');
-  const [specFilter, setSpecFilter]     = useState<SpecFilter>('전체');
-  const [sortModal, setSortModal]       = useState(false);
+  const { member } = useAuthStore();
+  const { bookings } = useBookingStore();
+  const memberId = member?.id ?? 'member_001';
+
+  const [query, setQuery]           = useState('');
+  const [sortBy, setSortBy]         = useState<SortType>('rating');
+  const [specFilter, setSpecFilter] = useState<SpecFilter>('전체');
+  const [sortModal, setSortModal]   = useState(false);
+  const [specModal, setSpecModal]   = useState(false);
 
   useLocation();
   const { currentLocation, hasPermission } = useLocationStore();
 
+  // ── 내 PT 현황(대시보드) ──
+  const { nextSession, remainingTotal, pendingCount } = useMemo(() => {
+    const mine = bookings.filter((b) => b.memberId === memberId);
+    const upcoming = mine
+      .filter((b) => b.status === 'active')
+      .flatMap((b) =>
+        b.sessions
+          .filter((s) => s.status === 'scheduled' && s.date >= TODAY)
+          .map((s) => ({ ...s, trainerName: b.trainerName }))
+      )
+      .sort((a, b) => (a.date !== b.date ? a.date.localeCompare(b.date) : a.startTime.localeCompare(b.startTime)));
+    const remaining = mine
+      .filter((b) => b.status === 'active' && b.type !== 'consultation')
+      .reduce((sum, b) => sum + b.remainingSessions, 0);
+    const pending = mine.reduce((n, b) => n + b.sessions.filter((s) => s.status === 'pending').length, 0);
+    return { nextSession: upcoming[0], remainingTotal: remaining, pendingCount: pending };
+  }, [bookings, memberId]);
+
+  const trainers = useTrainerStore((s) => s.trainers);
+
+  // ── 트레이너 거리(위치별) ──
   const trainerDistances = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const t of MOCK_TRAINERS) {
+    for (const t of trainers) {
       const gyms = MOCK_GYMS.filter((g) => t.partnerGymIds.includes(g.id));
       map[t.id] = gyms.length === 0
         ? Infinity
         : Math.min(...gyms.map((g) => calculateDistance(currentLocation, g.coordinate)));
     }
     return map;
-  }, [currentLocation]);
+  }, [currentLocation, trainers]);
 
+  // ── 검색 + 운동목적별 + 정렬 ──
   const filtered = useMemo(() => {
-    let result = [...MOCK_TRAINERS];
+    let result = [...trainers];
     if (specFilter !== '전체')
-      result = result.filter((t) => t.specializations.includes(specFilter as any));
+      result = result.filter((t) => t.trainingGoals?.includes(specFilter as any));
     if (query.trim()) {
       const q = query.toLowerCase();
       result = result.filter(
         (t) => t.name.toLowerCase().includes(q) ||
-               t.specializations.some((s) => s.toLowerCase().includes(q))
+               t.specializations.some((s) => s.toLowerCase().includes(q)) ||
+               (t.trainingGoals?.some((g) => g.toLowerCase().includes(q)) ?? false)
       );
     }
     if (sortBy === 'nearby' && hasPermission)
       return result.sort((a, b) => (trainerDistances[a.id] ?? Infinity) - (trainerDistances[b.id] ?? Infinity));
-    if (sortBy === 'rating')   return result.sort((a, b) => b.rating - a.rating);
-    if (sortBy === 'priceAsc') return result.sort((a, b) => a.sessionPrice - b.sessionPrice);
-    if (sortBy === 'priceDesc')return result.sort((a, b) => b.sessionPrice - a.sessionPrice);
+    if (sortBy === 'priceAsc')  return result.sort((a, b) => a.sessionPrice - b.sessionPrice);
+    if (sortBy === 'priceDesc') return result.sort((a, b) => b.sessionPrice - a.sessionPrice);
     return result.sort((a, b) => b.rating - a.rating);
-  }, [sortBy, specFilter, trainerDistances, hasPermission, query]);
+  }, [sortBy, specFilter, trainerDistances, hasPermission, query, trainers]);
 
   const currentSort = SORT_OPTIONS.find((o) => o.key === sortBy)!;
-  const featured    = MOCK_TRAINERS.filter((t) => FEATURED_IDS.includes(t.id));
+
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return '좋은 아침이에요';
+    if (h < 17) return '좋은 오후예요';
+    return '오늘도 수고하셨어요';
+  })();
+
+  const whenLabel = (s: { date: string; startTime: string }) =>
+    `${s.date === TODAY ? '오늘' : s.date.slice(5).replace('-', '/')} · ${formatTime(s.startTime)}`;
 
   const ListHeader = (
     <View>
-      {/* ── 검색 바 ── */}
+      {/* ── 인사말 ── */}
+      <View style={styles.header}>
+        <Text style={styles.greeting}>{greeting} 👋</Text>
+      </View>
+
+      {/* ── 내 PT 현황 ── */}
+      <View style={styles.statusCard}>
+        <Text style={styles.statusTitle}>내 PT 현황</Text>
+        {nextSession ? (
+          <>
+            <View style={styles.nextRow}>
+              <View style={styles.nextBadge}>
+                <MaterialCommunityIcons name="calendar-clock" size={13} color="#fff" />
+                <Text style={styles.nextBadgeText}>다음 세션</Text>
+              </View>
+              <Text style={styles.nextWhen}>{whenLabel(nextSession)}</Text>
+            </View>
+            <Text style={styles.nextTrainer}>{nextSession.trainerName} 트레이너</Text>
+          </>
+        ) : (
+          <Text style={styles.statusEmpty}>예정된 PT 세션이 없어요. 트레이너를 찾아 예약해보세요.</Text>
+        )}
+        <View style={styles.metaRow}>
+          <View style={styles.metaItem}>
+            <Text style={styles.metaVal}>{remainingTotal}회</Text>
+            <Text style={styles.metaLabel}>잔여 세션</Text>
+          </View>
+          <View style={styles.metaDivider} />
+          <View style={styles.metaItem}>
+            <Text style={[styles.metaVal, pendingCount > 0 && { color: D.amber }]}>{pendingCount}건</Text>
+            <Text style={styles.metaLabel}>승인 대기</Text>
+          </View>
+        </View>
+        {pendingCount > 0 && (
+          <TouchableOpacity
+            style={styles.pendingBtn}
+            onPress={() => router.push('/(member)/bookings' as any)}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons name="clipboard-check-outline" size={16} color="#fff" />
+            <Text style={styles.pendingBtnText}>완료 확인 요청 {pendingCount}건 확인하기</Text>
+            <MaterialCommunityIcons name="chevron-right" size={16} color="#fff" />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* ── 빠른 실행 ── */}
+      <View style={styles.quickRow}>
+        {QUICK_ACTIONS.map((q) => (
+          <TouchableOpacity
+            key={q.label}
+            style={styles.quickItem}
+            onPress={() => router.push(q.route as any)}
+            activeOpacity={0.75}
+          >
+            <View style={styles.quickIcon}>
+              <MaterialCommunityIcons name={q.icon as any} size={22} color={D.primary} />
+            </View>
+            <Text style={styles.quickLabel}>{q.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* ── 검색 ── */}
       <View style={styles.searchWrap}>
         <MaterialCommunityIcons name="magnify" size={18} color={D.textMuted} />
         <TextInput
           style={styles.searchInput}
-          placeholder="트레이너 이름, 전문 분야 검색"
+          placeholder="트레이너 이름, 전문 분야, 운동 목표 검색"
           value={query}
           onChangeText={setQuery}
           placeholderTextColor={D.textMuted}
@@ -123,69 +235,17 @@ export default function TrainersScreen() {
         )}
       </View>
 
-      {/* ── 추천 트레이너 ── */}
-      {specFilter === '전체' && query === '' && (
-        <View style={styles.featuredSection}>
-          <View style={styles.featuredHeader}>
-            <Text style={styles.featuredTitle}>추천 트레이너</Text>
-            <Text style={styles.featuredSub}>최고 평점 · 인기 트레이너</Text>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.featuredScroll}
-          >
-            {featured.map((t) => (
-              <TouchableOpacity
-                key={t.id}
-                style={styles.featuredCard}
-                onPress={() => router.push(`/trainer/${t.id}`)}
-                activeOpacity={0.88}
-              >
-                <Image
-                  source={{ uri: t.profileImageUrl ?? `https://picsum.photos/seed/${t.id}/300/400` }}
-                  style={styles.featuredImg}
-                  resizeMode="cover"
-                />
-                <View style={styles.featuredGrad} />
-                <View style={styles.featuredInfo}>
-                  <View style={styles.featuredRatingRow}>
-                    <MaterialCommunityIcons name="star" size={10} color="#FBBF24" />
-                    <Text style={styles.featuredRating}>{t.rating.toFixed(1)}</Text>
-                  </View>
-                  <Text style={styles.featuredName} numberOfLines={1}>{t.name}</Text>
-                  <Text style={styles.featuredSpec} numberOfLines={1}>{t.specializations[0]}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* ── 카테고리 필터 칩 ── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterScroll}
-        style={styles.filterScrollWrap}
-      >
-        {SPEC_FILTERS.map((s) => {
-          const active = specFilter === s;
-          return (
-            <TouchableOpacity
-              key={s}
-              style={[styles.filterChip, active && styles.filterChipActive]}
-              onPress={() => setSpecFilter(s)}
-              activeOpacity={0.75}
-            >
-              <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>{s}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      {/* ── 정렬 ── */}
+      {/* ── 운동목적 / 정렬 버튼 ── */}
       <View style={styles.sortBar}>
+        <TouchableOpacity
+          style={[styles.sortBtn, specFilter !== '전체' && styles.sortBtnActive]}
+          onPress={() => setSpecModal(true)}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="dumbbell" size={14} color={specFilter !== '전체' ? D.primary : D.textSec} />
+          <Text style={styles.sortBtnText}>{specFilter === '전체' ? '운동목적' : specFilter}</Text>
+          <MaterialCommunityIcons name="chevron-down" size={14} color={D.textSec} />
+        </TouchableOpacity>
         <TouchableOpacity style={styles.sortBtn} onPress={() => setSortModal(true)} activeOpacity={0.7}>
           <MaterialCommunityIcons name="sort" size={14} color={D.primary} />
           <Text style={styles.sortBtnText}>{currentSort.label}</Text>
@@ -201,13 +261,14 @@ export default function TrainersScreen() {
         ref={listRef}
         data={filtered}
         keyExtractor={(item) => item.id}
+        ListHeaderComponent={ListHeader}
         renderItem={({ item }: { item: Trainer }) => {
           const dist  = hasPermission ? trainerDistances[item.id] : undefined;
-          const specs = item.specializations.slice(0, 2);
+          const goals = (item.trainingGoals ?? []).slice(0, 2);
           return (
             <TouchableOpacity
               style={styles.trainerCard}
-              onPress={() => router.push(`/trainer/${item.id}`)}
+              onPress={() => router.push(`/trainer/${item.id}` as any)}
               activeOpacity={0.85}
             >
               <Image
@@ -221,21 +282,16 @@ export default function TrainersScreen() {
                   <Text style={styles.trainerExp}>{item.experienceYears}년</Text>
                 </View>
                 <View style={styles.specRow}>
-                  {specs.map((s) => {
-                    const c = SPEC_COLORS[s] ?? { bg: '#F3F4F6', text: '#6B7280' };
-                    return (
-                      <View key={s} style={[styles.specChip, { backgroundColor: c.bg }]}>
-                        <Text style={[styles.specText, { color: c.text }]}>{s}</Text>
-                      </View>
-                    );
-                  })}
+                  {goals.map((g) => (
+                    <View key={g} style={styles.specChip}>
+                      <Text numberOfLines={1} style={styles.specText}>{g}</Text>
+                    </View>
+                  ))}
                 </View>
                 {item.address && (
                   <Text style={styles.trainerLocation} numberOfLines={1}>
                     📍 {[item.address.city, item.address.district].filter(Boolean).join(' ')}
-                    {dist !== undefined && dist !== Infinity
-                      ? `  ·  ${formatDistance(dist)}`
-                      : ''}
+                    {dist !== undefined && dist !== Infinity ? `  ·  ${formatDistance(dist)}` : ''}
                   </Text>
                 )}
                 <View style={styles.trainerMeta}>
@@ -254,7 +310,6 @@ export default function TrainersScreen() {
             </TouchableOpacity>
           );
         }}
-        ListHeaderComponent={ListHeader}
         ListEmptyComponent={
           <View style={styles.empty}>
             <MaterialCommunityIcons name="account-search" size={52} color={D.textMuted} />
@@ -262,9 +317,47 @@ export default function TrainersScreen() {
           </View>
         }
         showsVerticalScrollIndicator={false}
-        style={styles.list}
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={styles.listContent}
       />
+
+      {/* ── 운동목적 모달 ── */}
+      <Modal visible={specModal} animationType="slide" transparent onRequestClose={() => setSpecModal(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setSpecModal(false)}>
+          <TouchableOpacity style={styles.modalSheet} activeOpacity={1} onPress={() => {}}>
+            <View style={styles.modalHandle} />
+            <View style={styles.specHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.specTitle}>운동 목적</Text>
+                <Text style={styles.specSubtitle}>찾고 싶은 운동 목적을 선택하세요</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setSpecModal(false)}
+                style={styles.specClose}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <MaterialCommunityIcons name="close" size={20} color={D.textSec} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.specGrid}>
+              {SPEC_FILTERS.map((s) => {
+                const active = specFilter === s;
+                const icon = GOAL_ICONS[s];
+                return (
+                  <TouchableOpacity
+                    key={s}
+                    style={[styles.specOption, active && styles.specOptionActive]}
+                    onPress={() => { setSpecFilter(s); setSpecModal(false); }}
+                    activeOpacity={0.8}
+                  >
+                    {icon ? <MaterialCommunityIcons name={icon as any} size={18} color={active ? '#fff' : D.textSec} /> : null}
+                    <Text numberOfLines={1} style={[styles.specOptionText, active && styles.specOptionTextActive]}>{s}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {/* ── 정렬 모달 ── */}
       <Modal visible={sortModal} animationType="slide" transparent onRequestClose={() => setSortModal(false)}>
@@ -282,9 +375,7 @@ export default function TrainersScreen() {
                   activeOpacity={0.7}
                 >
                   <View style={{ gap: 2 }}>
-                    <Text style={[styles.sortItemLabel, active && styles.sortItemLabelActive]}>
-                      {opt.label}
-                    </Text>
+                    <Text style={[styles.sortItemLabel, active && styles.sortItemLabelActive]}>{opt.label}</Text>
                     <Text style={styles.sortItemDesc}>{opt.desc}</Text>
                   </View>
                   {active && <MaterialCommunityIcons name="check" size={20} color={D.primary} />}
@@ -300,64 +391,69 @@ export default function TrainersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: D.bg },
-  list:      { flex: 1 },
+  listContent: { paddingTop: 16, paddingBottom: 24 },
+
+  header: { gap: 2, marginHorizontal: 16 },
+  greeting: { fontSize: 16, color: D.text, fontWeight: '700' },
+
+  statusCard: {
+    backgroundColor: D.surface, borderRadius: 20, padding: 18, gap: 14,
+    marginHorizontal: 16, marginTop: 16,
+    borderWidth: 1, borderColor: D.primaryGlow,
+    shadowColor: D.primary, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12, shadowRadius: 14, elevation: 4,
+  },
+  statusTitle: { fontSize: 13, fontWeight: '700', color: D.textSec },
+  nextRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  nextBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: D.primary, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
+  },
+  nextBadgeText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  nextWhen: { fontSize: 14, fontWeight: '700', color: D.text },
+  nextTrainer: { fontSize: 17, fontWeight: '800', color: D.text, marginTop: -4 },
+  statusEmpty: { fontSize: 14, color: D.textSec, lineHeight: 20 },
+
+  metaRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: D.bg, borderRadius: 14, paddingVertical: 12,
+  },
+  metaItem: { flex: 1, alignItems: 'center', gap: 2 },
+  metaDivider: { width: 1, height: 28, backgroundColor: D.border },
+  metaVal: { fontSize: 18, fontWeight: '900', color: D.primary },
+  metaLabel: { fontSize: 11, color: D.textSec, fontWeight: '600' },
+
+  pendingBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: D.amber, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12,
+  },
+  pendingBtnText: { flex: 1, fontSize: 14, fontWeight: '800', color: '#fff' },
+
+  quickRow: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginTop: 16 },
+  quickItem: { flex: 1, alignItems: 'center', gap: 7 },
+  quickIcon: {
+    width: 54, height: 54, borderRadius: 17, backgroundColor: D.surface,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+  },
+  quickLabel: { fontSize: 12, fontWeight: '600', color: D.text },
 
   /* ── 검색 ── */
   searchWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: D.surface,
-    marginHorizontal: 14, marginTop: 12, marginBottom: 4,
+    marginHorizontal: 16, marginTop: 18,
     borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
   },
   searchInput: { flex: 1, fontSize: 14, color: D.text },
 
-  /* ── 추천 ── */
-  featuredSection: { paddingTop: 10, paddingBottom: 6 },
-  featuredHeader: {
-    flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between',
-    paddingHorizontal: 14, marginBottom: 10,
-  },
-  featuredTitle: { fontSize: 16, fontWeight: '800', color: D.text },
-  featuredSub:   { fontSize: 12, color: D.textSec },
-  featuredScroll:{ paddingHorizontal: 14, gap: 10, paddingBottom: 4 },
-  featuredCard: {
-    width: 128, height: 175, borderRadius: 18, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.14, shadowRadius: 12, elevation: 6,
-  },
-  featuredImg:  { width: '100%', height: '100%' },
-  featuredGrad: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.04)',
-  },
-  featuredInfo: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    padding: 12, gap: 2,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  featuredRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  featuredRating:    { fontSize: 11, fontWeight: '700', color: '#fff' },
-  featuredName:      { fontSize: 14, fontWeight: '800', color: '#fff' },
-  featuredSpec:      { fontSize: 11, color: 'rgba(255,255,255,0.8)' },
-
-  /* ── 필터 칩 ── */
-  filterScrollWrap: { backgroundColor: D.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: D.border },
-  filterScroll: { paddingHorizontal: 14, paddingVertical: 10, gap: 8 },
-  filterChip: {
-    paddingHorizontal: 14, paddingVertical: 7,
-    borderRadius: 20, borderWidth: 1.5, borderColor: D.border,
-    backgroundColor: D.surface,
-  },
-  filterChipActive:    { backgroundColor: D.primary, borderColor: D.primary },
-  filterChipText:      { fontSize: 13, fontWeight: '600', color: D.textSec },
-  filterChipTextActive:{ color: '#fff' },
-
-  /* ── 정렬 바 ── */
+  /* ── 운동목적 / 정렬 바 ── */
   sortBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
-    paddingHorizontal: 14, paddingTop: 14, paddingBottom: 8,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginHorizontal: 16, marginTop: 18, paddingBottom: 10,
   },
   sortBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -365,13 +461,38 @@ const styles = StyleSheet.create({
     borderRadius: 16, borderWidth: 1, borderColor: D.border,
     backgroundColor: D.surface,
   },
+  sortBtnActive: { borderColor: D.primary, backgroundColor: D.primaryGlow },
   sortBtnText: { fontSize: 13, fontWeight: '600', color: D.primary },
+
+  /* ── 운동목적 모달 ── */
+  specHeader: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    paddingHorizontal: 20, marginBottom: 14,
+  },
+  specTitle: { fontSize: 18, fontWeight: '800', color: D.text },
+  specSubtitle: { fontSize: 12.5, color: D.textSec, marginTop: 3 },
+  specClose: {
+    width: 30, height: 30, borderRadius: 15, backgroundColor: D.bg,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  specGrid: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 9,
+    paddingHorizontal: 20, paddingBottom: 8,
+  },
+  specOption: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 24,
+    backgroundColor: D.bg, borderWidth: 1.5, borderColor: D.border,
+  },
+  specOptionActive: { backgroundColor: D.primary, borderColor: D.primary },
+  specOptionText: { fontSize: 13, fontWeight: '600', color: D.textSec },
+  specOptionTextActive: { color: '#fff' },
 
   /* ── 트레이너 카드 ── */
   trainerCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: D.surface,
-    marginHorizontal: 14, marginBottom: 10, borderRadius: 18,
+    backgroundColor: D.surface, borderRadius: 18,
+    marginHorizontal: 16, marginBottom: 10,
     padding: 14, gap: 14,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.07, shadowRadius: 10, elevation: 3,
@@ -382,8 +503,8 @@ const styles = StyleSheet.create({
   trainerName:     { fontSize: 16, fontWeight: '800', color: D.text },
   trainerExp:      { fontSize: 11, color: D.textMuted, fontWeight: '500' },
   specRow:         { flexDirection: 'row', gap: 6 },
-  specChip:        { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  specText:        { fontSize: 11, fontWeight: '700' },
+  specChip:        { paddingVertical: 3, paddingRight: 4 },
+  specText:        { fontSize: 11, fontWeight: '700', color: D.textSec },
   trainerLocation: { fontSize: 11, color: D.textMuted },
   trainerMeta:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   ratingRow:       { flexDirection: 'row', alignItems: 'center', gap: 3 },

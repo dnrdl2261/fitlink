@@ -33,18 +33,22 @@ export const COLORS = {
 };
 
 export const BOOKING_STATUS_LABELS: Record<string, string> = {
+  pending: '확정 대기',
   active: '이용중',
   completed: '완료',
   cancelled: '취소됨',
 };
 
 export const BOOKING_STATUS_COLORS: Record<string, string> = {
+  pending: '#F59E0B',
   active: '#16a34a',
   completed: '#8080A0',
   cancelled: '#F87171',
 };
 
 export const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+// 요일 표시 순서: 월→일 (일요일이 맨 뒤). 모든 화면 공통 정렬 기준
+export const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 // 회원/트레이너 결제 화면 공통 결제수단 (MaterialCommunityIcons 이름)
 export const PAY_METHODS = [

@@ -11,7 +11,7 @@ import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../utils/constants';
 import { formatPrice } from '../../utils/formatters';
 
-const GYM = '#2DD4BF';
+const GYM = '#4F63F5';
 
 const CHART_PERIODS = [
   { key: '3m', label: '3개월' },

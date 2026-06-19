@@ -251,7 +251,7 @@ export default function GymEditProfileScreen() {
         <View style={styles.sectionHeader}>
           <Text style={styles.groupLabel}>이용 규칙</Text>
           <TouchableOpacity style={styles.addBtn} onPress={addRule}>
-            <MaterialCommunityIcons name="plus" size={14} color={'#2DD4BF'} />
+            <MaterialCommunityIcons name="plus" size={14} color={'#4F63F5'} />
             <Text style={styles.addBtnText}>추가</Text>
           </TouchableOpacity>
         </View>
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
   },
   navCancel: { fontSize: 16, color: COLORS.textSecondary },
   navTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text },
-  navSave: { fontSize: 16, fontWeight: '700', color: '#2DD4BF' },
+  navSave: { fontSize: 16, fontWeight: '700', color: '#4F63F5' },
 
   scroll: { paddingTop: 24, paddingHorizontal: 16 },
 
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
   photoEditBadge: {
     position: 'absolute', bottom: 0, right: 0,
     width: 28, height: 28, borderRadius: 14,
-    backgroundColor: '#2DD4BF',
+    backgroundColor: '#4F63F5',
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: COLORS.background,
   },
@@ -356,10 +356,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     borderWidth: 1.5, borderColor: COLORS.border,
   },
-  chipActive: { backgroundColor: '#2DD4BF' + '15', borderColor: '#2DD4BF' },
+  chipActive: { backgroundColor: '#4F63F5' + '15', borderColor: '#4F63F5' },
   chipEmoji: { fontSize: 14 },
   chipText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
-  chipTextActive: { color: '#2DD4BF' },
+  chipTextActive: { color: '#4F63F5' },
 
   priceRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   priceInput: {
@@ -375,9 +375,9 @@ const styles = StyleSheet.create({
   addBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20,
-    backgroundColor: '#2DD4BF' + '15', marginBottom: 8,
+    backgroundColor: '#4F63F5' + '15', marginBottom: 8,
   },
-  addBtnText: { fontSize: 13, fontWeight: '700', color: '#2DD4BF' },
+  addBtnText: { fontSize: 13, fontWeight: '700', color: '#4F63F5' },
 
   ruleRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
   },
   ruleDot: {
     width: 6, height: 6, borderRadius: 3,
-    backgroundColor: '#2DD4BF', marginTop: 7,
+    backgroundColor: '#4F63F5', marginTop: 7,
   },
   ruleInput: {
     flex: 1, fontSize: 14, color: COLORS.text, lineHeight: 20,

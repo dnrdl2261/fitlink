@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Booking } from '../types';
-import { formatDate, formatTime, formatPrice } from '../utils/formatters';
-import { COLORS, BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS, DAY_LABELS } from '../utils/constants';
+import { formatPrice } from '../utils/formatters';
+import { COLORS, BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS, DAY_LABELS, WEEKDAY_ORDER } from '../utils/constants';
 
 interface BookingCardProps {
   booking: Booking;
@@ -15,12 +15,11 @@ interface BookingCardProps {
 export default function BookingCard({ booking, onPress, onCancel, onReview, reviewDone }: BookingCardProps) {
   const statusColor = BOOKING_STATUS_COLORS[booking.status] ?? COLORS.textSecondary;
   const statusLabel = BOOKING_STATUS_LABELS[booking.status] ?? booking.status;
-  const nextSession = booking.sessions.find((s) => s.status === 'scheduled');
   const progressPct = booking.totalSessions > 0
     ? (booking.usedSessions / booking.totalSessions) * 100
     : 0;
-  const daysLabel = booking.schedule.daysOfWeek
-    .sort((a, b) => a - b)
+  const daysLabel = WEEKDAY_ORDER
+    .filter((d) => booking.schedule.daysOfWeek.includes(d))
     .map((d) => DAY_LABELS[d])
     .join('·');
 
@@ -53,21 +52,6 @@ export default function BookingCard({ booking, onPress, onCancel, onReview, revi
           <Text style={styles.scheduleText}>매주 {daysLabel}</Text>
         </View>
       </View>
-
-      {nextSession && (
-        <View style={styles.nextSessionRow}>
-          <Text style={styles.nextSessionLabel}>다음 세션</Text>
-          <Text style={styles.nextSessionValue}>
-            {formatDate(nextSession.date)}  {formatTime(nextSession.startTime)}
-          </Text>
-        </View>
-      )}
-
-      {booking.status === 'active' && onCancel && (
-        <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
-          <Text style={styles.cancelText}>예약 취소</Text>
-        </TouchableOpacity>
-      )}
 
       {booking.status === 'completed' && (
         <TouchableOpacity
@@ -131,25 +115,6 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   scheduleText: { fontSize: 12, color: COLORS.textSecondary },
-  nextSessionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: COLORS.borderSubtle,
-  },
-  nextSessionLabel: { fontSize: 13, color: COLORS.textSecondary },
-  nextSessionValue: { fontSize: 13, color: COLORS.text, fontWeight: '600' },
-  cancelBtn: {
-    marginTop: 14,
-    paddingVertical: 11,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.error,
-    alignItems: 'center',
-  },
-  cancelText: { color: COLORS.error, fontSize: 14, fontWeight: '600' },
   reviewBtn: {
     marginTop: 14,
     paddingVertical: 11,

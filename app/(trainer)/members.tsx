@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, StyleSheet,
   SafeAreaView, TouchableOpacity, Modal,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useScrollToTop } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
@@ -38,6 +38,7 @@ export default function TrainerMembersScreen() {
   const { trainer } = useAuthStore();
   const { bookings } = useBookingStore();
   const router = useRouter();
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const allRequests = usePartnerStore(s => s.requests);
   const removedPartnerIds = usePartnerStore(s => s.removedPartnerIds);
   const trainerId = trainer?.id ?? '';
@@ -95,7 +96,7 @@ export default function TrainerMembersScreen() {
       {/* 헤더 */}
       <View style={styles.screenHeader}>
         <TouchableOpacity
-          onPress={() => router.navigate('/(trainer)/more' as any)}
+          onPress={() => router.navigate((from === 'home' ? '/(trainer)/' : '/(trainer)/more') as any)}
           style={styles.backBtn}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
@@ -220,7 +221,7 @@ export default function TrainerMembersScreen() {
               <TouchableOpacity key={gym.id} style={styles.gymItem}
                 onPress={() => {
                   setGymPickOpen(false);
-                  router.push({ pathname: '/(trainer)/slots', params: { gymId: gym.id, memberName: bookingMember?.memberName ?? '' } } as any);
+                  router.push({ pathname: '/(trainer)/slots', params: { gymId: gym.id, memberId: bookingMember?.memberId ?? '', memberName: bookingMember?.memberName ?? '' } } as any);
                 }}
                 activeOpacity={0.8}
               >

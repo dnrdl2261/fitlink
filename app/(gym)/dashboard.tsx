@@ -19,7 +19,7 @@ import { SlotBooking } from '../../types';
 import { formatPrice, formatTime } from '../../utils/formatters';
 import { COLORS, BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '../../utils/constants';
 
-const GYM  = '#2DD4BF';
+const GYM  = '#4F63F5';
 const DARK = '#0F172A';
 const SLATE = '#64748B';
 
@@ -485,7 +485,7 @@ const s = StyleSheet.create({
   },
   dateHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   todayChip: { backgroundColor: GYM + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  todayChipText: { fontSize: 11, fontWeight: '800', color: '#0D9488', letterSpacing: 0.2 },
+  todayChipText: { fontSize: 11, fontWeight: '800', color: '#3D4FD9', letterSpacing: 0.2 },
   dateHeaderText: { fontSize: 15, fontWeight: '700', color: DARK },
   totalBadge: {
     backgroundColor: '#fff', borderRadius: 10,

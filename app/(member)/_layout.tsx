@@ -105,7 +105,7 @@ export default function MemberLayout() {
         options={{
           tabBarLabel: '헬스장',
           tabBarIcon: ({ color }) => <TabIcon name="map-marker" color={color} />,
-          headerTitle: '헬스장 찾기',
+          headerShown: false,
         }}
       />
       <Tabs.Screen
@@ -127,7 +127,7 @@ export default function MemberLayout() {
       <Tabs.Screen
         name="more"
         options={{
-          tabBarLabel: '마이',
+          tabBarLabel: '내정보',
           tabBarIcon: ({ color }) => <TabIcon name="account" color={color} />,
           headerTitle: '내 정보',
         }}

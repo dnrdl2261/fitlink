@@ -19,13 +19,15 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../utils/constants';
 import { REGION_DATA } from '../../data/regions';
-import { Specialization, Certification, WorkHistory } from '../../types/trainer';
+import { TrainingGoal, Certification, WorkHistory } from '../../types/trainer';
 
 type MediaItem = { id: string; uri: string; type: 'photo' | 'video' };
 const THUMB_SIZE = (Dimensions.get('window').width - 32 - 16 * 2 - 8 * 3) / 4;
 
-const ALL_SPECS: Specialization[] = [
-  '체중감량', '근육증가', '재활', '필라테스', '크로스핏', '요가', '체력향상', '스포츠퍼포먼스',
+// 회원 '운동 목적'(trainers.tsx SPEC_FILTERS / 수업 목적)과 동일한 키워드
+const ALL_GOALS: TrainingGoal[] = [
+  '다이어트', '체형교정', '근력향상', '기초체력', '바디프로필', '벌크업', '재활운동',
+  '통증관리', '산전산후', '대회준비', '유연성증진', '웨딩케어', '선수레슨',
 ];
 
 const CITIES = Object.keys(REGION_DATA);
@@ -45,7 +47,7 @@ export default function EditProfileScreen() {
   const [city, setCity] = useState(trainer.address?.city ?? '서울');
   const [district, setDistrict] = useState(trainer.address?.district ?? '');
   const [dong, setDong] = useState(trainer.address?.dong ?? '');
-  const [specializations, setSpecializations] = useState<Specialization[]>([...trainer.specializations]);
+  const [goals, setGoals] = useState<TrainingGoal[]>([...(trainer.trainingGoals ?? [])]);
   const [certifications, setCertifications] = useState<Certification[]>(trainer.certifications.map(c => ({ ...c })));
   const [workHistory, setWorkHistory] = useState<WorkHistory[]>(trainer.workHistory.map(w => ({ ...w })));
   const [regionModal, setRegionModal] = useState(false);
@@ -116,17 +118,17 @@ export default function EditProfileScreen() {
     }
   };
 
-  const toggleSpec = (s: Specialization) => {
-    if (specializations.includes(s)) {
-      setSpecializations(specializations.filter(x => x !== s));
-    } else if (specializations.length < 2) {
-      setSpecializations([...specializations, s]);
+  const toggleGoal = (g: TrainingGoal) => {
+    if (goals.includes(g)) {
+      setGoals(goals.filter(x => x !== g));
+    } else if (goals.length < 2) {
+      setGoals([...goals, g]);
     }
   };
 
   const handleSave = () => {
     if (!tagline.trim()) { Alert.alert('입력 오류', '한줄 소개를 입력해주세요.'); return; }
-    if (specializations.length === 0) { Alert.alert('입력 오류', '전문 분야를 1개 이상 선택해주세요.'); return; }
+    if (goals.length === 0) { Alert.alert('입력 오류', '운동 목적을 1개 이상 선택해주세요.'); return; }
     updateTrainer({
       profileImageUrl,
       tagline: tagline.trim(),
@@ -135,7 +137,7 @@ export default function EditProfileScreen() {
       experienceYears: parseInt(experienceYears) || 0,
       sessionPrice: parseInt(sessionPrice) || 0,
       address: { city, district, dong },
-      specializations,
+      trainingGoals: goals,
       certifications,
       workHistory,
       photos: mediaItems.filter(m => m.type === 'photo').map(({ id, uri }) => ({ id, uri })),
@@ -326,21 +328,21 @@ export default function EditProfileScreen() {
           )}
         </View>
 
-        {/* ── 전문 분야 ── */}
-        <Text style={styles.groupLabel}>전문 분야 <Text style={styles.groupSub}>(최대 2개)</Text></Text>
+        {/* ── 운동 목적 ── */}
+        <Text style={styles.groupLabel}>운동 목적 <Text style={styles.groupSub}>(최대 2개)</Text></Text>
         <View style={styles.card}>
           <View style={styles.chipGrid}>
-            {ALL_SPECS.map(s => {
-              const active = specializations.includes(s);
-              const disabled = !active && specializations.length >= 2;
+            {ALL_GOALS.map(g => {
+              const active = goals.includes(g);
+              const disabled = !active && goals.length >= 2;
               return (
                 <TouchableOpacity
-                  key={s}
+                  key={g}
                   style={[styles.chip, active && styles.chipActive, disabled && styles.chipDisabled]}
-                  onPress={() => !disabled && toggleSpec(s)}
+                  onPress={() => !disabled && toggleGoal(g)}
                   activeOpacity={disabled ? 1 : 0.7}
                 >
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{s}</Text>
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{g}</Text>
                 </TouchableOpacity>
               );
             })}

@@ -31,7 +31,7 @@ export default function MemberProfileScreen() {
   const handleLogout = () => {
     const doLogout = () => { logout(); router.replace('/login'); };
     if (Platform.OS === 'web') {
-      doLogout();
+      if (window.confirm('로그아웃 하시겠습니까?')) doLogout();
     } else {
       Alert.alert('로그아웃', '로그아웃 하시겠습니까?', [
         { text: '취소', style: 'cancel' },
@@ -97,7 +97,7 @@ export default function MemberProfileScreen() {
         <View style={styles.menuSection}>
           {[
             { emoji: '📞', label: '고객센터', onPress: () => {} },
-            { emoji: '📋', label: '이용약관', onPress: () => {} },
+            { emoji: '📋', label: '약관 및 정책', onPress: () => {} },
             { emoji: '🔒', label: '개인정보처리방침', onPress: () => {} },
           ].map((item) => (
             <TouchableOpacity key={item.label} style={styles.menuItem} onPress={item.onPress}>

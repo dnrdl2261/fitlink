@@ -140,7 +140,7 @@ export default function TrainerSlotsScreen() {
   const today    = new Date();
   const todayStr = toDateStr(today);
   const router   = useRouter();
-  const { gymId: initGymId, memberName } = useLocalSearchParams<{ gymId?: string; memberName?: string }>();
+  const { gymId: initGymId, memberId, memberName } = useLocalSearchParams<{ gymId?: string; memberId?: string; memberName?: string }>();
 
   const { trainer }         = useAuthStore();
   const { getAvailableSlots, cancelSlot, isBlacklisted, toggleFavorite, favoriteGyms } = useGymSlotStore();
@@ -256,6 +256,7 @@ export default function TrainerSlotsScreen() {
         gymName:     selectedGym.name,
         facilityFee: String(singleFee),
         slots:       JSON.stringify(sorted.map(p => ({ date: p.date, startTime: p.slot.startTime, endTime: p.slot.endTime }))),
+        memberId:    memberId ?? '',
         memberName:  memberName ?? '',
       },
     } as any);

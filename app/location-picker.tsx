@@ -39,11 +39,12 @@ export default function LocationPickerScreen() {
     ).slice(0, 50);
   }, [query]);
 
-  const selectDong = (dong: string) => {
-    setSelectedDong(dong);
-    addRecentSearch(dong);
+  // query: "시 구 동" 전체. 동명 중복 방지를 위해 표시·최근검색·좌표변환에 모두 사용.
+  const selectDong = (query: string) => {
+    setSelectedDong(query);
+    addRecentSearch(query);
     router.back();
-    forwardGeocode(dong).then((coord) => {
+    forwardGeocode(query).then((coord) => {
       if (coord) {
         setLocation(coord);
         setPermission(true);
@@ -214,7 +215,7 @@ export default function LocationPickerScreen() {
           data={results}
           keyExtractor={(item) => `${item.city}-${item.district}-${item.dong}`}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.resultItem} onPress={() => selectDong(item.dong)}>
+            <TouchableOpacity style={styles.resultItem} onPress={() => selectDong(`${item.city} ${item.district} ${item.dong}`)}>
               <MaterialCommunityIcons name="map-marker-outline" size={18} color={COLORS.textMuted} />
               <View style={styles.resultTextWrap}>
                 <Text style={styles.resultDong}>{item.dong}</Text>

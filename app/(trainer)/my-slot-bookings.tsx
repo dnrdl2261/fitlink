@@ -167,7 +167,7 @@ function QRModal({ booking, onClose }: { booking: SlotBooking | null; onClose: (
 // ── 메인 화면 ────────────────────────────────────────────────
 export default function MySlotBookingsScreen() {
   const router = useRouter();
-  const { highlight } = useLocalSearchParams<{ highlight?: string }>();
+  const { highlight, from } = useLocalSearchParams<{ highlight?: string; from?: string }>();
   const { trainer } = useAuthStore();
   const { slotBookings, cancelSlot } = useGymSlotStore();
   const [qrTarget, setQrTarget] = useState<SlotBooking | null>(null);
@@ -203,7 +203,7 @@ export default function MySlotBookingsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.navigate('/(trainer)/more' as any)} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.navigate((from === 'home' ? '/(trainer)/' : '/(trainer)/more') as any)} style={styles.backBtn}>
           <Text style={styles.backText}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>내 예약 현황</Text>

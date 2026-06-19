@@ -130,10 +130,10 @@ const fi = StyleSheet.create({
 export default function GymBookPayScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
-    gymId: string; gymName: string; facilityFee: string; slots: string; memberName?: string;
+    gymId: string; gymName: string; facilityFee: string; slots: string; memberId?: string; memberName?: string;
   }>();
 
-  const { gymId, gymName, memberName } = params;
+  const { gymId, gymName, memberId, memberName } = params;
   const facilityFee = Number(params.facilityFee);
   const slotsData = useMemo<SlotItem[]>(() => {
     try { return JSON.parse(params.slots || '[]'); }
@@ -229,6 +229,8 @@ export default function GymBookPayScreen() {
         gymId, gymName,
         trainerId:   trainer.id,
         trainerName: trainer.name,
+        memberId:    memberId || undefined,
+        memberName:  memberName || undefined,
         date:        slot.date,
         startTime:   slot.startTime,
         memberCount: 1,
@@ -243,7 +245,7 @@ export default function GymBookPayScreen() {
         addNotification({
           type: 'slot_request', targetRole: 'gym', userId: gymAdminId,
           title: '새 슬롯 예약 요청',
-          body: `${trainer.name} 트레이너가 ${slotsData[0].date} ${slotsData[0].startTime} 슬롯을 요청했습니다.`,
+          body: `${trainer.name} 트레이너가 ${memberName ? `${memberName} 회원을 위해 ` : ''}${slotsData[0].date} ${slotsData[0].startTime} 슬롯을 요청했습니다.`,
           meta: { trainerId: trainer.id },
         });
       }
@@ -260,7 +262,7 @@ export default function GymBookPayScreen() {
     return (
       <SafeAreaView key="clothing" style={s.container}>
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+          <TouchableOpacity onPress={() => router.navigate('/(trainer)/slots' as any)} style={s.backBtn}>
             <Text style={s.backText}>‹</Text>
           </TouchableOpacity>
           <Text style={s.headerTitle}>의류비 결제</Text>

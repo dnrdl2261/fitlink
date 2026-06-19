@@ -303,7 +303,7 @@ export default function GymDetailScreen() {
                           gymId: gym.id, gymName: gym.name,
                           trainerId: trainer.id, trainerName: trainer.name,
                           trainerTagline: trainer.tagline,
-                          trainerSpecializations: trainer.specializations,
+                          trainerSpecializations: trainer.trainingGoals,
                         });
                       }
                       setPartnerModal('done');

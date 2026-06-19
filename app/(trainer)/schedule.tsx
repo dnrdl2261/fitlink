@@ -7,6 +7,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useScrollToTop } from '@react-navigation/native';
 import { useBookingStore } from '../../store/bookingStore';
+import { useGymSlotStore } from '../../store/gymSlotStore';
 import { useAuthStore } from '../../store/authStore';
 import { formatTime, formatDate } from '../../utils/formatters';
 
@@ -60,6 +61,7 @@ interface DisplaySession {
   status: 'scheduled'|'completed'|'cancelled';
   color: string; isManual: boolean; bookingId?: string;
   type?: 'pt' | 'consultation';
+  isSlot?: boolean; // 헬스장 시설 슬롯 예약
 }
 
 /* ─── 헬퍼 ─── */
@@ -85,6 +87,7 @@ const tH   = (s: string, e: string) => {
   const [sh,sm]=s.split(':').map(Number), [eh,em]=e.split(':').map(Number);
   return Math.max(((eh*60+em)-(sh*60+sm))/60*ROW_H, 28);
 };
+const add30 = (t: string) => { const [h,m]=t.split(':').map(Number); const tot=h*60+m+30; return `${f2(Math.floor(tot/60))}:${f2(tot%60)}`; };
 
 /* ─── 시간선 (다크) ─── */
 function HourLines() {
@@ -122,6 +125,7 @@ export default function TrainerScheduleScreen() {
   const [addMemo, setAddMemo]     = useState('');
 
   const { bookings, completeSession } = useBookingStore();
+  const slotBookings = useGymSlotStore((s) => s.slotBookings);
   const { trainer } = useAuthStore();
   const tid = trainer?.id ?? 'trainer_001';
 
@@ -159,7 +163,17 @@ export default function TrainerScheduleScreen() {
     [manual]
   );
 
-  const allDS = useMemo(()=>[...bookingDS,...manualDS],[bookingDS,manualDS]);
+  // 헬스장 시설 슬롯 예약 (내가 예약한 것)
+  const slotDS = useMemo<DisplaySession[]>(() =>
+    slotBookings.filter(s=>s.trainerId===tid && s.status!=='cancelled').map(s=>({
+      id:s.id, date:s.date, startTime:s.startTime, endTime:add30(s.startTime),
+      memberName:s.memberName ?? '회원', price:s.facilityFee, memo:`${s.gymName} 시설 이용`,
+      status:'scheduled' as const, color:'#0EA5E9', isManual:false, isSlot:true,
+    })),
+    [slotBookings, tid]
+  );
+
+  const allDS = useMemo(()=>[...bookingDS,...manualDS,...slotDS],[bookingDS,manualDS,slotDS]);
 
   const busyDates = useMemo(()=>{
     const set=new Set<string>();
@@ -494,7 +508,9 @@ export default function TrainerScheduleScreen() {
                   </View>
                   <View style={s.rowBot}>
                     <Text style={[s.rowName, done&&s.lineThr]}>{sess.memberName} 회원</Text>
-                    {sess.type==='consultation'
+                    {sess.isSlot
+                      ? <View style={s.slotBadge}><Text style={s.slotBadgeText}>시설 이용</Text></View>
+                      : sess.type==='consultation'
                       ? <View style={s.consultBadge}><Text style={s.consultBadgeText}>무료상담</Text></View>
                       : sess.price>0&&<Text style={[s.rowPrice,{color:sess.color}]}>₩{sess.price.toLocaleString()}</Text>
                     }
@@ -752,6 +768,8 @@ const s = StyleSheet.create({
     backgroundColor:'#E0F2FE', borderWidth:1, borderColor:'#BAE6FD',
   },
   consultBadgeText: { fontSize:11, fontWeight:'700', color:'#0891B2' },
+  slotBadge: { paddingHorizontal:8, paddingVertical:2, borderRadius:6, backgroundColor:'#E0F2FE', borderWidth:1, borderColor:'#7DD3FC' },
+  slotBadgeText: { fontSize:11, fontWeight:'700', color:'#0EA5E9' },
   rowActions:{ flexDirection:'row', gap:2, alignItems:'center' },
   actBtn:    { padding:6 },
 

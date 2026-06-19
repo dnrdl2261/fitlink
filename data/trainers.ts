@@ -16,7 +16,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     bio: '7년 경력의 다이어트/근육증가 전문 트레이너입니다. 과학적 접근법을 통해 고객님의 목표를 달성할 수 있도록 맞춤형 프로그램을 제공합니다. 현재까지 200명 이상의 회원을 성공적으로 트레이닝했습니다.',
     specializations: ['체중감량', '근육증가'],
     exerciseTypes: ['웨이트트레이닝', '보디빌딩', '맨몸운동'],
-    trainingGoals: ['다이어트', '벌크업', '린매스업', '바디프로필'],
+    trainingGoals: ['다이어트', '벌크업'],
     trainingStyles: ['스파르타', '동기부여형', '고강도훈련', '정통웨이트', '식단밀착관리'],
     conveniences: ['새벽수업', '개인락커', '예약제운영'],
     certifications: [
@@ -122,7 +122,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     bio: '재활운동 전문 트레이너로 부상 회복과 예방에 특화되어 있습니다. 물리치료사 출신으로 의학적 지식을 바탕으로 안전하고 효과적인 운동 프로그램을 제공합니다.',
     specializations: ['재활', '체력향상'],
     exerciseTypes: ['재활운동', '기능성운동', '스트레칭'],
-    trainingGoals: ['재활운동', '체형교정', '기초체력', '통증관리'],
+    trainingGoals: ['재활운동', '체형교정'],
     trainingStyles: ['재활특화', '저강도훈련', '자세분석', '움직임개선'],
     conveniences: ['주차가능', '샤워시설', '예약제운영'],
     certifications: [
@@ -217,7 +217,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     bio: '전직 크로스핏 선수 출신 트레이너. 고강도 인터벌 트레이닝(HIIT)과 기능성 움직임 향상에 특화되어 있습니다. 짧고 강렬한 운동으로 최대의 효과를 경험해보세요.',
     specializations: ['크로스핏', '체력향상'],
     exerciseTypes: ['크로스핏', '기능성운동', '맨몸운동'],
-    trainingGoals: ['기초체력', '근력향상', '다이어트'],
+    trainingGoals: ['기초체력', '근력향상'],
     trainingStyles: ['스파르타', '고강도훈련', '컨디셔닝', '동기부여형'],
     conveniences: ['새벽수업', '단독대관', '주말수업'],
     certifications: [
@@ -298,7 +298,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     bio: '필라테스와 요가 전문 트레이너. 바른 자세와 코어 강화를 통해 일상의 통증을 해결합니다. 온화한 지도 방식으로 초보자도 편안하게 시작할 수 있습니다.',
     specializations: ['필라테스', '요가'],
     exerciseTypes: ['기구필라테스', '매트필라테스', '요가'],
-    trainingGoals: ['체형교정', '유연성증진', '산전산후', '웨딩케어'],
+    trainingGoals: ['산전산후', '웨딩케어'],
     trainingStyles: ['저강도훈련', '자세분석', '이론중심', '멘탈케어'],
     conveniences: ['주차가능', '샤워시설', '예약제운영', '주말수업'],
     certifications: [
@@ -389,7 +389,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     bio: '전직 국가대표 육상 선수 출신 스포츠 퍼포먼스 전문 트레이너. 스피드, 민첩성, 폭발적 파워 향상에 특화되어 있습니다. 운동선수부터 일반인까지 최고의 퍼포먼스를 이끌어냅니다.',
     specializations: ['스포츠퍼포먼스', '체력향상'],
     exerciseTypes: ['기능성운동', '선수트레이닝', '맨몸운동'],
-    trainingGoals: ['기초체력', '대회준비', '선수레슨', '근력향상'],
+    trainingGoals: ['대회준비', '선수레슨'],
     trainingStyles: ['스파르타', '고강도훈련', '컨디셔닝', '동기부여형'],
     conveniences: ['새벽수업', '주말수업', '예약제운영'],
     certifications: [
@@ -473,7 +473,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     bio: '부산 출신 8년 경력의 체중감량·근육증가 전문 트레이너. 해운대·서면 일대에서 활동하며 300명 이상의 회원을 성공적으로 트레이닝했습니다. 개인 맞춤 식단 설계도 함께 제공합니다.',
     specializations: ['체중감량', '근육증가'],
     exerciseTypes: ['웨이트트레이닝', '보디빌딩'],
-    trainingGoals: ['다이어트', '벌크업', '바디프로필', '고도비만탈출'],
+    trainingGoals: ['다이어트', '바디프로필'],
     trainingStyles: ['식단밀착관리', '스파르타', '동기부여형', '정통웨이트'],
     conveniences: ['심야수업', '개인락커', '예약제운영', '주차가능'],
     certifications: [
@@ -564,7 +564,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     bio: '물리치료사 출신 재활운동 전문 트레이너. 부상 회복과 예방에 특화되어 있으며 센텀·해운대 지역에서 활동합니다. 의학적 지식을 바탕으로 안전하고 효과적인 재활 프로그램을 제공합니다.',
     specializations: ['재활', '체력향상'],
     exerciseTypes: ['재활운동', '통증운동', '스트레칭'],
-    trainingGoals: ['재활운동', '통증관리', '체형교정', '실버운동'],
+    trainingGoals: ['재활운동', '통증관리'],
     trainingStyles: ['재활특화', '자세분석', '저강도훈련', '생활습관교정'],
     conveniences: ['주차가능', '샤워시설', '예약제운영'],
     certifications: [
@@ -659,7 +659,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     bio: '전직 크로스핏 대회 입상자 출신 HIIT 전문 트레이너. 광안리·동래 지역에서 활동하며 강도 높은 훈련으로 빠른 체형 변화를 이끌어냅니다.',
     specializations: ['크로스핏', '체력향상'],
     exerciseTypes: ['크로스핏', '기능성운동', '맨몸운동'],
-    trainingGoals: ['기초체력', '근력향상', '다이어트', '대회준비'],
+    trainingGoals: ['근력향상', '대회준비'],
     trainingStyles: ['고강도훈련', '컨디셔닝', '스파르타', '동기부여형'],
     conveniences: ['새벽수업', '단독대관', '주말수업'],
     certifications: [
@@ -740,7 +740,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     bio: '필라테스·요가 10년 경력의 전문 강사. 광안리·센텀 지역에서 활동하며 바른 자세와 코어 강화로 일상의 통증을 해결합니다. 초보자도 편안하게 시작할 수 있도록 세심하게 지도합니다.',
     specializations: ['필라테스', '요가'],
     exerciseTypes: ['기구필라테스', '매트필라테스', '요가'],
-    trainingGoals: ['체형교정', '유연성증진', '산전산후', '웨딩케어'],
+    trainingGoals: ['산전산후', '웨딩케어'],
     trainingStyles: ['자세분석', '저강도훈련', '이론중심', '멘탈케어'],
     conveniences: ['예약제운영', '주차가능', '샤워시설'],
     certifications: [
@@ -831,7 +831,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     bio: '전직 국가대표 수영 선수 출신 스포츠 퍼포먼스 전문 트레이너. 부산 지역 스포츠 선수 및 일반인의 기초 체력과 폭발적 퍼포먼스 향상에 특화되어 있습니다.',
     specializations: ['스포츠퍼포먼스', '체력향상'],
     exerciseTypes: ['선수트레이닝', '기능성운동', '맨몸운동'],
-    trainingGoals: ['기초체력', '선수레슨', '대회준비', '근력향상'],
+    trainingGoals: ['선수레슨', '기초체력'],
     trainingStyles: ['스파르타', '고강도훈련', '컨디셔닝', '동기부여형'],
     conveniences: ['새벽수업', '주말수업', '예약제운영'],
     certifications: [
