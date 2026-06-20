@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { MOCK_TRAINERS } from '../../data/trainers';
+import { useTrainerStore } from '../../store/trainerStore';
 import { useBookingStore, calcEndTime } from '../../store/bookingStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
@@ -97,7 +97,8 @@ export default function ConsultationScreen() {
   const { addConsultation, isSlotTaken } = useBookingStore();
   const { addNotification } = useNotificationStore();
 
-  const trainerData = MOCK_TRAINERS.find(t => t.id === trainerId);
+  const storeTrainers = useTrainerStore((s) => s.trainers);
+  const trainerData = storeTrainers.find(t => t.id === trainerId);
   const trainer = myTrainer?.id === trainerId ? myTrainer : trainerData;
 
   const today = new Date();

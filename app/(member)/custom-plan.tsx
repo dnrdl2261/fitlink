@@ -6,7 +6,9 @@ import {
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MOCK_TRAINERS } from '../../data/trainers';
-import { MOCK_GYMS } from '../../data/gyms';
+import { useTrainerStore } from '../../store/trainerStore';
+import { useMergedGyms } from '../../hooks/useFilteredGyms';
+import { Gym } from '../../types';
 import { COLORS } from '../../utils/constants';
 import { formatPrice } from '../../utils/formatters';
 
@@ -73,8 +75,8 @@ function getPhotos(trainer: typeof MOCK_TRAINERS[0]) {
   ];
 }
 
-function getPrimaryGym(trainer: typeof MOCK_TRAINERS[0]) {
-  return MOCK_GYMS.find(g => trainer.partnerGymIds.includes(g.id))?.name ?? null;
+function getPrimaryGym(trainer: typeof MOCK_TRAINERS[0], gyms: Gym[]) {
+  return gyms.find(g => trainer.partnerGymIds.includes(g.id))?.name ?? null;
 }
 
 // 매칭 점수 계산
@@ -119,6 +121,8 @@ export default function CustomPlanScreen() {
   });
 
   const currentStep = STEPS[stepIdx];
+  const mergedGyms = useMergedGyms();
+  const allTrainers = useTrainerStore((s) => s.trainers);
 
   const toggle = (stepId: StepId, item: string) => {
     setSelections(prev => {
@@ -152,16 +156,16 @@ export default function CustomPlanScreen() {
 
     if (totalSelected === 0) {
       // 아무것도 선택 안 했으면 평점순
-      return [...MOCK_TRAINERS].sort((a, b) => b.rating - a.rating).slice(0, 10);
+      return [...allTrainers].sort((a, b) => b.rating - a.rating).slice(0, 10);
     }
 
-    return [...MOCK_TRAINERS]
+    return [...allTrainers]
       .map(t => ({ trainer: t, score: calcScore(t, selections), pct: calcMatchPct(t, selections) }))
       .filter(x => x.score > 0)
       .sort((a, b) => b.score - a.score || b.trainer.rating - a.trainer.rating)
       .slice(0, 10)
       .map(x => x.trainer);
-  }, [showResult, selections]);
+  }, [showResult, selections, allTrainers]);
 
   // ── 결과 화면 ────────────────────────────────────────────
   if (showResult) {
@@ -209,7 +213,7 @@ export default function CustomPlanScreen() {
             const photos = getPhotos(t);
             const pct = calcMatchPct(t, selections);
             const matchedTags = getMatchedTags(t, selections);
-            const gym = getPrimaryGym(t);
+            const gym = getPrimaryGym(t, mergedGyms);
 
             return (
               <TouchableOpacity

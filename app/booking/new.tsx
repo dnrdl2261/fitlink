@@ -1,13 +1,12 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, SafeAreaView, TextInput,
+  TouchableOpacity, SafeAreaView,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { MOCK_TRAINERS } from '../../data/trainers';
+import { useTrainerStore } from '../../store/trainerStore';
 import { useBookingStore, calcEndTime } from '../../store/bookingStore';
-import { usePackageStore } from '../../store/packageStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { formatTime, formatPrice } from '../../utils/formatters';
@@ -68,21 +67,7 @@ const CLASS_PURPOSES = [
   { id: '기타',         label: '기타',         icon: '' },
 ];
 
-const SESSION_COUNTS = [
-  { count: 1,  discount: 0,    tag: null },
-  { count: 5,  discount: 0.03, tag: '3% 할인' },
-  { count: 10, discount: 0.07, tag: '7% 할인' },
-  { count: 20, discount: 0.12, tag: '인기' },
-  { count: 30, discount: 0.15, tag: '15% 할인' },
-  { count: 40, discount: 0.18, tag: '최대 할인' },
-];
-
-const MOCK_COUPONS: Record<string, { label: string; discount: number }> = {
-  'WELCOME10': { label: '신규 가입 10% 할인', discount: 0.10 },
-  'FLOWIN20':  { label: 'FLOWIN 20% 쿠폰',   discount: 0.20 },
-  'SUMMER5':   { label: '여름 특가 5%',       discount: 0.05 },
-};
-const MY_POINTS = 12500;
+const SESSION_COUNTS = [1, 5, 10, 20, 30, 40];
 
 function timeLabel(t: string): string {
   const [h, m] = t.split(':').map(Number);
@@ -151,12 +136,10 @@ export default function NewBookingScreen() {
   const { trainerId } = useLocalSearchParams<{ trainerId?: string }>();
   const { trainer: myTrainer, member } = useAuthStore();
   const { addNotification } = useNotificationStore();
-  const trainerFromMock = MOCK_TRAINERS.find((t) => t.id === trainerId);
-  const trainer = myTrainer?.id === trainerId ? myTrainer : trainerFromMock;
+  const storeTrainers = useTrainerStore((s) => s.trainers);
+  const trainerFromStore = storeTrainers.find((t) => t.id === trainerId);
+  const trainer = myTrainer?.id === trainerId ? myTrainer : trainerFromStore;
   const { addBooking } = useBookingStore();
-  const { getTrainerProducts } = usePackageStore();
-  const trainerPackages = trainer ? getTrainerProducts(trainer.id).filter((p) => p.isActive) : [];
-  const hasPackages = trainerPackages.length > 0;
 
   const scrollRef = useRef<ScrollView>(null);
   const [step, setStep] = useState(1);
@@ -166,32 +149,16 @@ export default function NewBookingScreen() {
   const [classType, setClassType] = useState('');
   const [classPurpose, setClassPurpose] = useState('');
   const [sessionCount, setSessionCount] = useState(0);
-  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
 
   const [payMethod, setPayMethod] = useState('card');
   const [completedBookingId, setCompletedBookingId] = useState('');
-  const [pointsInput, setPointsInput] = useState('');
-  const [useAllPoints, setUseAllPoints] = useState(false);
-  const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<{ label: string; discount: number } | null>(null);
-  const [couponError, setCouponError] = useState('');
 
   const endTime = startTime ? calcEndTime(startTime, DURATION) : '';
 
   const basePrice = trainer?.sessionPrice ?? 60000;
-  const selectedPkg = selectedPackageId ? trainerPackages.find((p) => p.id === selectedPackageId) : null;
-  const selectedCountOpt = SESSION_COUNTS.find((o) => o.count === sessionCount);
-  const discountRate = selectedPkg ? selectedPkg.discountRate : (selectedCountOpt?.discount ?? 0);
-  const pricePerSession = selectedPkg
-    ? Math.round(selectedPkg.totalPrice / selectedPkg.sessionCount)
-    : Math.round(basePrice * (1 - discountRate));
-  const rawTotal = selectedPkg ? selectedPkg.totalPrice : pricePerSession * (sessionCount || 0);
-  const couponDiscount = appliedCoupon ? Math.round(rawTotal * appliedCoupon.discount) : 0;
-  const usedPoints = useAllPoints
-    ? Math.min(MY_POINTS, rawTotal)
-    : Math.min(Number(pointsInput) || 0, MY_POINTS, rawTotal);
-  const finalPrice    = Math.max(0, rawTotal - couponDiscount - usedPoints);
-  const earnedPoints  = Math.round(finalPrice * 0.01);
+  const pricePerSession = basePrice;
+  const rawTotal = basePrice * (sessionCount || 0);
+  const finalPrice = rawTotal;
 
   const canProceed =
     step === 1 ? preferredDays.length > 0 && startTime !== '' :
@@ -201,13 +168,6 @@ export default function NewBookingScreen() {
   const goNext = () => {
     setStep((prev) => prev + 1);
     setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: false }), 0);
-  };
-
-  const handleApplyCoupon = () => {
-    const upper = couponCode.trim().toUpperCase();
-    const found = MOCK_COUPONS[upper];
-    if (found) { setAppliedCoupon(found); setCouponError(''); }
-    else setCouponError('유효하지 않은 쿠폰 코드입니다');
   };
 
   const handleConfirm = () => {
@@ -466,68 +426,26 @@ export default function NewBookingScreen() {
             <View style={s.card}>
               <Text style={s.cardLabel}>횟수 선택</Text>
               <View style={s.countGrid}>
-                {hasPackages
-                  ? trainerPackages.map((pkg) => {
-                      const active = selectedPackageId === pkg.id;
-                      const discountPct = Math.round(pkg.discountRate * 100);
-                      const perSession = Math.round(pkg.totalPrice / pkg.sessionCount);
-                      return (
-                        <TouchableOpacity
-                          key={pkg.id}
-                          style={[s.countCard, active && s.countCardActive]}
-                          onPress={() => { setSelectedPackageId(pkg.id); setSessionCount(pkg.sessionCount); }}
-                          activeOpacity={0.8}
-                        >
-                          {discountPct > 0 && (
-                            <View style={[s.countTag, active && s.countTagActive]}>
-                              <Text style={[s.countTagText, active && s.countTagTextActive]}>{discountPct}% 할인</Text>
-                            </View>
-                          )}
-                          <Text style={[s.countNum, active && { color: D.primary }]}>
-                            {pkg.sessionCount}<Text style={s.countUnit}>회</Text>
-                          </Text>
-                          <Text style={[s.countTotal, active && { color: D.primary, fontWeight: '700' }]}>
-                            {formatPrice(pkg.totalPrice)}
-                          </Text>
-                          <Text style={s.countPer}>{formatPrice(perSession)}/회</Text>
-                          {pkg.validDays > 0 && (
-                            <Text style={s.countPer}>유효 {pkg.validDays}일</Text>
-                          )}
-                          {(pkg.freePtSessions ?? 0) > 0 && (
-                            <View style={[s.freePtBadge, active && s.freePtBadgeActive]}>
-                              <Text style={[s.freePtText, active && s.freePtTextActive]}>무료PT +{pkg.freePtSessions}회</Text>
-                            </View>
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })
-                  : SESSION_COUNTS.map((opt) => {
-                      const active = sessionCount === opt.count && !selectedPackageId;
-                      const total = Math.round(basePrice * (1 - opt.discount)) * opt.count;
-                      return (
-                        <TouchableOpacity
-                          key={opt.count}
-                          style={[s.countCard, active && s.countCardActive]}
-                          onPress={() => { setSelectedPackageId(null); setSessionCount(opt.count); }}
-                          activeOpacity={0.8}
-                        >
-                          {opt.tag && (
-                            <View style={[s.countTag, active && s.countTagActive]}>
-                              <Text style={[s.countTagText, active && s.countTagTextActive]}>{opt.tag}</Text>
-                            </View>
-                          )}
-                          <Text style={[s.countNum, active && { color: D.primary }]}>
-                            {opt.count}<Text style={s.countUnit}>회</Text>
-                          </Text>
-                          <Text style={[s.countTotal, active && { color: D.primary, fontWeight: '700' }]}>
-                            {formatPrice(total)}
-                          </Text>
-                          <Text style={s.countPer}>
-                            {formatPrice(Math.round(basePrice * (1 - opt.discount)))}/회
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
+                {SESSION_COUNTS.map((count) => {
+                  const active = sessionCount === count;
+                  const total = basePrice * count;
+                  return (
+                    <TouchableOpacity
+                      key={count}
+                      style={[s.countCard, active && s.countCardActive]}
+                      onPress={() => setSessionCount(count)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[s.countNum, active && { color: D.primary }]}>
+                        {count}<Text style={s.countUnit}>회</Text>
+                      </Text>
+                      <Text style={[s.countTotal, active && { color: D.primary, fontWeight: '700' }]}>
+                        {formatPrice(total)}
+                      </Text>
+                      <Text style={s.countPer}>{formatPrice(basePrice)}/회</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
           </>
@@ -548,85 +466,6 @@ export default function NewBookingScreen() {
               <View style={s.divider} />
               <SRow label="횟수"       value={`${sessionCount}회`} />
               <SRow label="1회당 금액" value={formatPrice(pricePerSession)} />
-              {discountRate > 0 && (
-                <View style={s.discountNotice}>
-                  <MaterialCommunityIcons name="tag-outline" size={12} color={D.amber} />
-                  <Text style={s.discountNoticeText}>{Math.round(discountRate * 100)}% 다회권 할인 적용</Text>
-                </View>
-              )}
-            </View>
-
-            {/* 쿠폰 */}
-            <View style={s.payCard}>
-              <View style={s.payCardHead}>
-                <MaterialCommunityIcons name="ticket-percent" size={18} color={D.primary} />
-                <Text style={s.payCardTitle}>쿠폰 적용</Text>
-              </View>
-              {appliedCoupon ? (
-                <View style={s.appliedCoupon}>
-                  <View style={s.appliedCouponLeft}>
-                    <MaterialCommunityIcons name="check-circle" size={16} color={D.success} />
-                    <View>
-                      <Text style={s.appliedLabel}>{appliedCoupon.label}</Text>
-                      <Text style={s.appliedDisc}>-{formatPrice(couponDiscount)} 할인</Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity onPress={() => setAppliedCoupon(null)}>
-                    <Text style={s.removeCoupon}>제거</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <>
-                  <View style={s.couponInputRow}>
-                    <TextInput
-                      style={s.couponInput}
-                      placeholder="쿠폰 코드 입력"
-                      value={couponCode}
-                      onChangeText={(t) => { setCouponCode(t); setCouponError(''); }}
-                      placeholderTextColor={D.textMuted}
-                      autoCapitalize="characters"
-                    />
-                    <TouchableOpacity
-                      style={[s.couponApplyBtn, !couponCode && s.couponApplyBtnOff]}
-                      onPress={handleApplyCoupon}
-                      disabled={!couponCode}
-                    >
-                      <Text style={[s.couponApplyText, !couponCode && { color: D.textMuted }]}>적용</Text>
-                    </TouchableOpacity>
-                  </View>
-                  {couponError ? <Text style={s.couponError}>{couponError}</Text> : null}
-                  <Text style={s.couponHint}>예시: WELCOME10 · FLOWIN20 · SUMMER5</Text>
-                </>
-              )}
-            </View>
-
-            {/* 포인트 */}
-            <View style={s.payCard}>
-              <View style={s.payCardHead}>
-                <MaterialCommunityIcons name="lightning-bolt" size={18} color={D.amber} />
-                <Text style={s.payCardTitle}>포인트 사용</Text>
-                <View style={s.pointBal}>
-                  <Text style={s.pointBalText}>보유 {MY_POINTS.toLocaleString()}P</Text>
-                </View>
-              </View>
-              <View style={s.pointInputRow}>
-                <TextInput
-                  style={[s.pointInput, useAllPoints && s.pointInputDisabled]}
-                  placeholder="사용할 포인트"
-                  value={useAllPoints ? String(Math.min(MY_POINTS, rawTotal)) : pointsInput}
-                  onChangeText={(t) => { setPointsInput(t.replace(/[^0-9]/g, '')); setUseAllPoints(false); }}
-                  keyboardType="numeric"
-                  editable={!useAllPoints}
-                  placeholderTextColor={D.textMuted}
-                />
-                <TouchableOpacity
-                  style={[s.useAllBtn, useAllPoints && s.useAllBtnActive]}
-                  onPress={() => { setUseAllPoints(!useAllPoints); setPointsInput(''); }}
-                >
-                  <Text style={[s.useAllText, useAllPoints && s.useAllTextActive]}>전액 사용</Text>
-                </TouchableOpacity>
-              </View>
-              {usedPoints > 0 && <Text style={s.pointApplied}>-{usedPoints.toLocaleString()}P 적용됨</Text>}
             </View>
 
             {/* 결제 수단 */}
@@ -663,27 +502,9 @@ export default function NewBookingScreen() {
               <Text style={s.finalTitle}>최종 결제 금액</Text>
               <View style={s.finalBreakdown}>
                 <View style={s.finalRow}>
-                  <Text style={s.finalRowLabel}>정가 ({sessionCount}회)</Text>
+                  <Text style={s.finalRowLabel}>{sessionCount}회 × {formatPrice(basePrice)}</Text>
                   <Text style={s.finalRowVal}>{formatPrice(rawTotal)}</Text>
                 </View>
-                {discountRate > 0 && (
-                  <View style={s.finalRow}>
-                    <Text style={s.finalRowLabel}>다회권 할인</Text>
-                    <Text style={[s.finalRowVal, { color: D.success }]}>-{formatPrice(Math.round(rawTotal * discountRate))}</Text>
-                  </View>
-                )}
-                {couponDiscount > 0 && (
-                  <View style={s.finalRow}>
-                    <Text style={s.finalRowLabel}>쿠폰 할인</Text>
-                    <Text style={[s.finalRowVal, { color: D.success }]}>-{formatPrice(couponDiscount)}</Text>
-                  </View>
-                )}
-                {usedPoints > 0 && (
-                  <View style={s.finalRow}>
-                    <Text style={s.finalRowLabel}>포인트 사용</Text>
-                    <Text style={[s.finalRowVal, { color: D.amber }]}>-{usedPoints.toLocaleString()}P</Text>
-                  </View>
-                )}
               </View>
               <View style={s.divider} />
               <View style={s.finalAmountRow}>
@@ -691,18 +512,6 @@ export default function NewBookingScreen() {
                 <Text style={s.finalAmountVal}>{formatPrice(finalPrice)}</Text>
               </View>
             </View>
-
-            {/* 적립 예정 포인트 */}
-            {earnedPoints > 0 && (
-              <View style={s.earnedCard}>
-                <MaterialCommunityIcons name="gift-outline" size={16} color={D.primary} />
-                <Text style={s.earnedText}>
-                  이번 결제로{' '}
-                  <Text style={s.earnedVal}>{earnedPoints.toLocaleString()}P</Text>{' '}
-                  적립 예정 (결제금액의 1%)
-                </Text>
-              </View>
-            )}
 
             {/* 결제 보안 배지 */}
             <View style={s.trustRow}>

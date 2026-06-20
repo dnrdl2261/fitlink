@@ -9,7 +9,7 @@ import { useAuthStore } from '../../store/authStore';
 import { usePartnerStore } from '../../store/partnerStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { MOCK_GYM_ADMINS } from '../../data/users';
-import { MOCK_GYMS } from '../../data/gyms';
+import { useMergedGyms } from '../../hooks/useFilteredGyms';
 import { COLORS } from '../../utils/constants';
 import { Gym } from '../../types';
 
@@ -38,6 +38,7 @@ export default function PartnerGymsScreen() {
   const removedPartnerIds = usePartnerStore(s => s.removedPartnerIds);
   const { applyToGym, cancelRequest, approve, removePartner } = usePartnerStore();
   const { addNotification } = useNotificationStore();
+  const mergedGyms = useMergedGyms();
 
   const [applyModal, setApplyModal] = useState(false);
   const [applySearch, setApplySearch] = useState('');
@@ -63,8 +64,8 @@ export default function PartnerGymsScreen() {
   }, [trainer.partnerGymIds, approvedGymIds, removedPartnerIds, trainer.id]);
 
   const partnerGyms = useMemo(
-    () => MOCK_GYMS.filter(g => allPartnerGymIds.includes(g.id)),
-    [allPartnerGymIds]
+    () => mergedGyms.filter(g => allPartnerGymIds.includes(g.id)),
+    [allPartnerGymIds, mergedGyms]
   );
 
   const activeRequests = useMemo(
@@ -84,10 +85,10 @@ export default function PartnerGymsScreen() {
 
   // 신청 가능한 헬스장 풀 (이미 파트너이거나 신청 대기 중인 곳 제외)
   const applyableBase = useMemo(
-    () => MOCK_GYMS.filter(g =>
+    () => mergedGyms.filter(g =>
       !allPartnerGymIds.includes(g.id) && !pendingGymIds.includes(g.id)
     ),
-    [allPartnerGymIds, pendingGymIds]
+    [allPartnerGymIds, pendingGymIds, mergedGyms]
   );
 
   // 입력어에 대한 자동완성 후보 (지역 + 헬스장). 지역이 이미 선택된 경우 그 안에서만 헬스장 추천.

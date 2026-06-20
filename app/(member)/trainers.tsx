@@ -240,7 +240,7 @@ export default function MemberHomeScreen() {
         {pendingCount > 0 && (
           <TouchableOpacity
             style={styles.pendingBtn}
-            onPress={() => router.push('/(member)/bookings' as any)}
+            onPress={() => router.push({ pathname: '/(member)/bookings', params: { from: 'home' } } as any)}
             activeOpacity={0.85}
           >
             <MaterialCommunityIcons name="clipboard-check-outline" size={16} color="#fff" />
@@ -256,7 +256,7 @@ export default function MemberHomeScreen() {
           <TouchableOpacity
             key={q.label}
             style={styles.quickItem}
-            onPress={() => router.push(q.route as any)}
+            onPress={() => router.push({ pathname: q.route, params: { from: 'home' } } as any)}
             activeOpacity={0.75}
           >
             <View style={styles.quickIcon}>

@@ -1108,7 +1108,7 @@ export default function GymBookingsScreen() {
 
           {/* 이번 달 매출 미니차트 */}
           <View style={st.sectionBlock}>
-            <TouchableOpacity style={st.revCard} activeOpacity={0.92} onPress={() => router.push('/(gym)/earnings' as any)}>
+            <TouchableOpacity style={st.revCard} activeOpacity={0.92} onPress={() => router.push({ pathname: '/(gym)/earnings', params: { from: 'home' } } as any)}>
               <View style={st.revHead}>
                 <View>
                   <Text style={st.revTitle}>이번 달 매출</Text>

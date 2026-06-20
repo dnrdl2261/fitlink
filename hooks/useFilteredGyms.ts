@@ -3,6 +3,7 @@ import { Gym } from '../types';
 import { MOCK_GYMS } from '../data/gyms';
 import { calculateDistance } from '../utils/distance';
 import { useLocationStore } from '../store/locationStore';
+import { useGymProfileStore, mergeGymEdits } from '../store/gymProfileStore';
 
 interface FilterOptions {
   partnerOnly?: boolean;
@@ -11,14 +12,15 @@ interface FilterOptions {
 
 export function useFilteredGyms(options: FilterOptions = {}) {
   const { currentLocation } = useLocationStore();
+  const edits = useGymProfileStore((s) => s.edits);
   const [searchQuery, setSearchQuery] = useState('');
 
   const gymsWithDistance = useMemo(() => {
-    return MOCK_GYMS.map((gym) => ({
-      ...gym,
-      distance: calculateDistance(currentLocation, gym.coordinate),
-    })).sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0));
-  }, [currentLocation]);
+    return MOCK_GYMS.map((g0) => {
+      const gym = mergeGymEdits(g0, edits);
+      return { ...gym, distance: calculateDistance(currentLocation, gym.coordinate) };
+    }).sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0));
+  }, [currentLocation, edits]);
 
   const filteredGyms = useMemo(() => {
     let result = gymsWithDistance;
@@ -47,14 +49,23 @@ export function useFilteredGyms(options: FilterOptions = {}) {
   return { gyms: filteredGyms, searchQuery, setSearchQuery };
 }
 
+// 관리자 수정값(가격·시간·시설·이름 등)이 반영된 전체 헬스장 목록.
+// MOCK_GYMS를 직접 읽는 화면들이 이 훅을 쓰면 관리자 수정이 일관되게 반영된다.
+export function useMergedGyms(): Gym[] {
+  const edits = useGymProfileStore((s) => s.edits);
+  return useMemo(() => MOCK_GYMS.map((g) => mergeGymEdits(g, edits)), [edits]);
+}
+
 export function useGymById(id: string): Gym | undefined {
   const { currentLocation } = useLocationStore();
+  const edits = useGymProfileStore((s) => s.edits);
   return useMemo(() => {
-    const gym = MOCK_GYMS.find((g) => g.id === id);
-    if (!gym) return undefined;
+    const base = MOCK_GYMS.find((g) => g.id === id);
+    if (!base) return undefined;
+    const gym = mergeGymEdits(base, edits);
     return {
       ...gym,
       distance: calculateDistance(currentLocation, gym.coordinate),
     };
-  }, [id, currentLocation]);
+  }, [id, currentLocation, edits]);
 }

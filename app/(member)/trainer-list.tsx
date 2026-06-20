@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { MOCK_TRAINERS } from '../../data/trainers';
+import { useTrainerStore } from '../../store/trainerStore';
 import { MOCK_GYMS } from '../../data/gyms';
 import { Trainer } from '../../types';
 import { COLORS } from '../../utils/constants';
@@ -85,17 +85,18 @@ export default function TrainerListScreen() {
     return () => clearTimeout(timer);
   }, [photoViewer, width]);
 
+  const allTrainers = useTrainerStore((s) => s.trainers);
   const trainerDistances = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const t of MOCK_TRAINERS) {
+    for (const t of allTrainers) {
       const gyms = MOCK_GYMS.filter(g => t.partnerGymIds.includes(g.id));
       map[t.id] = gyms.length === 0 ? Infinity : Math.min(...gyms.map(g => calculateDistance(currentLocation, g.coordinate)));
     }
     return map;
-  }, [currentLocation]);
+  }, [currentLocation, allTrainers]);
 
   const filtered = useMemo(() => {
-    let r = MOCK_TRAINERS;
+    let r = allTrainers;
     if (activeCity !== '전체') r = r.filter(t => t.address?.city === activeCity);
     if (activeDistrict !== '전체') r = r.filter(t => t.address?.district === activeDistrict);
     if (activeDong !== '전체') r = r.filter(t => t.address?.dong === activeDong);
@@ -104,7 +105,7 @@ export default function TrainerListScreen() {
     else if (sortBy === 'distance' && hasPermission) sorted.sort((a, b) => (trainerDistances[a.id] ?? Infinity) - (trainerDistances[b.id] ?? Infinity));
     else sorted.sort((a, b) => b.rating * Math.log(b.reviewCount + 1) - a.rating * Math.log(a.reviewCount + 1));
     return sorted;
-  }, [activeCity, activeDistrict, activeDong, sortBy, trainerDistances, hasPermission]);
+  }, [activeCity, activeDistrict, activeDong, sortBy, trainerDistances, hasPermission, allTrainers]);
 
   const isFollowing = (id: string) => member ? links.some(l => l.followerId === member.id && l.followeeId === id) : false;
   const toggleFollow = (id: string) => {

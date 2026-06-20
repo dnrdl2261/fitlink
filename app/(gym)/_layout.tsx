@@ -1,4 +1,4 @@
-import { Tabs, useRouter } from 'expo-router';
+import { Tabs, useRouter, useLocalSearchParams } from 'expo-router';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../utils/constants';
@@ -18,17 +18,10 @@ const TAB_BAR = {
 
 function BackBtn({ color }: { color: string }) {
   const router = useRouter();
+  const { from } = useLocalSearchParams<{ from?: string }>();
+  const target = from === 'home' ? '/(gym)/bookings' : '/(gym)/more';
   return (
-    <TouchableOpacity onPress={() => router.navigate('/(gym)/more' as any)} style={{ paddingLeft: 20, paddingRight: 8 }}>
-      <Text style={{ fontSize: 34, fontWeight: '300', color }}>‹</Text>
-    </TouchableOpacity>
-  );
-}
-
-function BackToHomeBtn({ color }: { color: string }) {
-  const router = useRouter();
-  return (
-    <TouchableOpacity onPress={() => router.navigate('/(gym)/bookings' as any)} style={{ paddingLeft: 20, paddingRight: 8 }}>
+    <TouchableOpacity onPress={() => router.navigate(target as any)} style={{ paddingLeft: 20, paddingRight: 8 }}>
       <Text style={{ fontSize: 34, fontWeight: '300', color }}>‹</Text>
     </TouchableOpacity>
   );
@@ -38,7 +31,7 @@ function ScheduleBtn({ color }: { color: string }) {
   const router = useRouter();
   return (
     <TouchableOpacity
-      onPress={() => router.push('/(gym)/schedule' as any)}
+      onPress={() => router.push({ pathname: '/(gym)/schedule', params: { from: 'home' } } as any)}
       style={{ paddingRight: 6, paddingLeft: 8 }}
     >
       <MaterialCommunityIcons name="calendar-month-outline" size={24} color={color} />
@@ -197,7 +190,7 @@ export default function GymLayout() {
         options={{
           href: null,
           headerTitle: '헬스장 이용 예약',
-          headerLeft: () => <BackToHomeBtn color={COLORS.gym} />,
+          headerLeft: () => <BackBtn color={COLORS.gym} />,
         }}
       />
       <Tabs.Screen

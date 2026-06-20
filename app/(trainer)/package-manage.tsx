@@ -68,16 +68,12 @@ export default function PackageManageScreen() {
       Alert.alert('오류', '올바른 가격을 입력해주세요');
       return;
     }
-    const originalPrice = singlePrice * sessionCount;
-    const discountRate = originalPrice > 0
-      ? Math.max(0, Math.round(((originalPrice - totalPrice) / originalPrice) * 100) / 100)
-      : 0;
     addProduct({
       trainerId: trainer?.id ?? '',
       trainerName: trainer?.name ?? '',
       sessionCount,
       totalPrice,
-      discountRate,
+      discountRate: 0,
       validDays,
       freePtSessions: freePtCount > 0 ? freePtCount : undefined,
       description: descInput.trim() || undefined,
@@ -146,8 +142,6 @@ export default function PackageManageScreen() {
             </View>
           ) : (
             myProducts.map((product) => {
-              const originalPrice = singlePrice * product.sessionCount;
-              const discountPct = Math.round(product.discountRate * 100);
               const buyers = activeBuyers(product.id);
               return (
                 <View key={product.id} style={[styles.productCard, !product.isActive && styles.productCardInactive]}>
@@ -158,11 +152,6 @@ export default function PackageManageScreen() {
                           {product.sessionCount}회권
                         </Text>
                       </View>
-                      {discountPct > 0 && (
-                        <View style={styles.discountBadge}>
-                          <Text style={styles.discountBadgeText}>{discountPct}% 할인</Text>
-                        </View>
-                      )}
                       {!product.isActive && (
                         <View style={styles.inactiveBadge}>
                           <Text style={styles.inactiveBadgeText}>판매 중지</Text>
@@ -180,9 +169,6 @@ export default function PackageManageScreen() {
                     <Text style={[styles.productPrice, !product.isActive && { color: COLORS.textSecondary }]}>
                       {formatPrice(product.totalPrice)}
                     </Text>
-                    {originalPrice > product.totalPrice && (
-                      <Text style={styles.originalPrice}>{formatPrice(originalPrice)}</Text>
-                    )}
                   </View>
 
                   {product.description ? (
@@ -285,7 +271,7 @@ export default function PackageManageScreen() {
               <Text style={styles.fieldLabel}>총 판매가</Text>
               {singlePrice > 0 && (
                 <Text style={styles.fieldHint}>
-                  정가 {formatPrice(singlePrice * sessionCount)} ({sessionCount}회 × {formatPrice(singlePrice)})
+                  참고 · 1회 {formatPrice(singlePrice)} × {sessionCount}회 = {formatPrice(singlePrice * sessionCount)}
                 </Text>
               )}
               <TextInput

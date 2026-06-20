@@ -10,11 +10,10 @@ import { useAuthStore } from '../../store/authStore';
 import { useChatStore } from '../../store/chatStore';
 import { useGymSlotStore } from '../../store/gymSlotStore';
 import { useFollowStore } from '../../store/followStore';
-import { usePackageStore } from '../../store/packageStore';
 import { useReviewStore } from '../../store/reviewStore';
 import { MOCK_TRAINERS } from '../../data/trainers';
 import { useTrainerStore } from '../../store/trainerStore';
-import { MOCK_GYMS } from '../../data/gyms';
+import { useMergedGyms } from '../../hooks/useFilteredGyms';
 import { formatPrice, formatRelativeDate } from '../../utils/formatters';
 import { COLORS } from '../../utils/constants';
 import CertificationBadge from '../../components/CertificationBadge';
@@ -64,7 +63,6 @@ export default function TrainerDetailScreen() {
   const [showAllCerts, setShowAllCerts] = useState(false);
   const [showAllWork, setShowAllWork] = useState(false);
   const [showAllGyms, setShowAllGyms] = useState(false);
-  const [purchaseModal, setPurchaseModal] = useState(false);
   const [showFullBio, setShowFullBio] = useState(false);
 
   // 사진 슬라이드 뷰어
@@ -79,7 +77,6 @@ export default function TrainerDetailScreen() {
   const allReviews = useReviewStore((s) => s.reviews);
   const realReviews = allReviews.filter((r) => r.trainerId === (id ?? ''));
   const { getOrCreate } = useChatStore();
-  const { getTrainerProducts, getActiveContractForTrainer, purchasePackage } = usePackageStore();
 
   const allLinks = useFollowStore(s => s.links);
   const { follow, unfollow } = useFollowStore();
@@ -104,6 +101,7 @@ export default function TrainerDetailScreen() {
   const blacklisted = trainer ? isBlacklisted(GYM_ID, trainer.id) : false;
 
   const allPhotos = trainer?.photos ?? [];
+  const mergedGyms = useMergedGyms();
 
   useEffect(() => {
     if (photoViewerIdx === null) return;
@@ -142,7 +140,7 @@ export default function TrainerDetailScreen() {
     );
   }
 
-  const partnerGyms = MOCK_GYMS.filter((g) => trainer.partnerGymIds.includes(g.id));
+  const partnerGyms = mergedGyms.filter((g) => trainer.partnerGymIds.includes(g.id));
   const primaryGym = partnerGyms[0] ?? null;
 
   const allNormalized = [
@@ -997,23 +995,6 @@ const st = StyleSheet.create({
   gymName: { fontSize: 14, fontWeight: '700', color: '#111' },
   gymAddr: { fontSize: 12, color: '#999', marginTop: 2 },
 
-  // 패키지
-  contractBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.primary + '10', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: COLORS.primary + '30' },
-  contractTitle: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
-  contractSub: { fontSize: 12, color: '#888', marginTop: 2 },
-  contractLink: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
-  pkgRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: '#eee', borderRadius: 12, padding: 14 },
-  pkgTopRow: { flexDirection: 'row', gap: 6, marginBottom: 6 },
-  pkgSessionBadge: { backgroundColor: '#e8f0ff', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  pkgSessionText: { fontSize: 12, fontWeight: '800', color: COLORS.primary },
-  pkgDiscountBadge: { backgroundColor: '#FEF3C7', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 3 },
-  pkgDiscountText: { fontSize: 11, fontWeight: '700', color: '#D97706' },
-  pkgPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  pkgPrice: { fontSize: 16, fontWeight: '800', color: '#111' },
-  pkgOriginal: { fontSize: 12, color: '#bbb', textDecorationLine: 'line-through' },
-  pkgValid: { fontSize: 11, color: '#aaa', marginTop: 3 },
-  pkgBuyBtn: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
-  pkgBuyBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 
   // 리뷰
   reviewHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

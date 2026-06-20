@@ -6,7 +6,6 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useGymSlotStore } from '../../store/gymSlotStore';
-import { useBookingStore } from '../../store/bookingStore';
 import { COLORS, DAY_LABELS } from '../../utils/constants';
 
 const GYM   = '#4F63F5';
@@ -53,14 +52,6 @@ const TYPE_CFG: Record<string, { accent: string; iconBg: string; icon: string }>
   '개인 운동':  { accent: '#94A3B8', iconBg: BG, icon: 'run-fast' },
 };
 const DEFAULT_TYPE = { accent: '#94A3B8', iconBg: BG, icon: 'calendar-check' };
-
-const MOCK_TODAY: ScheduleItem[] = [
-  { id: 'm1', startTime: '10:00', endTime: '11:00', type: 'PT 수업',    person: '김민준', role: '트레이너', detail: '1PT · 60분',        status: '승인 완료' },
-  { id: 'm2', startTime: '12:00', endTime: '13:00', type: '헬스장 이용', person: '이지수', role: '트레이너', detail: '시설료 30,000원',   status: '승인 대기' },
-  { id: 'm3', startTime: '14:00', endTime: '15:00', type: 'PT 수업',    person: '박철수', role: '트레이너', detail: '1PT · 60분',        status: '승인 완료' },
-  { id: 'm4', startTime: '16:00', endTime: '17:00', type: '헬스장 이용', person: '최유진', role: '트레이너', detail: '시설료 30,000원',   status: '승인 완료' },
-  { id: 'm5', startTime: '18:00', endTime: '19:00', type: 'PT 수업',    person: '정태양', role: '트레이너', detail: '1PT · 60분',        status: '완료' },
-];
 
 function addMins(time: string, mins: number) {
   const [h, m] = time.split(':').map(Number);
@@ -141,7 +132,6 @@ export default function GymScheduleScreen() {
   const GYM_ID = gymAdmin?.gymId ?? 'gym_001';
 
   const { slotBookings } = useGymSlotStore();
-  const { bookings }     = useBookingStore();
 
   const [weekOffset, setWeekOffset] = useState(0);
   const [selDate, setSelDate]       = useState(TODAY);
@@ -151,8 +141,9 @@ export default function GymScheduleScreen() {
   const displayDate    = new Date(selDate);
   const yearMonthLabel = `${displayDate.getFullYear()}년 ${MONTH_NAMES[displayDate.getMonth()]}`;
 
+  // 헬스장 일정 = 해당 헬스장의 슬롯(시설 이용) 예약만. PT 예약은 헬스장 소속 정보가 없어 제외 → 대시보드 집계와 일치
   const allItems = useMemo((): ScheduleItem[] => {
-    const items: ScheduleItem[] = selDate === TODAY ? [...MOCK_TODAY] : [];
+    const items: ScheduleItem[] = [];
 
     slotBookings
       .filter((b) => b.gymId === GYM_ID && b.date === selDate)
@@ -171,25 +162,8 @@ export default function GymScheduleScreen() {
         });
       });
 
-    bookings.forEach((bk) => {
-      bk.sessions
-        .filter((s: any) => s.date === selDate && s.status !== 'cancelled')
-        .forEach((s: any) => {
-          items.push({
-            id:        `pt_${bk.id}_${s.date}_${s.startTime}`,
-            startTime: s.startTime,
-            endTime:   addMins(s.startTime, 60),
-            type:      'PT 수업',
-            person:    bk.trainerName,
-            role:      '트레이너',
-            detail:    `PT · 60분`,
-            status:    s.status === 'completed' ? '완료' : '승인 완료',
-          });
-        });
-    });
-
     return items.sort((a, b) => a.startTime.localeCompare(b.startTime));
-  }, [slotBookings, bookings, selDate, GYM_ID]);
+  }, [slotBookings, selDate, GYM_ID]);
 
   const filtered = useMemo(() =>
     filter === '전체' ? allItems : allItems.filter((i) => i.status === filter),
@@ -243,10 +217,7 @@ export default function GymScheduleScreen() {
 
             // 해당 날짜의 이벤트 수
             const evCount =
-              (d === TODAY ? MOCK_TODAY.length : 0) +
-              slotBookings.filter((b) => b.gymId === GYM_ID && b.date === d).length +
-              bookings.reduce((n, bk) =>
-                n + bk.sessions.filter((ss: any) => ss.date === d && ss.status !== 'cancelled').length, 0);
+              slotBookings.filter((b) => b.gymId === GYM_ID && b.date === d).length;
 
             return (
               <TouchableOpacity key={d} style={s.dayItem} onPress={() => setSelDate(d)}>
