@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { SlotBooking, SlotInfo } from '../types';
 import { MOCK_GYMS } from '../data/gyms';
 import { loadPersisted, persistOnChange } from '../utils/persist';
+import { useGymProfileStore } from './gymProfileStore';
 
 const PERSIST_KEY = 'flowin-gym-slots';
 
@@ -202,11 +203,15 @@ export const useGymSlotStore = create<GymSlotState>((set, get) => ({
   getAvailableSlots: (gymId, date, trainerId) => {
     if (trainerId && get().isBlacklisted(gymId, trainerId)) return [];
 
-    const gym = MOCK_GYMS.find((g) => g.id === gymId);
-    if (!gym) return [];
+    const baseGym = MOCK_GYMS.find((g) => g.id === gymId);
+    if (!baseGym) return [];
+
+    // 관리자가 수정한 운영시간/PT가용을 반영
+    const edits = useGymProfileStore.getState().edits[gymId];
+    const operatingHours = edits?.operatingHours ?? baseGym.operatingHours;
 
     const dayOfWeek = new Date(date).getDay();
-    const hours = gym.operatingHours.find((h) => h.dayOfWeek === dayOfWeek);
+    const hours = operatingHours.find((h) => h.dayOfWeek === dayOfWeek);
     if (!hours || !hours.ptAvailable) return [];
 
     const capacity = get().getCapacity(gymId, dayOfWeek);

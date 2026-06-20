@@ -7,6 +7,7 @@ import { useRouter, useNavigation } from 'expo-router';
 import { useScrollToTop } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MOCK_GYMS } from '../../data/gyms';
+import { useGymProfileStore, mergeGymEdits } from '../../store/gymProfileStore';
 import { useLocationStore } from '../../store/locationStore';
 import { useLocation } from '../../hooks/useLocation';
 import { calculateDistance, formatDistance } from '../../utils/distance';
@@ -45,6 +46,7 @@ export default function GymListScreen() {
 
   useLocation(); // GPS 현재위치를 기본 기준으로 가져옴
   const { currentLocation, selectedDong } = useLocationStore();
+  const gymEdits = useGymProfileStore((s) => s.edits); // 관리자 수정값(가격 등) 반영
 
   const [query, setQuery]       = useState('');
   const [regionFilter, setRegionFilter] = useState<{ city: string; district?: string } | null>(null);
@@ -84,7 +86,7 @@ export default function GymListScreen() {
   }, [query, regionFilter]);
 
   const filtered = useMemo(() => {
-    let result = [...MOCK_GYMS];
+    let result = MOCK_GYMS.map((g) => mergeGymEdits(g, gymEdits));
 
     if (regionFilter)
       result = result.filter(g =>
@@ -123,7 +125,7 @@ export default function GymListScreen() {
       });
     }
     return result;
-  }, [query, regionFilter, sortBy, currentLocation]);
+  }, [query, regionFilter, sortBy, currentLocation, gymEdits]);
 
   const currentSort = SORT_OPTIONS.find(o => o.key === sortBy)!;
   const selectedMapGym = filtered.find(g => g.id === selectedGymId);

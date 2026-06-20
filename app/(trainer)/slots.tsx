@@ -8,6 +8,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { MOCK_GYMS } from '../../data/gyms';
 import { useGymSlotStore } from '../../store/gymSlotStore';
+import { useGymProfileStore, mergeGymEdits } from '../../store/gymProfileStore';
 import { useLocationStore } from '../../store/locationStore';
 import { formatPrice } from '../../utils/formatters';
 import { DAY_LABELS } from '../../utils/constants';
@@ -145,6 +146,7 @@ export default function TrainerSlotsScreen() {
   const { trainer }         = useAuthStore();
   const { getAvailableSlots, cancelSlot, isBlacklisted, toggleFavorite, favoriteGyms } = useGymSlotStore();
   useGymSlotStore((s) => s.slotBookings);
+  const gymEdits = useGymProfileStore((s) => s.edits); // 관리자 수정값(가격·시간 등) 반영
   const { currentLocation } = useLocationStore();
 
   // ── 상태 ──────────────────────────────────────────────────────
@@ -182,16 +184,19 @@ export default function TrainerSlotsScreen() {
 
   // ── 헬스장 목록 ───────────────────────────────────────────────
   const sortedGyms = useMemo(() => {
-    return MOCK_GYMS.map((g) => ({
-      ...g,
-      distance: calcKm(currentLocation.latitude, currentLocation.longitude, g.coordinate.latitude, g.coordinate.longitude),
-    })).sort((a, b) => {
+    return MOCK_GYMS.map((g0) => {
+      const g = mergeGymEdits(g0, gymEdits);
+      return {
+        ...g,
+        distance: calcKm(currentLocation.latitude, currentLocation.longitude, g.coordinate.latitude, g.coordinate.longitude),
+      };
+    }).sort((a, b) => {
       const af = favoriteGyms.includes(a.id) ? 0 : 1;
       const bf = favoriteGyms.includes(b.id) ? 0 : 1;
       if (af !== bf) return af - bf;
       return a.distance - b.distance;
     });
-  }, [currentLocation, favoriteGyms]);
+  }, [currentLocation, favoriteGyms, gymEdits]);
 
   const filteredGyms = useMemo(() => {
     let list = sortedGyms;
@@ -206,7 +211,7 @@ export default function TrainerSlotsScreen() {
   }, [sortedGyms, search, filter]);
 
   // ── 선택된 헬스장 정보 ─────────────────────────────────────────
-  const selectedGym = selectedGymId ? MOCK_GYMS.find((g) => g.id === selectedGymId) ?? null : null;
+  const selectedGym = selectedGymId ? sortedGyms.find((g) => g.id === selectedGymId) ?? null : null;
   const singleFee   = selectedGym?.pricing.find((p) => p.sessionType === 'single')?.facilityFee ?? 0;
 
   // ── 다중 슬롯 선택 로직 ────────────────────────────────────────
