@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+import { loadPersisted, persistOnChange } from '../utils/persist';
+
+const PERSIST_KEY = 'flowin-partner';
 
 export interface PartnerRequest {
   id: string;
@@ -33,9 +36,8 @@ interface PartnerState {
 
 const TODAY = '2026-04-28';
 
-export const usePartnerStore = create<PartnerState>((set, get) => ({
-  // 데모용 초기 신청 데이터
-  requests: [
+// 데모용 초기 신청 데이터
+const SEED_REQUESTS: PartnerRequest[] = [
     {
       id: 'req_001',
       gymId: 'gym_001',
@@ -85,8 +87,16 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
       status: 'pending',
       createdAt: '2026-04-27',
     },
-  ],
-  removedPartnerIds: {},
+];
+
+const init = loadPersisted(PERSIST_KEY, {
+  requests: SEED_REQUESTS,
+  removedPartnerIds: {} as Record<string, string[]>,
+});
+
+export const usePartnerStore = create<PartnerState>((set, get) => ({
+  requests: init.requests,
+  removedPartnerIds: init.removedPartnerIds,
 
   applyToGym: ({ gymId, gymName, trainerId, trainerName, trainerTagline, trainerSpecializations }) => {
     const existing = get().requests.find(
@@ -168,4 +178,9 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
 
   isPartner: (gymId, trainerId, staticIds) =>
     get().getGymPartnerIds(gymId, staticIds).includes(trainerId),
+}));
+
+persistOnChange(usePartnerStore, PERSIST_KEY, (s) => ({
+  requests: s.requests,
+  removedPartnerIds: s.removedPartnerIds,
 }));

@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import { FacilityTag, PricingTier, GymTimeSlot } from '../types';
+import { loadPersisted, persistOnChange } from '../utils/persist';
+
+const KEY = 'flowin-gym-profile';
 
 export interface GymProfileEdits {
   name?: string;
@@ -17,8 +20,10 @@ interface GymProfileState {
   getEdits: (gymId: string) => GymProfileEdits;
 }
 
+const init = loadPersisted(KEY, { edits: {} as Record<string, GymProfileEdits> });
+
 export const useGymProfileStore = create<GymProfileState>((set, get) => ({
-  edits: {},
+  edits: init.edits,
 
   updateProfile: (gymId, data) => {
     set(s => ({
@@ -28,3 +33,5 @@ export const useGymProfileStore = create<GymProfileState>((set, get) => ({
 
   getEdits: (gymId) => get().edits[gymId] ?? {},
 }));
+
+persistOnChange(useGymProfileStore, KEY, (s) => ({ edits: s.edits }));

@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { SlotBooking, SlotInfo } from '../types';
 import { MOCK_GYMS } from '../data/gyms';
+import { loadPersisted, persistOnChange } from '../utils/persist';
+
+const PERSIST_KEY = 'flowin-gym-slots';
 
 function toMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number);
@@ -112,11 +115,18 @@ const SEED_SLOT_BOOKINGS: SlotBooking[] = [
   { id: 'slot_seed_3', gymId: 'gym_001', gymName: '강남 피트니스 클럽', trainerId: 'trainer_001', trainerName: '김민준', memberId: 'member_001', memberName: '홍길동', date: slotDate(3), startTime: '11:00', memberCount: 1, facilityFee: 15000, status: 'pending',   createdAt: slotDate(0) },
 ];
 
-export const useGymSlotStore = create<GymSlotState>((set, get) => ({
+const persisted = loadPersisted(PERSIST_KEY, {
   slotBookings: SEED_SLOT_BOOKINGS,
-  capacityOverrides: {},
-  blacklists: {},
-  favoriteGyms: [],
+  capacityOverrides: {} as Record<string, Record<number, number>>,
+  blacklists: {} as Record<string, BlacklistEntry[]>,
+  favoriteGyms: [] as string[],
+});
+
+export const useGymSlotStore = create<GymSlotState>((set, get) => ({
+  slotBookings: persisted.slotBookings,
+  capacityOverrides: persisted.capacityOverrides,
+  blacklists: persisted.blacklists,
+  favoriteGyms: persisted.favoriteGyms,
 
   toggleFavorite: (gymId) => {
     set((state) => ({
@@ -280,4 +290,11 @@ export const useGymSlotStore = create<GymSlotState>((set, get) => ({
   getBlacklist: (gymId) => {
     return get().blacklists[gymId] ?? [];
   },
+}));
+
+persistOnChange(useGymSlotStore, PERSIST_KEY, (s) => ({
+  slotBookings: s.slotBookings,
+  capacityOverrides: s.capacityOverrides,
+  blacklists: s.blacklists,
+  favoriteGyms: s.favoriteGyms,
 }));
