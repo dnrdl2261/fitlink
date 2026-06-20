@@ -15,6 +15,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useBookingStore } from '../../store/bookingStore';
 import { useFavoriteStore } from '../../store/favoriteStore';
 import { useUiPrefStore } from '../../store/uiPrefStore';
+import { useNotificationStore } from '../../store/notificationStore';
 import { calculateDistance, formatDistance } from '../../utils/distance';
 import { formatPrice, formatTime } from '../../utils/formatters';
 
@@ -105,6 +106,15 @@ export default function MemberHomeScreen() {
   const toggleFavorite = useFavoriteStore((s) => s.toggle);
   const { recentSearches, addRecentSearch, clearRecentSearches } = useUiPrefStore();
 
+  // 트레이너가 보낸 예약 제안 (회원 수신)
+  const allNotifications = useNotificationStore((s) => s.notifications);
+  const proposals = useMemo(
+    () => allNotifications.filter(
+      (n) => n.targetRole === 'member' && n.userId === memberId && n.type === 'trainer_proposal'
+    ),
+    [allNotifications, memberId]
+  );
+
   const runSearch = (q: string) => {
     setQuery(q);
     addRecentSearch(q);
@@ -168,6 +178,8 @@ export default function MemberHomeScreen() {
   }, [sortBy, specFilter, priceKey, favOnly, favoriteIds, trainerDistances, hasPermission, query, trainers]);
 
   const currentSort = SORT_OPTIONS.find((o) => o.key === sortBy)!;
+  // '내 주변' 선택했지만 위치 권한이 없으면 실제로는 평점순으로 동작 → 라벨도 평점순으로 표기
+  const sortLabel = sortBy === 'nearby' && !hasPermission ? '평점순' : currentSort.label;
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -185,6 +197,28 @@ export default function MemberHomeScreen() {
       <View style={styles.header}>
         <Text style={styles.greeting}>{greeting} 👋</Text>
       </View>
+
+      {/* ── 트레이너가 보낸 예약 제안 ── */}
+      {proposals.length > 0 && (
+        <TouchableOpacity
+          style={styles.proposalBanner}
+          activeOpacity={0.85}
+          onPress={() => {
+            const t = proposals[0]?.meta?.trainerId;
+            if (proposals.length === 1 && t) router.push(`/trainer/${t}` as any);
+            else router.push('/(member)/notifications' as any);
+          }}
+        >
+          <View style={styles.proposalIcon}>
+            <MaterialCommunityIcons name="calendar-heart" size={20} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.proposalTitle}>트레이너가 보낸 예약 제안 {proposals.length}건</Text>
+            <Text style={styles.proposalSub}>눌러서 확인하고 예약을 진행하세요</Text>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={20} color={D.primary} />
+        </TouchableOpacity>
+      )}
 
       {/* ── 내 PT 현황 ── */}
       <View style={styles.statusCard}>
@@ -320,7 +354,7 @@ export default function MemberHomeScreen() {
         </TouchableOpacity>
         <TouchableOpacity style={styles.sortBtn} onPress={() => setSortModal(true)} activeOpacity={0.7}>
           <MaterialCommunityIcons name="sort" size={14} color={D.primary} />
-          <Text style={styles.sortBtnText}>{currentSort.label}</Text>
+          <Text style={styles.sortBtnText}>{sortLabel}</Text>
           <MaterialCommunityIcons name="chevron-down" size={14} color={D.textSec} />
         </TouchableOpacity>
       </ScrollView>
@@ -504,6 +538,19 @@ const styles = StyleSheet.create({
 
   header: { gap: 2, marginHorizontal: 16 },
   greeting: { fontSize: 16, color: D.text, fontWeight: '700' },
+
+  proposalBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: D.surface, marginHorizontal: 16, marginTop: 14,
+    borderRadius: 16, padding: 14,
+    borderWidth: 1, borderColor: D.primary,
+  },
+  proposalIcon: {
+    width: 40, height: 40, borderRadius: 12, backgroundColor: D.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  proposalTitle: { fontSize: 14, fontWeight: '800', color: D.text },
+  proposalSub: { fontSize: 12, color: D.textSec, marginTop: 2 },
 
   statusCard: {
     backgroundColor: D.surface, borderRadius: 20, padding: 18, gap: 14,

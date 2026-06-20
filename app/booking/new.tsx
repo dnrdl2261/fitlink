@@ -650,6 +650,14 @@ export default function NewBookingScreen() {
               </View>
             </View>
 
+            {/* 데모 결제 안내 */}
+            <View style={s.demoNotice}>
+              <MaterialCommunityIcons name="information-outline" size={15} color={D.amber} />
+              <Text style={s.demoNoticeText}>
+                데모 결제입니다. 실제 청구·결제가 발생하지 않습니다.
+              </Text>
+            </View>
+
             {/* 최종 금액 */}
             <View style={s.finalCard}>
               <Text style={s.finalTitle}>최종 결제 금액</Text>
@@ -1029,6 +1037,13 @@ const s = StyleSheet.create({
   },
   earnedText: { fontSize: 13, color: D.textSec, flex: 1 },
   earnedVal:  { fontSize: 13, fontWeight: '800', color: D.primary },
+
+  demoNotice: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: D.amberPale, borderRadius: 12,
+    padding: 12, borderWidth: 1, borderColor: D.amber + '40',
+  },
+  demoNoticeText: { fontSize: 12.5, color: D.textSec, flex: 1, fontWeight: '600' },
 
   trustRow:   { flexDirection: 'row', gap: 8, justifyContent: 'center' },
   trustBadge: {
