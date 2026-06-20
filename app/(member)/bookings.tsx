@@ -12,7 +12,7 @@ import { useNotificationStore } from '../../store/notificationStore';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '../../utils/constants';
 import { BookingStatus, Booking } from '../../types';
-import { formatDate, formatTime } from '../../utils/formatters';
+import { formatDate, formatTime, formatPrice } from '../../utils/formatters';
 
 type TabKey = BookingStatus | 'consultation';
 
@@ -70,7 +70,7 @@ function ConsultCard({ booking, onCancel }: { booking: Booking; onCancel?: () =>
 
 export default function BookingsScreen() {
   const router = useRouter();
-  const { bookings, cancelBooking, completeSession, rejectCompletion } = useBookingStore();
+  const { bookings, cancelBooking, refundBooking, completeSession, rejectCompletion } = useBookingStore();
   const { hasReviewed } = useReviewStore();
   const { member } = useAuthStore();
   const addNotification = useNotificationStore((s) => s.addNotification);
@@ -113,6 +113,37 @@ export default function BookingsScreen() {
     Alert.alert('예약 취소', '예약을 취소하시겠습니까?\n취소된 예약은 복구할 수 없습니다.', [
       { text: '아니오', style: 'cancel' },
       { text: '취소하기', style: 'destructive', onPress: () => cancelBooking(bookingId) },
+    ]);
+  };
+
+  // 에스크로: 앱이 보관 중인(환불 가능한) 잔여 결제액
+  const escrowHeld = ptBookings
+    .filter((b) => b.status === 'active')
+    .reduce((sum, b) => sum + b.remainingSessions * b.pricePerSession, 0);
+
+  const handleRefund = (b: Booking) => {
+    const amount = b.remainingSessions * b.pricePerSession;
+    const msg = `잔여 ${b.remainingSessions}회 · 환불액 ${formatPrice(amount)}\n\n이미 완료한 세션은 환불되지 않고, 미사용분은 전액 환불됩니다.`;
+    const apply = () => {
+      const refunded = refundBooking(b.id);
+      addNotification({
+        type: 'booking_cancelled',
+        targetRole: 'trainer',
+        userId: b.trainerId,
+        title: '회원이 환불했습니다',
+        body: `${b.memberName} 회원이 PT 잔여분을 환불했습니다. (${formatPrice(refunded)})`,
+        meta: { bookingId: b.id },
+      });
+      if (Platform.OS === 'web') window.alert(`${formatPrice(refunded)} 환불이 완료되었습니다.`);
+      else Alert.alert('환불 완료', `${formatPrice(refunded)} 환불이 완료되었습니다.`);
+    };
+    if (Platform.OS === 'web') {
+      if (window.confirm(`[환불 신청]\n\n${msg}`)) apply();
+      return;
+    }
+    Alert.alert('환불 신청', msg, [
+      { text: '취소', style: 'cancel' },
+      { text: '환불 신청', style: 'destructive', onPress: apply },
     ]);
   };
 
@@ -190,7 +221,20 @@ export default function BookingsScreen() {
         data={filtered}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
-          pendingConfirms.length > 0 ? (
+          <>
+          {activeTab === 'active' && escrowHeld > 0 && (
+            <View style={esc.wrap}>
+              <View style={esc.iconBox}>
+                <MaterialCommunityIcons name="shield-check" size={18} color={COLORS.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={esc.title}>앱이 안전하게 보관 중 · 환불 가능</Text>
+                <Text style={esc.amount}>{formatPrice(escrowHeld)}</Text>
+                <Text style={esc.sub}>미사용 세션 금액은 앱이 보관하며, 언제든 전액 환불됩니다.</Text>
+              </View>
+            </View>
+          )}
+          {pendingConfirms.length > 0 ? (
             <View style={pend.wrap}>
               <View style={pend.head}>
                 <MaterialCommunityIcons name="clipboard-check-outline" size={16} color={COLORS.primary} />
@@ -214,7 +258,8 @@ export default function BookingsScreen() {
                 </View>
               ))}
             </View>
-          ) : null
+          ) : null}
+          </>
         }
         renderItem={({ item }) =>
           activeTab === 'consultation' ? (
@@ -227,6 +272,7 @@ export default function BookingsScreen() {
               booking={item}
               onPress={() => router.push(`/booking/${item.id}`)}
               onCancel={item.status === 'active' ? () => handleCancel(item.id) : undefined}
+              onRefund={item.status === 'active' ? () => handleRefund(item) : undefined}
               onReview={
                 item.status === 'completed'
                   ? () => router.push({
@@ -428,4 +474,21 @@ const pend = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   confirmText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+});
+
+const esc = StyleSheet.create({
+  wrap: {
+    flexDirection: 'row', gap: 12,
+    backgroundColor: COLORS.surface,
+    marginHorizontal: 16, marginTop: 12, marginBottom: 2,
+    borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: COLORS.primary + '40',
+  },
+  iconBox: {
+    width: 40, height: 40, borderRadius: 12, backgroundColor: COLORS.primaryPale,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  title: { fontSize: 12, fontWeight: '700', color: COLORS.textSecondary },
+  amount: { fontSize: 22, fontWeight: '900', color: COLORS.primary, marginVertical: 1 },
+  sub: { fontSize: 11.5, color: COLORS.textSecondary, lineHeight: 16 },
 });

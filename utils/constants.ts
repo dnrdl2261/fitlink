@@ -37,6 +37,7 @@ export const BOOKING_STATUS_LABELS: Record<string, string> = {
   active: '이용중',
   completed: '완료',
   cancelled: '취소됨',
+  refunded: '환불됨',
 };
 
 export const BOOKING_STATUS_COLORS: Record<string, string> = {
@@ -44,6 +45,7 @@ export const BOOKING_STATUS_COLORS: Record<string, string> = {
   active: '#16a34a',
   completed: '#8080A0',
   cancelled: '#F87171',
+  refunded: '#A855F7',
 };
 
 export const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];

@@ -9,10 +9,11 @@ interface BookingCardProps {
   onPress: () => void;
   onCancel?: () => void;
   onReview?: () => void;
+  onRefund?: () => void;
   reviewDone?: boolean;
 }
 
-export default function BookingCard({ booking, onPress, onCancel, onReview, reviewDone }: BookingCardProps) {
+export default function BookingCard({ booking, onPress, onCancel, onReview, onRefund, reviewDone }: BookingCardProps) {
   const statusColor = BOOKING_STATUS_COLORS[booking.status] ?? COLORS.textSecondary;
   const statusLabel = BOOKING_STATUS_LABELS[booking.status] ?? booking.status;
   const progressPct = booking.totalSessions > 0
@@ -63,6 +64,18 @@ export default function BookingCard({ booking, onPress, onCancel, onReview, revi
             {reviewDone ? '✓ 리뷰 작성 완료' : '리뷰 작성'}
           </Text>
         </TouchableOpacity>
+      )}
+
+      {booking.status === 'active' && onRefund && booking.remainingSessions > 0 && (
+        <TouchableOpacity style={styles.refundBtn} onPress={onRefund} activeOpacity={0.7}>
+          <Text style={styles.refundBtnText}>환불 신청 (잔여 {booking.remainingSessions}회)</Text>
+        </TouchableOpacity>
+      )}
+
+      {booking.status === 'refunded' && booking.refundedAmount != null && (
+        <View style={styles.refundedNote}>
+          <Text style={styles.refundedNoteText}>{formatPrice(booking.refundedAmount)} 환불 완료</Text>
+        </View>
       )}
     </TouchableOpacity>
   );
@@ -127,4 +140,14 @@ const styles = StyleSheet.create({
   reviewBtnText: { color: COLORS.primary, fontSize: 14, fontWeight: '600' },
   reviewBtnDone: { borderColor: COLORS.border, backgroundColor: COLORS.background },
   reviewBtnTextDone: { color: COLORS.textSecondary, fontSize: 14, fontWeight: '500' },
+  refundBtn: {
+    marginTop: 14, paddingVertical: 11, borderRadius: 10,
+    borderWidth: 1, borderColor: COLORS.error, alignItems: 'center',
+  },
+  refundBtnText: { color: COLORS.error, fontSize: 14, fontWeight: '600' },
+  refundedNote: {
+    marginTop: 14, paddingVertical: 9, borderRadius: 10,
+    backgroundColor: '#A855F715', alignItems: 'center',
+  },
+  refundedNoteText: { color: '#A855F7', fontSize: 13, fontWeight: '700' },
 });

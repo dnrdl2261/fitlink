@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 import { Booking, BookingStatus, PTSession, SessionStatus, WeeklySchedule } from '../types';
 import { MOCK_BOOKINGS } from '../data/bookings';
+import { useAuthStore } from './authStore';
+
+// 로그인한 회원 식별 (없으면 데모 기본값)
+const currentMember = () => {
+  const m = useAuthStore.getState().member;
+  return { id: m?.id ?? 'member_001', name: m?.name ?? '홍길동' };
+};
 
 export function calcEndTime(startTime: string, duration: number): string {
   const [h, m] = startTime.split(':').map(Number);
@@ -62,6 +69,7 @@ interface BookingState {
   addBooking: (params: NewBookingParams) => string;
   addConsultation: (params: ConsultationParams) => string;
   cancelBooking: (bookingId: string) => void;
+  refundBooking: (bookingId: string) => number; // 잔여분 전액 환불 → 환불액 반환
   confirmBooking: (bookingId: string) => void;
   requestCompletion: (bookingId: string, sessionId: string) => void;
   rejectCompletion: (bookingId: string, sessionId: string) => void;
@@ -78,10 +86,11 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   addBooking: (params) => {
     const id = `booking_${Date.now()}`;
     const sessions = generateSessions(id, params.schedule, params.startDate, params.totalSessions);
+    const me = currentMember();
     const newBooking: Booking = {
       id,
-      memberId: 'member_001',
-      memberName: '홍길동',
+      memberId: me.id,
+      memberName: me.name,
       trainerId: params.trainerId,
       trainerName: params.trainerName,
       productId: params.productId,
@@ -105,10 +114,11 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   addConsultation: (params) => {
     const id = `booking_${Date.now()}`;
     const endTime = calcEndTime(params.startTime, params.duration);
+    const me = currentMember();
     const newBooking: Booking = {
       id,
-      memberId: 'member_001',
-      memberName: '홍길동',
+      memberId: me.id,
+      memberName: me.name,
       trainerId: params.trainerId,
       trainerName: params.trainerName,
       productId: 'consultation',
@@ -145,6 +155,29 @@ export const useBookingStore = create<BookingState>((set, get) => ({
           : b
       ),
     }));
+  },
+
+  // 회원이 잔여(미사용) 세션을 전액 환불 (에스크로: 미사용분은 앱이 보관 중이므로 100% 반환)
+  refundBooking: (bookingId) => {
+    const b = get().bookings.find((x) => x.id === bookingId);
+    if (!b) return 0;
+    const refundedAmount = b.remainingSessions * b.pricePerSession;
+    set((s) => ({
+      bookings: s.bookings.map((x) => {
+        if (x.id !== bookingId) return x;
+        const sessions = x.sessions.map((sess) =>
+          sess.status === 'scheduled' || sess.status === 'pending'
+            ? { ...sess, status: 'cancelled' as SessionStatus }
+            : sess
+        );
+        return {
+          ...x, sessions, status: 'refunded' as BookingStatus,
+          remainingSessions: 0, refundedAmount,
+          refundedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        };
+      }),
+    }));
+    return refundedAmount;
   },
 
   // 트레이너가 회원 결제 건을 확정 → pending → active

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,9 @@ import {
   Alert,
   Modal,
   TextInput,
+  Platform,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { MOCK_GYMS } from '../../data/gyms';
 import { useGymSlotStore } from '../../store/gymSlotStore';
 import { useGymProfileStore } from '../../store/gymProfileStore';
@@ -34,6 +36,13 @@ export default function AvailabilityScreen() {
   const updateProfile = useGymProfileStore((s) => s.updateProfile);
   const gymEdits = useGymProfileStore((s) => s.edits[GYM_ID]) ?? {};
   const gym = { ...baseGym, ...gymEdits };
+  const navigation = useNavigation();
+
+  // 웹에서 Alert.alert가 표시되지 않아 저장이 안 되는 것처럼 보이던 문제 → 웹은 window.alert 사용
+  const notify = (title: string, msg: string) => {
+    if (Platform.OS === 'web') window.alert(`${title}\n\n${msg}`);
+    else Alert.alert(title, msg);
+  };
   const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
 
   const [ptEnabled, setPtEnabled] = useState(
@@ -74,10 +83,6 @@ export default function AvailabilityScreen() {
   const handleToggle = (dayOfWeek: number) => {
     const newVal = !ptEnabled[dayOfWeek];
     setPtEnabled((prev) => ({ ...prev, [dayOfWeek]: newVal }));
-    Alert.alert(
-      'PT 설정 변경',
-      `${DAY_LABELS[dayOfWeek]}요일 PT ${newVal ? '허용' : '불허용'}으로 변경되었습니다.`
-    );
   };
 
   const handleCapacityChange = (dayOfWeek: number, delta: number) => {
@@ -114,27 +119,50 @@ export default function AvailabilityScreen() {
     setTimePickerVisible(false);
   };
 
+  const buildOperatingHours = () => gym.operatingHours.map((h) => ({
+    ...h,
+    openTime: hoursOverrides[h.dayOfWeek]?.openTime ?? h.openTime,
+    closeTime: hoursOverrides[h.dayOfWeek]?.closeTime ?? h.closeTime,
+    ptAvailable: ptEnabled[h.dayOfWeek],
+  }));
+  const buildPricing = () => gym.pricing.map((p) => ({
+    ...p,
+    facilityFee: parseInt((pricingOverrides[p.sessionType] ?? '').replace(/\D/g, '')) || 0,
+  }));
+
   // 운영 시간 + PT 설정 저장
   const handleSaveHours = () => {
-    const operatingHours = gym.operatingHours.map((h) => ({
-      ...h,
-      openTime: hoursOverrides[h.dayOfWeek]?.openTime ?? h.openTime,
-      closeTime: hoursOverrides[h.dayOfWeek]?.closeTime ?? h.closeTime,
-      ptAvailable: ptEnabled[h.dayOfWeek],
-    }));
-    updateProfile(GYM_ID, { operatingHours });
-    Alert.alert('저장 완료', '운영 시간이 업데이트되었습니다.');
+    updateProfile(GYM_ID, { operatingHours: buildOperatingHours() });
+    notify('저장 완료', '운영 시간이 업데이트되었습니다.');
   };
 
   // 시설 이용료 저장
   const handleSavePricing = () => {
-    const pricing = gym.pricing.map((p) => ({
-      ...p,
-      facilityFee: parseInt((pricingOverrides[p.sessionType] ?? '').replace(/\D/g, '')) || 0,
-    }));
-    updateProfile(GYM_ID, { pricing });
-    Alert.alert('저장 완료', '시설 이용료가 업데이트되었습니다.');
+    updateProfile(GYM_ID, { pricing: buildPricing() });
+    notify('저장 완료', '시설 이용료가 업데이트되었습니다.');
   };
+
+  // 전체 저장 (헤더 우측 상단 '저장' 버튼)
+  const handleSaveAll = () => {
+    updateProfile(GYM_ID, {
+      operatingHours: buildOperatingHours(),
+      pricing: buildPricing(),
+      facilities: facilitiesOverride as FacilityTag[],
+    });
+    notify('저장 완료', '시설 설정이 모두 저장되었습니다.');
+  };
+
+  // 헤더 우측 상단 '저장' 버튼
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={handleSaveAll} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ paddingRight: 16 }}>
+          <Text style={{ color: GYM, fontWeight: '800', fontSize: 16 }}>저장</Text>
+        </TouchableOpacity>
+      ),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation, hoursOverrides, ptEnabled, pricingOverrides, facilitiesOverride]);
 
   const slotWeekDates = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
@@ -425,20 +453,6 @@ export default function AvailabilityScreen() {
           </View>
         </View>
 
-        {/* 파트너 트레이너 */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>파트너 트레이너 ({gym.partnerTrainerIds.length}명)</Text>
-          <Text style={styles.sectionNote}>파트너 트레이너 추가/제거는 고객센터를 통해 요청하세요.</Text>
-          {gym.partnerTrainerIds.map((tid) => (
-            <View key={tid} style={styles.trainerRow}>
-              <View style={styles.trainerAvatar}>
-                <MaterialCommunityIcons name="dumbbell" size={20} color={GYM} />
-              </View>
-              <Text style={styles.trainerId}>트레이너 ID: {tid}</Text>
-            </View>
-          ))}
-        </View>
-
       </ScrollView>
 
       {/* 시간 피커 모달 */}
@@ -649,25 +663,6 @@ const styles = StyleSheet.create({
   },
   addFacilityBtnDisabled: { backgroundColor: COLORS.border },
   addFacilityBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-
-  // 파트너 트레이너
-  trainerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  trainerAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(45,212,191,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  trainerId: { fontSize: 14, color: COLORS.textSecondary },
 
   // 대기 중인 예약
   pendingHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },

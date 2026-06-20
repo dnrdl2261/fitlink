@@ -9,7 +9,7 @@ import { useBookingStore } from '../../store/bookingStore';
 import { useAuthStore } from '../../store/authStore';
 import { formatPrice, formatDate } from '../../utils/formatters';
 import { COLORS } from '../../utils/constants';
-import { monthlyEarnings, monthTransactions, sessionNet, nextSettlement } from '../../utils/earnings';
+import { monthlyEarnings, monthTransactions, sessionNet } from '../../utils/earnings';
 
 const TRAINER = '#4F63F5';
 
@@ -68,7 +68,6 @@ export default function EarningsScreen() {
     [trainerBookings]
   );
 
-  const settlement = useMemo(() => nextSettlement(trainerBookings), [trainerBookings]);
 
   const chartData = useMemo(() => {
     const n = period === '3m' ? 3 : period === '6m' ? 6 : 12;
@@ -123,15 +122,15 @@ export default function EarningsScreen() {
           </View>
         </View>
 
-        {/* ── 다음 정산 예정 ── */}
+        {/* ── 입금 방식: 세션 완료 즉시 ── */}
         <View style={styles.settleCard}>
           <View style={styles.settleIcon}>
-            <MaterialCommunityIcons name="bank-outline" size={22} color={TRAINER} />
+            <MaterialCommunityIcons name="lightning-bolt" size={22} color={TRAINER} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.settleLabel}>다음 정산 예정 · {settlement.dateLabel}</Text>
-            <Text style={styles.settleAmount}>{formatPrice(settlement.amount)}</Text>
-            <Text style={styles.settleSub}>{settlement.monthLabel} 완료 세션 기준 · 매월 10일 자동 입금</Text>
+            <Text style={styles.settleLabel}>이번 달 입금액 · 세션 완료 즉시 입금</Text>
+            <Text style={styles.settleAmount}>{formatPrice(currentAmount)}</Text>
+            <Text style={styles.settleSub}>회원이 세션 완료를 확인하면 해당 세션분이 바로 입금됩니다.</Text>
           </View>
         </View>
 
@@ -305,13 +304,14 @@ export default function EarningsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>수익 구조 안내</Text>
           <View style={styles.feeList}>
-            <FeeRow icon="account" label="회원 총 결제" value="PT비 + 시설 이용료" />
-            <FeeRow icon="cash" label="트레이너 수취" value="PT비 × 90%" valueColor={COLORS.success} />
+            <FeeRow icon="account" label="회원 결제" value="PT비 (시설료 없음)" />
+            <FeeRow icon="cash" label="트레이너 수취" value="PT비 × 90% · 즉시 입금" valueColor={COLORS.success} />
             <FeeRow icon="percent" label="플랫폼 수수료" value="PT비 × 10%" />
+            <FeeRow icon="home" label="시설 이용료" value="트레이너가 헬스장에 별도 지불" />
           </View>
           <View style={styles.feeNotice}>
             <MaterialCommunityIcons name="information-outline" size={14} color={COLORS.primary} />
-            <Text style={styles.feeNoticeText}>시설 이용료는 헬스장에 별도 정산 · 수익은 매월 10일 자동 정산됩니다</Text>
+            <Text style={styles.feeNoticeText}>회원이 세션 완료를 확인하면 해당 세션분이 즉시 입금됩니다 (월정산 아님)</Text>
           </View>
         </View>
 
