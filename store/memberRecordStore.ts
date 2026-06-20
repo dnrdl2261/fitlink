@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+import { loadPersisted, persistOnChange } from '../utils/persist';
+
+const KEY = 'flowin-member-records';
 
 export interface MemberRecord {
   id: string;
@@ -38,18 +41,19 @@ interface MemberRecordState {
   getRecords: (trainerId: string, memberId: string) => MemberRecord[];
 }
 
-export const useMemberRecordStore = create<MemberRecordState>((set, get) => ({
-  records: SEED,
+const init = loadPersisted(KEY, { records: SEED });
 
+export const useMemberRecordStore = create<MemberRecordState>((set, get) => ({
+  records: init.records,
   addRecord: (r) =>
     set((s) => ({
       records: [{ ...r, id: `rec_${Date.now()}`, createdAt: new Date().toISOString() }, ...s.records],
     })),
-
   removeRecord: (id) => set((s) => ({ records: s.records.filter((x) => x.id !== id) })),
-
   getRecords: (trainerId, memberId) =>
     get()
       .records.filter((x) => x.trainerId === trainerId && x.memberId === memberId)
       .sort((a, b) => (a.date !== b.date ? b.date.localeCompare(a.date) : b.createdAt.localeCompare(a.createdAt))),
 }));
+
+persistOnChange(useMemberRecordStore, KEY, (s) => ({ records: s.records }));

@@ -1,13 +1,7 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { loadPersisted, persistOnChange } from '../utils/persist';
 
-// 웹(배포 환경)에서는 localStorage에 영속화, 네이티브에서는 메모리(무해한 no-op)
-const getLS = (): any => (globalThis as any).localStorage;
-const webStorage = {
-  getItem: (name: string): string | null => getLS()?.getItem(name) ?? null,
-  setItem: (name: string, value: string): void => { getLS()?.setItem(name, value); },
-  removeItem: (name: string): void => { getLS()?.removeItem(name); },
-};
+const KEY = 'flowin-ui-pref';
 
 interface UiPrefState {
   onboardingSeen: boolean;
@@ -17,24 +11,22 @@ interface UiPrefState {
   clearRecentSearches: () => void;
 }
 
-export const useUiPrefStore = create<UiPrefState>()(
-  persist(
-    (set) => ({
-      onboardingSeen: false,
-      setOnboardingSeen: () => set({ onboardingSeen: true }),
-      recentSearches: [],
-      addRecentSearch: (q) =>
-        set((s) => {
-          const t = q.trim();
-          if (!t) return s;
-          return { recentSearches: [t, ...s.recentSearches.filter((x) => x !== t)].slice(0, 8) };
-        }),
-      clearRecentSearches: () => set({ recentSearches: [] }),
+const init = loadPersisted(KEY, { onboardingSeen: false, recentSearches: [] as string[] });
+
+export const useUiPrefStore = create<UiPrefState>((set) => ({
+  onboardingSeen: init.onboardingSeen,
+  setOnboardingSeen: () => set({ onboardingSeen: true }),
+  recentSearches: init.recentSearches,
+  addRecentSearch: (q) =>
+    set((s) => {
+      const t = q.trim();
+      if (!t) return s;
+      return { recentSearches: [t, ...s.recentSearches.filter((x) => x !== t)].slice(0, 8) };
     }),
-    {
-      name: 'flowin-ui-pref',
-      storage: createJSONStorage(() => webStorage),
-      partialize: (s) => ({ onboardingSeen: s.onboardingSeen, recentSearches: s.recentSearches }),
-    }
-  )
-);
+  clearRecentSearches: () => set({ recentSearches: [] }),
+}));
+
+persistOnChange(useUiPrefStore, KEY, (s) => ({
+  onboardingSeen: s.onboardingSeen,
+  recentSearches: s.recentSearches,
+}));

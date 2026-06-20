@@ -9,6 +9,7 @@ import { useScrollToTop } from '@react-navigation/native';
 import { useBookingStore } from '../../store/bookingStore';
 import { useGymSlotStore } from '../../store/gymSlotStore';
 import { useAuthStore } from '../../store/authStore';
+import { useManualSessionStore, ManualSession } from '../../store/manualSessionStore';
 import { formatTime, formatDate } from '../../utils/formatters';
 
 /* ─── 라이트 팔레트 ─── */
@@ -50,11 +51,6 @@ const STATUS_META: Record<string,{ label:string; color:string }> = {
 };
 
 /* ─── 타입 ─── */
-interface ManualSession {
-  id: string; date: string; startTime: string; endTime: string;
-  memberName: string; memo: string;
-  status: 'scheduled'|'completed'|'cancelled'; color: string;
-}
 interface DisplaySession {
   id: string; date: string; startTime: string; endTime: string;
   memberName: string; price: number; memo: string;
@@ -114,8 +110,7 @@ export default function TrainerScheduleScreen() {
   const [month, setMonth] = useState(+today.slice(5,7));
   const [sel, setSel]     = useState(today);
 
-  const [manual, setManual]   = useState<ManualSession[]>([]);
-  const [hidden, setHidden]   = useState<Set<string>>(new Set());
+  const { manualSessions, hiddenIds, addManual, completeManual, removeManual, hideSession } = useManualSessionStore();
 
   const [showAdd, setShowAdd]     = useState(false);
   const [addMember, setAddMember] = useState('');
@@ -142,7 +137,7 @@ export default function TrainerScheduleScreen() {
   const bookingDS = useMemo<DisplaySession[]>(() => {
     const r: DisplaySession[] = [];
     tBooks.forEach(b => b.sessions.forEach(sess => {
-      if (sess.status!=='cancelled' && !hidden.has(sess.id)) r.push({
+      if (sess.status!=='cancelled' && !hiddenIds.includes(sess.id)) r.push({
         id: sess.id, date: sess.date,
         startTime: sess.startTime, endTime: sess.endTime,
         memberName: b.memberName, price: Math.round(b.totalAmount/b.totalSessions),
@@ -152,15 +147,15 @@ export default function TrainerScheduleScreen() {
       });
     }));
     return r;
-  }, [tBooks, colorMap, hidden]);
+  }, [tBooks, colorMap, hiddenIds]);
 
   const manualDS = useMemo<DisplaySession[]>(() =>
-    manual.filter(m=>m.status!=='cancelled').map(m=>({
+    manualSessions.filter(m=>m.status!=='cancelled').map(m=>({
       id:m.id, date:m.date, startTime:m.startTime, endTime:m.endTime,
       memberName:m.memberName, price:0, memo:m.memo, status:m.status,
       color:m.color, isManual:true,
     })),
-    [manual]
+    [manualSessions]
   );
 
   // 헬스장 시설 슬롯 예약 (내가 예약한 것)
@@ -207,16 +202,16 @@ export default function TrainerScheduleScreen() {
   const handleAdd = () => {
     if (!addMember.trim()) { Alert.alert('입력 오류','회원 이름을 입력해주세요.'); return; }
     if (addStart >= addEnd) { Alert.alert('입력 오류','종료 시간은 시작 시간 이후여야 합니다.'); return; }
-    setManual(prev=>[...prev,{
+    addManual({
       id:uid(), date:sel, startTime:addStart, endTime:addEnd,
       memberName:addMember.trim(), memo:addMemo, status:'scheduled', color:addColor,
-    }]);
+    });
     setShowAdd(false);
     setAddMember(''); setAddMemo(''); setAddStart('09:00'); setAddEnd('10:00'); setAddColor(COLOR_OPTS[0]);
   };
 
   const handleComplete = (sess: DisplaySession) => {
-    if (sess.isManual) setManual(p=>p.map(m=>m.id===sess.id?{...m,status:'completed'}:m));
+    if (sess.isManual) completeManual(sess.id);
     else if (sess.bookingId) completeSession(sess.bookingId, sess.id);
   };
 
@@ -224,8 +219,8 @@ export default function TrainerScheduleScreen() {
     Alert.alert('일정 삭제',`${sess.memberName} 회원의 ${formatTime(sess.startTime)} 일정을 삭제하시겠습니까?`,[
       { text:'취소', style:'cancel' },
       { text:'삭제', style:'destructive', onPress:()=>{
-        if (sess.isManual) setManual(p=>p.filter(m=>m.id!==sess.id));
-        else setHidden(p=>new Set([...p,sess.id]));
+        if (sess.isManual) removeManual(sess.id);
+        else hideSession(sess.id);
       }},
     ]);
   };
@@ -250,7 +245,7 @@ export default function TrainerScheduleScreen() {
         </View>
         <View style={s.statDiv}/>
         <View style={s.statItem}>
-          <Text style={s.statV}>{tBooks.length + manual.filter(m=>m.status!=='cancelled').length}</Text>
+          <Text style={s.statV}>{tBooks.length + manualSessions.filter(m=>m.status!=='cancelled').length}</Text>
           <Text style={s.statL}>활성 일정</Text>
         </View>
       </View>

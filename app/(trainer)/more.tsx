@@ -12,13 +12,14 @@ import { useBookingStore } from '../../store/bookingStore';
 import { MOCK_TRAINERS } from '../../data/trainers';
 import { COLORS } from '../../utils/constants';
 import { formatTime } from '../../utils/formatters';
+import { monthlyEarnings } from '../../utils/earnings';
 
 const MOCK_MEMBER_LOOKUP: Record<string, { name: string; avatar: string }> = {
-  member_001: { name: '홍길동', avatar: 'https://picsum.photos/seed/member1/200/200' },
-  member_002: { name: '이수진', avatar: 'https://picsum.photos/seed/member2/200/200' },
-  member_003: { name: '박지훈', avatar: 'https://picsum.photos/seed/member3/200/200' },
-  member_004: { name: '최민서', avatar: 'https://picsum.photos/seed/member4/200/200' },
-  member_005: { name: '정유나', avatar: 'https://picsum.photos/seed/member5/200/200' },
+  member_001: { name: '홍길동', avatar: 'https://i.pravatar.cc/200?u=member1' },
+  member_002: { name: '이수진', avatar: 'https://i.pravatar.cc/200?u=member2' },
+  member_003: { name: '박지훈', avatar: 'https://i.pravatar.cc/200?u=member3' },
+  member_004: { name: '최민서', avatar: 'https://i.pravatar.cc/200?u=member4' },
+  member_005: { name: '정유나', avatar: 'https://i.pravatar.cc/200?u=member5' },
 };
 
 function resolveUser(uid: string) {
@@ -32,7 +33,6 @@ function resolveUser(uid: string) {
 }
 
 const TODAY = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
-const MONTH_PREFIX = TODAY.slice(0, 7);
 
 export default function TrainerMoreScreen() {
   const router = useRouter();
@@ -57,12 +57,7 @@ export default function TrainerMoreScreen() {
     const todaySessions = myBookings.flatMap(b =>
       b.sessions.filter(s => s.date === TODAY && s.status === 'scheduled')
     ).sort((a, b) => a.startTime.localeCompare(b.startTime));
-    const monthEarnings = myBookings.reduce((sum, b) => {
-      const sessions = b.sessions.filter(s =>
-        s.status === 'completed' && s.date.startsWith(MONTH_PREFIX)
-      );
-      return sum + sessions.length * Math.round(b.pricePerSession * 0.9);
-    }, 0);
+    const monthEarnings = monthlyEarnings(myBookings, 1)[0]?.amount ?? 0;
     const activeCount = myBookings.filter(b => b.status === 'active').length;
     return { todaySessions, monthEarnings, activeCount };
   }, [bookings, trainer]);
@@ -71,11 +66,9 @@ export default function TrainerMoreScreen() {
     {
       title: '운영',
       items: [
-        { icon: '👥', label: '회원 관리', sub: '담당 회원 및 PT 현황', onPress: () => router.push('/(trainer)/members' as any) },
-        { icon: '📅', label: '스케줄 관리', sub: '예약 일정 확인', onPress: () => router.push('/(trainer)/schedule') },
-        { icon: '🤝', label: '파트너 헬스장 예약', sub: '입점 신청 및 파트너 관리', onPress: () => router.push('/(trainer)/partner-gyms') },
-        { icon: '📋', label: '파트너 헬스장 예약현황', sub: '헬스장 슬롯 예약 현황', onPress: () => router.push('/(trainer)/my-slot-bookings' as any) },
-        { icon: '🏋️', label: '파트너 헬스장 신청', sub: '헬스장 목록 및 슬롯 예약', onPress: () => router.push('/(trainer)/gym-list' as any) },
+        { icon: '🏋️', label: '헬스장 슬롯 예약', sub: '파트너 헬스장 찾아 시설 슬롯 예약', onPress: () => router.push('/(trainer)/gym-list' as any) },
+        { icon: '📋', label: '내 슬롯 예약 현황', sub: '신청한 시설 이용 예약 상태 확인', onPress: () => router.push('/(trainer)/my-slot-bookings' as any) },
+        { icon: '🤝', label: '파트너 입점 관리', sub: '헬스장 입점 신청 및 파트너 관리', onPress: () => router.push('/(trainer)/partner-gyms') },
         { icon: '💰', label: '수익 현황', sub: '정산 및 수입 확인', onPress: () => router.push('/(trainer)/earnings') },
         { icon: '🎫', label: '패키지 관리', sub: '다회권 상품 등록 및 관리', onPress: () => router.push('/(trainer)/package-manage') },
       ],

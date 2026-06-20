@@ -23,11 +23,11 @@ const { width: SW, height: SH } = Dimensions.get('window');
 const HERO_H = Math.round(SH * 0.52);
 
 const MOCK_MEMBER_LOOKUP: Record<string, { name: string; avatar: string }> = {
-  member_001: { name: '홍길동',  avatar: 'https://picsum.photos/seed/member1/200/200' },
-  member_002: { name: '이수진',  avatar: 'https://picsum.photos/seed/member2/200/200' },
-  member_003: { name: '박지훈',  avatar: 'https://picsum.photos/seed/member3/200/200' },
-  member_004: { name: '최민서',  avatar: 'https://picsum.photos/seed/member4/200/200' },
-  member_005: { name: '정유나',  avatar: 'https://picsum.photos/seed/member5/200/200' },
+  member_001: { name: '홍길동',  avatar: 'https://i.pravatar.cc/200?u=member1' },
+  member_002: { name: '이수진',  avatar: 'https://i.pravatar.cc/200?u=member2' },
+  member_003: { name: '박지훈',  avatar: 'https://i.pravatar.cc/200?u=member3' },
+  member_004: { name: '최민서',  avatar: 'https://i.pravatar.cc/200?u=member4' },
+  member_005: { name: '정유나',  avatar: 'https://i.pravatar.cc/200?u=member5' },
 };
 
 function resolveUser(uid: string) {

@@ -24,7 +24,7 @@ export default function MemberEditProfileScreen() {
   if (!member) return null;
 
   const [profileImageUrl, setProfileImageUrl] = useState(
-    member.profileImageUrl ?? 'https://picsum.photos/seed/member1/200/200'
+    member.profileImageUrl ?? 'https://i.pravatar.cc/200?u=member1'
   );
   const [name, setName] = useState(member.name);
   const [phone, setPhone] = useState(member.phone ?? '');
