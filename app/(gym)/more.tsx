@@ -10,10 +10,10 @@ import { useAuthStore } from '../../store/authStore';
 import { useGymProfileStore } from '../../store/gymProfileStore';
 import { MOCK_GYMS } from '../../data/gyms';
 import { useGymSlotStore } from '../../store/gymSlotStore';
-import { useBookingStore } from '../../store/bookingStore';
 import { usePartnerStore } from '../../store/partnerStore';
 import { COLORS } from '../../utils/constants';
 import { formatPrice } from '../../utils/formatters';
+import { gymConfirmedSlots } from '../../utils/gymRevenue';
 
 const GYM  = '#4F63F5';
 const DARK = '#0F172A';
@@ -40,16 +40,13 @@ export default function GymMoreScreen() {
     s.requests.filter(r => r.gymId === GYM_ID && r.status === 'pending').length
   );
 
-  const { bookings } = useBookingStore();
-  const activeBookings = bookings.filter((b) => b.status !== 'cancelled');
   const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
-  const todayCount = activeBookings.filter((b) =>
-    b.sessions.some((s) => s.date === today && s.status === 'scheduled')
-  ).length;
+  const confirmedSlots = gymConfirmedSlots(slotBookings, GYM_ID);
+  const todayCount = confirmedSlots.filter((b) => b.date === today).length;
   const pendingCount = slotBookings.filter((b) => b.gymId === GYM_ID && b.status === 'pending').length;
-  const thisMonthRevenue = activeBookings
-    .filter((b) => b.status === 'completed' && b.startDate.startsWith('2026-04'))
-    .reduce((sum, b) => sum + Math.round(b.totalAmount * 0.05), 0);
+  const thisMonthRevenue = confirmedSlots
+    .filter((b) => b.date.slice(0, 7) === today.slice(0, 7))
+    .reduce((sum, b) => sum + b.facilityFee, 0);
 
   const sections = [
     {
@@ -60,7 +57,7 @@ export default function GymMoreScreen() {
           iconColor: GYM,
           iconBg: GYM + '18',
           label: '운영 현황',
-          sub: `오늘 ${todayCount}건 · 대기 ${pendingCount}건 · 이번달 ${formatPrice(thisMonthRevenue || 1890000)}`,
+          sub: `오늘 ${todayCount}건 · 대기 ${pendingCount}건 · 이번달 ${formatPrice(thisMonthRevenue)}`,
           onPress: () => router.push({ pathname: '/(gym)/dashboard', params: { tab: 'today' } } as any),
         },
         {
@@ -98,7 +95,7 @@ export default function GymMoreScreen() {
           iconColor: '#22C55E',
           iconBg: '#ECFDF5',
           label: '수익 관리',
-          sub: `이번달 ${formatPrice(thisMonthRevenue || 560000)} · 헬스장 수익 현황`,
+          sub: `이번달 ${formatPrice(thisMonthRevenue)} · 헬스장 수익 현황`,
           onPress: () => router.push('/(gym)/earnings' as any),
         },
       ],
@@ -106,6 +103,14 @@ export default function GymMoreScreen() {
     {
       title: '계정',
       items: [
+        {
+          iconName: 'account-group-outline',
+          iconColor: '#818CF8',
+          iconBg: '#EEF2FF',
+          label: '커뮤니티',
+          sub: '트레이너·회원 커뮤니티',
+          onPress: () => router.push('/(gym)/community' as any),
+        },
         {
           iconName: 'dumbbell',
           iconColor: GYM,

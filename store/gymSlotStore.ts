@@ -76,7 +76,37 @@ function slotDate(offset: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// 매출·통계 시연용 confirmed 슬롯 이력 (gym_001, 최근 ~2.5개월 상대 날짜)
+function genGymHistory(): SlotBooking[] {
+  const gymId = 'gym_001';
+  const gymName = '강남 피트니스 클럽';
+  const roster = [
+    { id: 'trainer_001', name: '김민준' },
+    { id: 'trainer_002', name: '이지수' },
+    { id: 'trainer_003', name: '박철수' },
+  ];
+  const members = ['홍길동', '김영희', '박민수', '정수아', '이준호', '최지훈'];
+  const times = ['07:00', '09:00', '10:00', '14:00', '18:00', '19:00', '20:00'];
+  const fees = [12000, 15000, 18000];
+  const out: SlotBooking[] = [];
+  let i = 0;
+  for (let d = 2; d <= 75; d += 2) {
+    const t = roster[i % roster.length];
+    out.push({
+      id: `slot_hist_${i}`, gymId, gymName,
+      trainerId: t.id, trainerName: t.name,
+      memberId: undefined, memberName: members[i % members.length],
+      date: slotDate(-d), startTime: times[i % times.length],
+      memberCount: 1 + (i % 2), facilityFee: fees[i % fees.length],
+      status: 'confirmed', createdAt: slotDate(-d),
+    });
+    i++;
+  }
+  return out;
+}
+
 const SEED_SLOT_BOOKINGS: SlotBooking[] = [
+  ...genGymHistory(),
   { id: 'slot_seed_1', gymId: 'gym_001', gymName: '강남 피트니스 클럽', trainerId: 'trainer_001', trainerName: '김민준', memberId: 'member_001', memberName: '홍길동', date: slotDate(0), startTime: '10:00', memberCount: 1, facilityFee: 15000, status: 'confirmed', createdAt: slotDate(-2) },
   { id: 'slot_seed_2', gymId: 'gym_002', gymName: '역삼 스포츠센터',   trainerId: 'trainer_001', trainerName: '김민준', memberId: 'member_002', memberName: '김영희', date: slotDate(2), startTime: '14:00', memberCount: 1, facilityFee: 12000, status: 'confirmed', createdAt: slotDate(-1) },
   { id: 'slot_seed_3', gymId: 'gym_001', gymName: '강남 피트니스 클럽', trainerId: 'trainer_001', trainerName: '김민준', memberId: 'member_001', memberName: '홍길동', date: slotDate(3), startTime: '11:00', memberCount: 1, facilityFee: 15000, status: 'pending',   createdAt: slotDate(0) },

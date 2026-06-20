@@ -119,11 +119,11 @@ export default function GymLayout() {
         }}
       />
       <Tabs.Screen
-        name="community"
+        name="dashboard"
         options={{
-          tabBarLabel: '커뮤니티',
-          tabBarIcon: ({ color }) => <TabIcon name="account-group" color={color} />,
-          headerTitle: '커뮤니티',
+          tabBarLabel: '운영현황',
+          tabBarIcon: ({ color }) => <TabIcon name="chart-box-outline" color={color} />,
+          headerTitle: '운영 현황',
         }}
       />
       <Tabs.Screen
@@ -147,10 +147,10 @@ export default function GymLayout() {
         options={{ href: null }}
       />
       <Tabs.Screen
-        name="dashboard"
+        name="community"
         options={{
           href: null,
-          headerTitle: '운영 현황',
+          headerTitle: '커뮤니티',
           headerLeft: () => <BackBtn color={COLORS.gym} />,
         }}
       />

@@ -12,12 +12,12 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
-import { useBookingStore } from '../../store/bookingStore';
 import { useGymSlotStore } from '../../store/gymSlotStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { SlotBooking } from '../../types';
-import { formatPrice, formatTime } from '../../utils/formatters';
-import { COLORS, BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '../../utils/constants';
+import { formatPrice } from '../../utils/formatters';
+import { COLORS } from '../../utils/constants';
+import { gymConfirmedSlots } from '../../utils/gymRevenue';
 
 const GYM  = '#4F63F5';
 const DARK = '#0F172A';
@@ -27,13 +27,11 @@ type Tab = 'today' | 'pending' | 'revenue';
 
 const SLOT_STATUS_CONFIRMED = { bg: '#ECFDF5', text: '#059669', dot: '#22C55E', label: '슬롯 확정' };
 const TYPE_SLOT    = { accent: '#818CF8', iconBg: '#EEF2FF', icon: 'dumbbell',         label: '헬스장 이용' };
-const TYPE_SESSION = { accent: GYM,       iconBg: '#ECFDF9', icon: 'human-male-board',  label: 'PT 수업' };
 
 export default function GymDashboard() {
   const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
   const { gymAdmin } = useAuthStore();
   const GYM_ID = gymAdmin?.gymId ?? 'gym_001';
-  const { bookings } = useBookingStore();
   const { confirmSlot, cancelSlot } = useGymSlotStore();
   const { addNotification } = useNotificationStore();
   const slotBookings = useGymSlotStore((s) => s.slotBookings);
@@ -49,43 +47,27 @@ export default function GymDashboard() {
     booking: SlotBooking;
   } | null>(null);
 
-  const gymBookings = bookings.filter((b) => b.status !== 'cancelled');
   const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
+  const CURRENT_MONTH = today.slice(0, 7);
 
-  const todayBookings = gymBookings
-    .filter((b) => b.sessions.some((s) => s.date === today && s.status === 'scheduled'))
-    .sort((a, b) => {
-      const aTime = a.sessions.find((s) => s.date === today)?.startTime ?? '';
-      const bTime = b.sessions.find((s) => s.date === today)?.startTime ?? '';
-      return aTime.localeCompare(bTime);
-    });
+  // 헬스장의 예약·매출은 '확정된 시설 이용 슬롯'(gymId 기준) 으로 집계
+  const confirmedSlots = gymConfirmedSlots(slotBookings, GYM_ID);
 
-  const confirmedSlotsToday = slotBookings.filter(
-    (b) => b.gymId === GYM_ID && b.status === 'confirmed' && b.date === today
-  );
+  const confirmedSlotsToday = confirmedSlots.filter((b) => b.date === today);
   const pendingSlots = slotBookings.filter((b) => b.gymId === GYM_ID && b.status === 'pending');
   const totalPending = pendingSlots.length;
 
-  const thisMonthRevenue = gymBookings
-    .filter((b) => b.status === 'completed' && b.startDate.startsWith('2026-04'))
-    .reduce((sum, b) => sum + Math.round(b.totalAmount * 0.05), 0);
+  const thisMonthRevenue = confirmedSlots
+    .filter((b) => b.date.slice(0, 7) === CURRENT_MONTH)
+    .reduce((sum, b) => sum + b.facilityFee, 0);
 
-  const revenueItems = [
-    ...slotBookings
-      .filter((b) => b.gymId === GYM_ID && b.status === 'confirmed')
-      .map((b) => ({
-        id: b.id, date: b.date, time: b.startTime,
-        label: `${b.trainerName} 트레이너`, detail: `회원 ${b.memberCount}명`,
-        amount: b.facilityFee, type: 'slot' as const,
-      })),
-    ...gymBookings
-      .filter((b) => b.status === 'completed')
-      .map((b) => ({
-        id: b.id, date: b.startDate, time: b.schedule.startTime,
-        label: b.trainerName + ' 트레이너', detail: 'PT 수업',
-        amount: Math.round(b.totalAmount * 0.05), type: 'session' as const,
-      })),
-  ].sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
+  const revenueItems = confirmedSlots
+    .map((b) => ({
+      id: b.id, date: b.date, time: b.startTime,
+      label: `${b.trainerName} 트레이너`, detail: `회원 ${b.memberCount}명`,
+      amount: b.facilityFee, type: 'slot' as const,
+    }))
+    .sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
 
   const handleModalConfirm = () => {
     if (!confirmModal) return;
@@ -112,7 +94,7 @@ export default function GymDashboard() {
     }
   };
 
-  const todayTotalCount = confirmedSlotsToday.length + todayBookings.length;
+  const todayTotalCount = confirmedSlotsToday.length;
   const todayDateLabel = (() => {
     const d = new Date(today + 'T00:00:00');
     const dayNames = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
@@ -153,7 +135,7 @@ export default function GymDashboard() {
             <MaterialCommunityIcons name="cash-multiple" size={20} color={COLORS.success} />
           </View>
           <Text style={[s.statNum, { color: COLORS.success }]}>
-            {Math.round((thisMonthRevenue || 1890000) / 10000)}만
+            {Math.round(thisMonthRevenue / 10000)}만
           </Text>
           <Text style={s.statLabel}>이번 달 매출</Text>
         </TouchableOpacity>
@@ -239,40 +221,6 @@ export default function GymDashboard() {
                       </View>
                     );
                   })}
-                {todayBookings.map((b) => {
-                  const statusColor = BOOKING_STATUS_COLORS[b.status];
-                  const statusLabel = BOOKING_STATUS_LABELS[b.status];
-                  const sessionToday = b.sessions.find((ss) => ss.date === today);
-                  const startTime = sessionToday?.startTime ?? b.schedule.startTime;
-                  return (
-                    <View key={b.id} style={s.card}>
-                      <View style={[s.cardBar, { backgroundColor: TYPE_SESSION.accent }]} />
-                      <View style={s.cardInner}>
-                        <View style={s.cardTopRow}>
-                          <Text style={s.cardTime}>{formatTime(startTime)}</Text>
-                          <View style={[s.typePill, { backgroundColor: TYPE_SESSION.iconBg }]}>
-                            <MaterialCommunityIcons name={TYPE_SESSION.icon as any} size={11} color={TYPE_SESSION.accent} />
-                            <Text style={[s.typePillText, { color: TYPE_SESSION.accent }]}>{TYPE_SESSION.label}</Text>
-                          </View>
-                        </View>
-                        <View style={s.cardDivider} />
-                        <View style={s.cardBottomRow}>
-                          <View style={[s.personIcon, { backgroundColor: TYPE_SESSION.iconBg }]}>
-                            <Text style={[s.personIconText, { color: TYPE_SESSION.accent }]}>{b.trainerName[0]}</Text>
-                          </View>
-                          <View style={s.personInfo}>
-                            <Text style={s.personName}>{b.trainerName} <Text style={s.personRole}>트레이너</Text></Text>
-                            <Text style={s.personDetail}>PT 수업</Text>
-                          </View>
-                          <View style={[s.statusPill, { backgroundColor: statusColor + '22' }]}>
-                            <View style={[s.statusDot, { backgroundColor: statusColor }]} />
-                            <Text style={[s.statusText, { color: statusColor }]}>{statusLabel}</Text>
-                          </View>
-                        </View>
-                      </View>
-                    </View>
-                  );
-                })}
               </>
             )}
           </>
@@ -343,7 +291,7 @@ export default function GymDashboard() {
           <>
             <View style={s.dateHeader}>
               <Text style={s.dateHeaderText}>매출 목록</Text>
-              <Text style={s.revenueTotalText}>이번 달 {formatPrice(thisMonthRevenue || 1890000)}</Text>
+              <Text style={s.revenueTotalText}>이번 달 {formatPrice(thisMonthRevenue)}</Text>
             </View>
 
             {revenueItems.length === 0 ? (

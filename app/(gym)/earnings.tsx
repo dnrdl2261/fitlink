@@ -6,10 +6,13 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useScrollToTop } from '@react-navigation/native';
 import { useGymSlotStore } from '../../store/gymSlotStore';
-import { useBookingStore } from '../../store/bookingStore';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../utils/constants';
 import { formatPrice } from '../../utils/formatters';
+import {
+  gymConfirmedSlots, gymMonthlyRevenue, gymMonthTransactions,
+  gymNextSettlement, gymTrainerContribution, gymPopularHours,
+} from '../../utils/gymRevenue';
 
 const GYM = '#4F63F5';
 
@@ -20,38 +23,8 @@ const CHART_PERIODS = [
 ] as const;
 type PeriodKey = typeof CHART_PERIODS[number]['key'];
 
-const MOCK_MONTHLY = [
-  { key: '2025-07', label: '7월',  amount: 310000, count: 21 },
-  { key: '2025-08', label: '8월',  amount: 380000, count: 25 },
-  { key: '2025-09', label: '9월',  amount: 350000, count: 23 },
-  { key: '2025-10', label: '10월', amount: 420000, count: 28 },
-  { key: '2025-11', label: '11월', amount: 460000, count: 31 },
-  { key: '2025-12', label: '12월', amount: 490000, count: 33 },
-  { key: '2026-01', label: '1월',  amount: 390000, count: 26 },
-  { key: '2026-02', label: '2월',  amount: 445000, count: 30 },
-  { key: '2026-03', label: '3월',  amount: 500000, count: 34 },
-  { key: '2026-04', label: '4월',  amount: 480000, count: 32 },
-  { key: '2026-05', label: '5월',  amount: 560000, count: 37 },
-  { key: '2026-06', label: '6월',  amount: 0,       count: 0  },
-];
-
-const CURRENT_MONTH = '2026-05';
-const PREV_MONTH    = '2026-04';
-
-const MOCK_TRANSACTIONS = [
-  { id: 'g1',  date: '2026-05-20', trainer: '김태양', amount: 190000 },
-  { id: 'g2',  date: '2026-05-19', trainer: '이서연', amount: 126000 },
-  { id: 'g3',  date: '2026-05-18', trainer: '박준혁', amount: 190000 },
-  { id: 'g4',  date: '2026-05-17', trainer: '최유진', amount: 140000 },
-  { id: 'g5',  date: '2026-05-16', trainer: '정민성', amount: 190000 },
-  { id: 'g6',  date: '2026-05-15', trainer: '김태양', amount: 190000 },
-  { id: 'g7',  date: '2026-05-14', trainer: '이서연', amount: 126000 },
-  { id: 'g8',  date: '2026-05-13', trainer: '박준혁', amount: 190000 },
-  { id: 'g9',  date: '2026-05-12', trainer: '최유진', amount: 140000 },
-  { id: 'g10', date: '2026-05-11', trainer: '정민성', amount: 190000 },
-  { id: 'g11', date: '2026-05-09', trainer: '김태양', amount: 190000 },
-  { id: 'g12', date: '2026-05-08', trainer: '이서연', amount: 126000 },
-];
+const TODAY = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
+const CURRENT_MONTH = TODAY.slice(0, 7);
 
 export default function GymEarningsScreen() {
   const scrollRef = useRef<ScrollView>(null);
@@ -60,7 +33,6 @@ export default function GymEarningsScreen() {
   const { gymAdmin } = useAuthStore();
   const GYM_ID = gymAdmin?.gymId ?? 'gym_001';
   const { slotBookings } = useGymSlotStore();
-  const { bookings } = useBookingStore();
 
   const [period, setPeriod]           = useState<PeriodKey>('3m');
   const [highlightIdx, setHighlightIdx] = useState<number | null>(null);
@@ -74,25 +46,34 @@ export default function GymEarningsScreen() {
     [confirmedSlots]
   );
 
-  const ptBookings = bookings.filter(b => b.status !== 'cancelled');
-  const memberCount = new Set(ptBookings.map(b => b.memberId)).size;
-
-  const currentMonthData = MOCK_MONTHLY.find(d => d.key === CURRENT_MONTH);
-  const prevMonthData    = MOCK_MONTHLY.find(d => d.key === PREV_MONTH);
-  const currentAmount    = currentMonthData?.amount ?? 560000;
-  const prevAmount       = prevMonthData?.amount ?? 480000;
+  // 실제 확정 슬롯(시설 이용료)에서 월별 수익 산출
+  const months = useMemo(() => gymMonthlyRevenue(slotBookings, GYM_ID, 12), [slotBookings, GYM_ID]);
+  const currentMonthData = months[months.length - 1];
+  const prevMonthData    = months[months.length - 2];
+  const currentAmount    = currentMonthData?.amount ?? 0;
+  const prevAmount       = prevMonthData?.amount ?? 0;
   const diffAmount       = currentAmount - prevAmount;
 
-  const accumulated = MOCK_MONTHLY
-    .filter(d => d.key < CURRENT_MONTH && d.amount > 0)
-    .reduce((sum, d) => sum + d.amount, 0) + currentAmount;
+  const accumulated = useMemo(
+    () => gymConfirmedSlots(slotBookings, GYM_ID).reduce((s, b) => s + b.facilityFee, 0),
+    [slotBookings, GYM_ID]
+  );
+  const memberCount = useMemo(
+    () => new Set(gymConfirmedSlots(slotBookings, GYM_ID).map(s => s.memberName).filter(Boolean)).size,
+    [slotBookings, GYM_ID]
+  );
+  const transactions  = useMemo(() => gymMonthTransactions(slotBookings, GYM_ID, CURRENT_MONTH), [slotBookings, GYM_ID]);
+  const settlement    = useMemo(() => gymNextSettlement(slotBookings, GYM_ID), [slotBookings, GYM_ID]);
+  const contributions = useMemo(() => gymTrainerContribution(slotBookings, GYM_ID, CURRENT_MONTH), [slotBookings, GYM_ID]);
+  const popularHours  = useMemo(() => gymPopularHours(slotBookings, GYM_ID), [slotBookings, GYM_ID]);
+  const maxHourCount  = useMemo(() => Math.max(...popularHours.map(h => h.count), 1), [popularHours]);
 
   const chartData = useMemo(() => {
     const n = period === '3m' ? 3 : period === '6m' ? 6 : 12;
-    return MOCK_MONTHLY.filter(d => d.amount > 0).slice(-n);
-  }, [period]);
+    return months.slice(-n);
+  }, [period, months]);
 
-  const maxAmount = useMemo(() => Math.max(...chartData.map(d => d.amount)), [chartData]);
+  const maxAmount = useMemo(() => Math.max(...chartData.map(d => d.amount), 1), [chartData]);
   const highlighted = highlightIdx !== null ? chartData[highlightIdx] : chartData[chartData.length - 1];
 
   return (
@@ -120,12 +101,12 @@ export default function GymEarningsScreen() {
 
           <View style={styles.heroStats}>
             <View style={styles.heroStatItem}>
-              <Text style={styles.heroStatVal}>{currentMonthData?.count ?? 37}</Text>
+              <Text style={styles.heroStatVal}>{currentMonthData?.count ?? 0}</Text>
               <Text style={styles.heroStatLabel}>이번 달 이용</Text>
             </View>
             <View style={styles.heroStatDivider} />
             <View style={styles.heroStatItem}>
-              <Text style={styles.heroStatVal}>{memberCount || 8}명</Text>
+              <Text style={styles.heroStatVal}>{memberCount}명</Text>
               <Text style={styles.heroStatLabel}>이용 회원</Text>
             </View>
             <View style={styles.heroStatDivider} />
@@ -133,6 +114,18 @@ export default function GymEarningsScreen() {
               <Text style={styles.heroStatVal}>10%</Text>
               <Text style={styles.heroStatLabel}>플랫폼 수수료</Text>
             </View>
+          </View>
+        </View>
+
+        {/* ── 다음 정산 예정 ── */}
+        <View style={styles.settleCard}>
+          <View style={styles.settleIcon}>
+            <MaterialCommunityIcons name="bank-outline" size={22} color={GYM} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.settleLabel}>다음 정산 예정 · {settlement.dateLabel}</Text>
+            <Text style={styles.settleAmount}>{formatPrice(settlement.amount)}</Text>
+            <Text style={styles.settleSub}>{settlement.monthLabel} 확정 슬롯 기준 · 매월 10일 자동 입금</Text>
           </View>
         </View>
 
@@ -221,20 +214,26 @@ export default function GymEarningsScreen() {
           </View>
           <View style={styles.txHRule} />
 
-          {MOCK_TRANSACTIONS.map((tx, i) => (
-            <View
-              key={tx.id}
-              style={[styles.txRow, i < MOCK_TRANSACTIONS.length - 1 && styles.txRowBorder]}
-            >
-              <Text style={[styles.txCell, { flex: 1.2 }]}>
-                {tx.date.slice(5).replace('-', '/')}
-              </Text>
-              <Text style={[styles.txCell, { flex: 2 }]}>{tx.trainer} 트레이너</Text>
-              <Text style={[styles.txAmount, { flex: 1, textAlign: 'right' }]}>
-                +{formatPrice(tx.amount)}
-              </Text>
+          {transactions.length === 0 ? (
+            <View style={styles.txEmpty}>
+              <Text style={styles.txEmptyText}>이번 달 확정된 시설 이용이 없습니다</Text>
             </View>
-          ))}
+          ) : (
+            transactions.map((tx, i) => (
+              <View
+                key={tx.id}
+                style={[styles.txRow, i < transactions.length - 1 && styles.txRowBorder]}
+              >
+                <Text style={[styles.txCell, { flex: 1.2 }]}>
+                  {tx.date.slice(5).replace('-', '/')}
+                </Text>
+                <Text style={[styles.txCell, { flex: 2 }]}>{tx.trainer} 트레이너</Text>
+                <Text style={[styles.txAmount, { flex: 1, textAlign: 'right' }]}>
+                  +{formatPrice(tx.amount)}
+                </Text>
+              </View>
+            ))
+          )}
 
           <View style={styles.txFooter}>
             <Text style={styles.txFooterLabel}>이번 달 합계</Text>
@@ -242,17 +241,71 @@ export default function GymEarningsScreen() {
           </View>
         </View>
 
+        {/* ── 트레이너별 매출 기여도 (이번 달) ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>트레이너별 매출 기여도</Text>
+          {contributions.length === 0 ? (
+            <Text style={styles.txEmptyText}>이번 달 데이터가 없습니다</Text>
+          ) : (
+            contributions.map((c) => {
+              const pct = currentAmount > 0 ? Math.round((c.amount / currentAmount) * 100) : 0;
+              return (
+                <View key={c.trainerName} style={styles.contribRow}>
+                  <View style={styles.contribAvatar}>
+                    <Text style={styles.contribAvatarText}>{c.trainerName[0]}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.contribTopRow}>
+                      <Text style={styles.contribName}>{c.trainerName} 트레이너</Text>
+                      <Text style={styles.contribAmount}>{formatPrice(c.amount)}</Text>
+                    </View>
+                    <View style={styles.contribBarBg}>
+                      <View style={[styles.contribBarFill, { width: `${pct}%` as any }]} />
+                    </View>
+                    <Text style={styles.contribSub}>{c.count}건 · 전체의 {pct}%</Text>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </View>
+
+        {/* ── 인기 시간대 ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>인기 시간대</Text>
+          <Text style={styles.sectionSub}>확정된 시설 이용을 시간대별로 집계 (가동률 높은 시간 파악)</Text>
+          {popularHours.length === 0 ? (
+            <Text style={styles.txEmptyText}>데이터가 없습니다</Text>
+          ) : (
+            <View style={styles.hoursChart}>
+              {popularHours.map((h) => {
+                const barH = Math.max((h.count / maxHourCount) * 90, 6);
+                const isPeak = h.count === maxHourCount;
+                return (
+                  <View key={h.hour} style={styles.hourCol}>
+                    <Text style={styles.hourCount}>{h.count}</Text>
+                    <View style={styles.hourTrack}>
+                      <View style={[styles.hourBar, { height: barH }, isPeak && styles.hourBarPeak]} />
+                    </View>
+                    <Text style={[styles.hourLabel, isPeak && styles.hourLabelPeak]}>{h.hour}시</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
         {/* ── 수익 구조 안내 ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>수익 구조 안내</Text>
           <View style={styles.feeList}>
             <FeeRow icon="account" label="회원 총 결제" value="PT비 + 시설료 + 수수료" />
-            <FeeRow icon="home" label="헬스장 수취" value="시설이용료 100%" valueColor={COLORS.success} />
-            <FeeRow icon="percent" label="플랫폼 수수료" value="(PT비 + 시설료) × 10%" />
+            <FeeRow icon="home" label="헬스장 수취" value="시설 이용료 전액" valueColor={COLORS.success} />
+            <FeeRow icon="percent" label="플랫폼 수수료" value="시설료 × 10% (회원 부담)" />
           </View>
           <View style={styles.feeNotice}>
             <MaterialCommunityIcons name="information-outline" size={14} color={GYM} />
-            <Text style={styles.feeNoticeText}>수익은 매월 10일 자동 정산됩니다</Text>
+            <Text style={styles.feeNoticeText}>확정된 시설 이용료는 매월 10일 자동 정산됩니다</Text>
           </View>
         </View>
 
@@ -313,6 +366,40 @@ const styles = StyleSheet.create({
   accLabel:  { fontSize: 14, fontWeight: '700', color: COLORS.text },
   accSub:    { fontSize: 11, color: COLORS.textSecondary, marginTop: 2 },
   accAmount: { fontSize: 22, fontWeight: '900', color: GYM },
+
+  settleCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    marginHorizontal: 12, marginTop: 12,
+    backgroundColor: COLORS.surface, borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: GYM + '33',
+  },
+  settleIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: GYM + '15', alignItems: 'center', justifyContent: 'center' },
+  settleLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textSecondary },
+  settleAmount: { fontSize: 24, fontWeight: '900', color: GYM, marginVertical: 2 },
+  settleSub: { fontSize: 11, color: COLORS.textMuted },
+
+  sectionSub: { fontSize: 12, color: COLORS.textSecondary, marginTop: -6 },
+  txEmpty: { paddingVertical: 18, alignItems: 'center' },
+  txEmptyText: { fontSize: 13, color: COLORS.textSecondary },
+
+  contribRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  contribAvatar: { width: 38, height: 38, borderRadius: 12, backgroundColor: GYM + '18', alignItems: 'center', justifyContent: 'center' },
+  contribAvatarText: { fontSize: 15, fontWeight: '800', color: GYM },
+  contribTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
+  contribName: { fontSize: 14, fontWeight: '700', color: COLORS.text },
+  contribAmount: { fontSize: 14, fontWeight: '800', color: GYM },
+  contribBarBg: { height: 6, borderRadius: 3, backgroundColor: COLORS.surfaceElevated, overflow: 'hidden' },
+  contribBarFill: { height: 6, borderRadius: 3, backgroundColor: GYM },
+  contribSub: { fontSize: 11, color: COLORS.textSecondary, marginTop: 4 },
+
+  hoursChart: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around', height: 130, paddingTop: 8 },
+  hourCol: { flex: 1, alignItems: 'center', gap: 4 },
+  hourCount: { fontSize: 10, fontWeight: '700', color: COLORS.textSecondary },
+  hourTrack: { height: 90, justifyContent: 'flex-end' },
+  hourBar: { width: 16, borderRadius: 5, backgroundColor: GYM + '40' },
+  hourBarPeak: { backgroundColor: GYM },
+  hourLabel: { fontSize: 10, color: COLORS.textMuted, fontWeight: '500' },
+  hourLabelPeak: { color: GYM, fontWeight: '700' },
 
   section: {
     backgroundColor: COLORS.surface, marginHorizontal: 12, marginBottom: 12,
