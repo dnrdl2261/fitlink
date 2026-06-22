@@ -93,7 +93,7 @@ export default function CommunityPostScreen() {
       >
         {/* 헤더 */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.navigate('/(trainer)/community' as any)} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => router.navigate((from === 'post' && returnPostId ? { pathname: '/(trainer)/community-post', params: { postId: returnPostId } } : '/(trainer)/community') as any)} style={styles.backBtn}>
             <Text style={styles.backBtnText}>‹</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>{post.category}</Text>
