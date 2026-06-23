@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useReportStore, ReportTargetType, ReportStatus } from '../../store/reportStore';
+import SafetyActionModal, { SafetyModalType } from '../../components/SafetyActionModal';
 
 const STATUS_COLOR: Record<ReportStatus, string> = {
   '접수': '#F59E0B', '검토중': '#4F63F5', '조치완료': '#10B981', '반려': '#94A3B8',
@@ -51,6 +52,7 @@ export default function SafetyScreen() {
   const [reportModal, setReportModal] = useState(false);
   const [reportTargetType, setReportTargetType] = useState<ReportTargetType>('trainer');
   const [reportDone, setReportDone] = useState(false);
+  const [safetyModal, setSafetyModal] = useState<SafetyModalType>(null);
   const [selectedReason, setSelectedReason] = useState('');
   const [twoFAEnabled, setTwoFAEnabled] = useState(false);
   const [loginAlert, setLoginAlert] = useState(true);
@@ -138,7 +140,7 @@ export default function SafetyScreen() {
               iconBg={D.bg}
               label="차단 목록 관리"
               sub="차단한 사용자 확인 및 해제"
-              onPress={() => {}}
+              onPress={() => setSafetyModal('blocklist')}
             />
           </View>
         </View>
@@ -175,7 +177,7 @@ export default function SafetyScreen() {
               iconBg={D.primaryGlow}
               label="비밀번호 변경"
               sub="정기적으로 변경하면 계정이 안전해요"
-              onPress={() => {}}
+              onPress={() => setSafetyModal('password')}
             />
             <Divider />
             <ToggleItem
@@ -210,7 +212,7 @@ export default function SafetyScreen() {
               iconBg={D.primaryGlow}
               label="개인정보 공개 설정"
               sub="프로필·연락처 공개 범위 설정"
-              onPress={() => {}}
+              onPress={() => setSafetyModal('privacy')}
             />
             <Divider />
             <ToggleItem
@@ -229,7 +231,7 @@ export default function SafetyScreen() {
               iconBg={D.error + '12'}
               label="개인정보 삭제 요청"
               sub="계정 및 활동 데이터 삭제 신청"
-              onPress={() => {}}
+              onPress={() => setSafetyModal('delete')}
             />
           </View>
         </View>
@@ -254,7 +256,7 @@ export default function SafetyScreen() {
               iconBg={D.amberPale}
               label="보호자 동의 관리"
               sub="미성년 자녀 계정의 보호자 동의 현황"
-              onPress={() => {}}
+              onPress={() => setSafetyModal('minor')}
             />
           </View>
           <View style={s.minorNotice}>
@@ -351,6 +353,8 @@ export default function SafetyScreen() {
           </View>
         </View>
       </Modal>
+
+      <SafetyActionModal type={safetyModal} role="member" onClose={() => setSafetyModal(null)} />
     </SafeAreaView>
   );
 }

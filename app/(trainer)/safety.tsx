@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useReportStore, ReportTargetType, ReportStatus } from '../../store/reportStore';
+import SafetyActionModal, { SafetyModalType } from '../../components/SafetyActionModal';
 
 const STATUS_COLOR: Record<ReportStatus, string> = {
   '접수': '#F59E0B', '검토중': '#4F63F5', '조치완료': '#10B981', '반려': '#94A3B8',
@@ -51,6 +52,7 @@ export default function SafetyScreen() {
   const [reportModal, setReportModal] = useState(false);
   const [reportTargetType, setReportTargetType] = useState<ReportTargetType>('member');
   const [reportDone, setReportDone] = useState(false);
+  const [safetyModal, setSafetyModal] = useState<SafetyModalType>(null);
   const [selectedReason, setSelectedReason] = useState('');
   const [twoFAEnabled, setTwoFAEnabled] = useState(false);
   const [loginAlert, setLoginAlert] = useState(true);
@@ -105,7 +107,7 @@ export default function SafetyScreen() {
             <Divider />
             <MenuItem icon="alert-circle-outline" iconColor={D.amber} iconBg={D.amberPale} label="부적절한 콘텐츠 신고" sub="불법·음란·혐오 콘텐츠 신고" onPress={() => openReport('content')} />
             <Divider />
-            <MenuItem icon="account-cancel-outline" iconColor={D.textSec} iconBg={D.bg} label="차단 목록 관리" sub="차단한 사용자 확인 및 해제" onPress={() => {}} />
+            <MenuItem icon="account-cancel-outline" iconColor={D.textSec} iconBg={D.bg} label="차단 목록 관리" sub="차단한 사용자 확인 및 해제" onPress={() => setSafetyModal('blocklist')} />
           </View>
         </View>
 
@@ -134,7 +136,7 @@ export default function SafetyScreen() {
         <View style={s.section}>
           <Text style={s.sectionLabel}>계정 보호</Text>
           <View style={s.card}>
-            <MenuItem icon="lock-reset" iconColor={D.primary} iconBg={D.primaryGlow} label="비밀번호 변경" sub="정기적으로 변경하면 계정이 안전해요" onPress={() => {}} />
+            <MenuItem icon="lock-reset" iconColor={D.primary} iconBg={D.primaryGlow} label="비밀번호 변경" sub="정기적으로 변경하면 계정이 안전해요" onPress={() => setSafetyModal('password')} />
             <Divider />
             <ToggleItem icon="two-factor-authentication" iconColor={D.success} iconBg={D.success + '15'} label="2단계 인증" sub="로그인 시 추가 인증 단계 활성화" value={twoFAEnabled} onToggle={() => toggle(setTwoFAEnabled, twoFAEnabled)} />
             <Divider />
@@ -145,11 +147,11 @@ export default function SafetyScreen() {
         <View style={s.section}>
           <Text style={s.sectionLabel}>개인 보호</Text>
           <View style={s.card}>
-            <MenuItem icon="eye-settings-outline" iconColor={D.primary} iconBg={D.primaryGlow} label="개인정보 공개 설정" sub="프로필·연락처 공개 범위 설정" onPress={() => {}} />
+            <MenuItem icon="eye-settings-outline" iconColor={D.primary} iconBg={D.primaryGlow} label="개인정보 공개 설정" sub="프로필·연락처 공개 범위 설정" onPress={() => setSafetyModal('privacy')} />
             <Divider />
             <ToggleItem icon="map-marker-outline" iconColor={D.success} iconBg={D.success + '15'} label="위치 정보 관리" sub="내 위치를 회원에게 공유" value={locationSetting} onToggle={() => toggle(setLocationSetting, locationSetting)} />
             <Divider />
-            <MenuItem icon="database-remove-outline" iconColor={D.error} iconBg={D.error + '12'} label="개인정보 삭제 요청" sub="계정 및 활동 데이터 삭제 신청" onPress={() => {}} />
+            <MenuItem icon="database-remove-outline" iconColor={D.error} iconBg={D.error + '12'} label="개인정보 삭제 요청" sub="계정 및 활동 데이터 삭제 신청" onPress={() => setSafetyModal('delete')} />
           </View>
         </View>
 
@@ -158,7 +160,7 @@ export default function SafetyScreen() {
           <View style={s.card}>
             <ToggleItem icon="shield-account-outline" iconColor={D.success} iconBg={D.success + '15'} label="성인 콘텐츠 필터" sub="미성년자 이용에 적합한 콘텐츠만 표시" value={adultFilter} onToggle={() => toggle(setAdultFilter, adultFilter)} />
             <Divider />
-            <MenuItem icon="account-child-outline" iconColor={D.amber} iconBg={D.amberPale} label="미성년 회원 관리" sub="미성년 회원 수업 시 보호자 동의 현황" onPress={() => {}} />
+            <MenuItem icon="account-child-outline" iconColor={D.amber} iconBg={D.amberPale} label="미성년 회원 관리" sub="미성년 회원 수업 시 보호자 동의 현황" onPress={() => setSafetyModal('minor')} />
           </View>
           <View style={s.minorNotice}>
             <MaterialCommunityIcons name="information-outline" size={14} color={D.textMuted} />
@@ -237,6 +239,8 @@ export default function SafetyScreen() {
           </View>
         </View>
       </Modal>
+
+      <SafetyActionModal type={safetyModal} role="trainer" onClose={() => setSafetyModal(null)} />
     </SafeAreaView>
   );
 }
