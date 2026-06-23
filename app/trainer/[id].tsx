@@ -11,6 +11,7 @@ import { useChatStore } from '../../store/chatStore';
 import { useGymSlotStore } from '../../store/gymSlotStore';
 import { useFollowStore } from '../../store/followStore';
 import { useReviewStore } from '../../store/reviewStore';
+import { useReportStore } from '../../store/reportStore';
 import { MOCK_TRAINERS } from '../../data/trainers';
 import { useTrainerStore } from '../../store/trainerStore';
 import { useMergedGyms } from '../../hooks/useFilteredGyms';
@@ -56,6 +57,7 @@ export default function TrainerDetailScreen() {
   const [followModal, setFollowModal] = useState<'followers' | 'following' | null>(null);
   const [reportModal, setReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
+  const [reportDone, setReportDone] = useState(false);
   const [blacklistConfirm, setBlacklistConfirm] = useState(false);
   const [removeConfirm, setRemoveConfirm] = useState(false);
   const [reviewSort, setReviewSort] = useState<'default' | 'rating'>('default');
@@ -77,6 +79,7 @@ export default function TrainerDetailScreen() {
   const allReviews = useReviewStore((s) => s.reviews);
   const realReviews = allReviews.filter((r) => r.trainerId === (id ?? ''));
   const { getOrCreate } = useChatStore();
+  const { addReport } = useReportStore();
 
   const allLinks = useFollowStore(s => s.links);
   const { follow, unfollow } = useFollowStore();
@@ -827,11 +830,17 @@ export default function TrainerDetailScreen() {
                       }]}
                       disabled={!reportReason}
                       onPress={() => {
+                        addReport({
+                          reporterId: member?.id ?? '',
+                          reporterName: member?.name ?? '회원',
+                          targetType: 'trainer',
+                          targetId: trainer.id,
+                          targetName: trainer.name,
+                          reason: reportReason,
+                        });
                         setReportModal(false);
                         setReportReason('');
-                        const msg = '신고가 접수되었습니다. 24시간 이내에 검토 후 조치하겠습니다.';
-                        if (Platform.OS === 'web') { window.alert(msg); return; }
-                        Alert.alert('신고 완료', msg);
+                        setReportDone(true);
                       }}
                     >
                       <Text style={[{ fontSize: 15, fontWeight: '700' }, { color: reportReason ? '#fff' : COLORS.textMuted }]}>신고 접수</Text>
@@ -842,6 +851,20 @@ export default function TrainerDetailScreen() {
             </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* 신고 접수 완료 확인 */}
+      <Modal visible={reportDone} transparent animationType="fade" onRequestClose={() => setReportDone(false)}>
+        <View style={st.confirmOverlay}>
+          <View style={st.confirmBox}>
+            <Text style={{ fontSize: 40 }}>✅</Text>
+            <Text style={st.confirmTitle}>신고가 접수되었습니다</Text>
+            <Text style={st.confirmMsg}>운영팀이 검토 후 조치합니다.{'\n'}처리 상태는 [내정보 → 안전 및 보안 → 신고 내역]에서 확인할 수 있어요.</Text>
+            <TouchableOpacity style={[st.confirmAction, { backgroundColor: COLORS.primary, width: '100%' }]} onPress={() => setReportDone(false)}>
+              <Text style={st.confirmActionText}>확인</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </View>
   );

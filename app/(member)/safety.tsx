@@ -6,6 +6,12 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useAuthStore } from '../../store/authStore';
+import { useReportStore, ReportTargetType, ReportStatus } from '../../store/reportStore';
+
+const STATUS_COLOR: Record<ReportStatus, string> = {
+  '접수': '#F59E0B', '검토중': '#4F63F5', '조치완료': '#10B981', '반려': '#94A3B8',
+};
 
 const D = {
   bg:          '#EEF2F9',
@@ -39,7 +45,12 @@ const SECURITY_LOGS = [
 
 export default function SafetyScreen() {
   const router = useRouter();
+  const { member } = useAuthStore();
+  const { addReport, getMyReports } = useReportStore();
+  const myReports = getMyReports(member?.id ?? '');
   const [reportModal, setReportModal] = useState(false);
+  const [reportTargetType, setReportTargetType] = useState<ReportTargetType>('trainer');
+  const [reportDone, setReportDone] = useState(false);
   const [selectedReason, setSelectedReason] = useState('');
   const [twoFAEnabled, setTwoFAEnabled] = useState(false);
   const [loginAlert, setLoginAlert] = useState(true);
@@ -48,12 +59,18 @@ export default function SafetyScreen() {
 
   const handleReport = () => {
     if (!selectedReason) return;
+    addReport({
+      reporterId: member?.id ?? '',
+      reporterName: member?.name ?? '회원',
+      targetType: reportTargetType,
+      targetName: reportTargetType === 'trainer' ? '트레이너(미지정)' : reportTargetType === 'gym' ? '헬스장(미지정)' : '부적절한 콘텐츠',
+      reason: selectedReason,
+    });
     setReportModal(false);
     setSelectedReason('');
-    const msg = '신고가 접수되었습니다. 24시간 이내에 검토 후 조치하겠습니다.';
-    if (Platform.OS === 'web') { window.alert(msg); return; }
-    Alert.alert('신고 완료', msg);
+    setReportDone(true);
   };
+  const openReport = (t: ReportTargetType) => { setReportTargetType(t); setReportModal(true); };
 
   const toggle = (setter: React.Dispatch<React.SetStateAction<boolean>>, val: boolean) => {
     setter(!val);
@@ -93,8 +110,17 @@ export default function SafetyScreen() {
               iconBg={D.error + '12'}
               label="트레이너 신고"
               sub="부적절한 행동·허위 정보 신고"
-              onPress={() => setReportModal(true)}
+              onPress={() => openReport('trainer')}
               accent
+            />
+            <Divider />
+            <MenuItem
+              icon="office-building-marker-outline"
+              iconColor={D.error}
+              iconBg={D.error + '12'}
+              label="헬스장 신고"
+              sub="허위 정보·부적절 운영 신고"
+              onPress={() => openReport('gym')}
             />
             <Divider />
             <MenuItem
@@ -103,7 +129,7 @@ export default function SafetyScreen() {
               iconBg={D.amberPale}
               label="부적절한 콘텐츠 신고"
               sub="불법·음란·혐오 콘텐츠 신고"
-              onPress={() => setReportModal(true)}
+              onPress={() => openReport('content')}
             />
             <Divider />
             <MenuItem
@@ -114,6 +140,28 @@ export default function SafetyScreen() {
               sub="차단한 사용자 확인 및 해제"
               onPress={() => {}}
             />
+          </View>
+        </View>
+
+        {/* ── 내 신고 내역 ── */}
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>내 신고 내역</Text>
+          <View style={s.card}>
+            {myReports.length === 0 ? (
+              <Text style={s.emptyReport}>접수한 신고가 없습니다</Text>
+            ) : (
+              myReports.map((r, i) => (
+                <View key={r.id} style={[s.reportRow, i < myReports.length - 1 && s.reportRowBorder]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.reportTarget} numberOfLines={1}>{r.targetName} · {r.reason}</Text>
+                    <Text style={s.reportDate}>{r.createdAt.slice(0, 10)}</Text>
+                  </View>
+                  <View style={[s.statusBadge, { backgroundColor: STATUS_COLOR[r.status] + '18' }]}>
+                    <Text style={[s.statusText, { color: STATUS_COLOR[r.status] }]}>{r.status}</Text>
+                  </View>
+                </View>
+              ))
+            )}
           </View>
         </View>
 
@@ -288,6 +336,20 @@ export default function SafetyScreen() {
             </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* 신고 접수 완료 */}
+      <Modal visible={reportDone} transparent animationType="fade" onRequestClose={() => setReportDone(false)}>
+        <View style={s.doneOverlay}>
+          <View style={s.doneBox}>
+            <Text style={{ fontSize: 40 }}>✅</Text>
+            <Text style={s.doneTitle}>신고가 접수되었습니다</Text>
+            <Text style={s.doneMsg}>운영팀이 검토 후 조치합니다.{'\n'}아래 '내 신고 내역'에서 처리 상태를 확인할 수 있어요.</Text>
+            <TouchableOpacity style={s.doneBtn} onPress={() => setReportDone(false)}>
+              <Text style={s.doneBtnText}>확인</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -476,4 +538,19 @@ const s = StyleSheet.create({
   },
   reportBtnOff: { backgroundColor: D.bg, borderWidth: 1.5, borderColor: D.border },
   reportBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+
+  emptyReport: { fontSize: 13, color: D.textMuted, padding: 18, textAlign: 'center' },
+  reportRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 13 },
+  reportRowBorder: { borderBottomWidth: 1, borderBottomColor: D.bg },
+  reportTarget: { fontSize: 13, fontWeight: '600', color: D.text },
+  reportDate: { fontSize: 11, color: D.textMuted, marginTop: 2 },
+  statusBadge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8 },
+  statusText: { fontSize: 11, fontWeight: '700' },
+
+  doneOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  doneBox: { backgroundColor: D.surface, borderRadius: 20, padding: 24, width: '100%', maxWidth: 340, alignItems: 'center', gap: 10 },
+  doneTitle: { fontSize: 18, fontWeight: '800', color: D.text, textAlign: 'center' },
+  doneMsg: { fontSize: 13, color: D.textSec, textAlign: 'center', lineHeight: 20 },
+  doneBtn: { marginTop: 6, width: '100%', paddingVertical: 13, borderRadius: 12, backgroundColor: D.primary, alignItems: 'center' },
+  doneBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 });
