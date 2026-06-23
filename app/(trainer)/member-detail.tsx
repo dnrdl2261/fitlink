@@ -21,6 +21,7 @@ const D = {
 };
 
 const TODAY = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
+const dateAfter = (days: number) => { const d = new Date(); d.setDate(d.getDate() + days); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 
 export default function MemberDetailScreen() {
   const router = useRouter();
@@ -43,6 +44,7 @@ export default function MemberDetailScreen() {
   const [offerCount, setOfferCount] = useState(10);
   const [offerPriceStr, setOfferPriceStr] = useState(String(basePrice));
   const [offerMemo, setOfferMemo] = useState('');
+  const [offerExpiryDays, setOfferExpiryDays] = useState(14);
   const [offerSent, setOfferSent] = useState(false);
   const offerPriceN = Number(offerPriceStr) || 0;
   const offerDiscount = basePrice > 0 ? Math.max(0, Math.round((1 - offerPriceN / basePrice) * 100)) : 0;
@@ -105,6 +107,7 @@ export default function MemberDetailScreen() {
     setOfferCount(10);
     setOfferPriceStr(String(basePrice));
     setOfferMemo('');
+    setOfferExpiryDays(14);
     setOfferSent(false);
     setOfferModal(true);
   };
@@ -120,6 +123,7 @@ export default function MemberDetailScreen() {
       pricePerSession: offerPriceN,
       basePrice,
       memo: offerMemo.trim(),
+      expiresAt: dateAfter(offerExpiryDays),
     });
     addNotification({
       type: 'trainer_proposal',
@@ -312,6 +316,16 @@ export default function MemberDetailScreen() {
                   <Text style={styles.calcPer}>{offerCount}회 × {formatPrice(offerPriceN)}</Text>
                 </View>
 
+                <Text style={styles.fieldLabel}>제안 유효기간</Text>
+                <View style={styles.countChips}>
+                  {[7, 14, 30].map((dys) => (
+                    <TouchableOpacity key={dys} style={[styles.countChip, offerExpiryDays === dys && styles.countChipOn]} onPress={() => setOfferExpiryDays(dys)} activeOpacity={0.8}>
+                      <Text style={[styles.countChipText, offerExpiryDays === dys && styles.countChipTextOn]}>{dys}일</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={styles.expiryHint}>📅 {dateAfter(offerExpiryDays)}까지 유효</Text>
+
                 <Text style={styles.fieldLabel}>메모 (선택)</Text>
                 <TextInput
                   style={styles.memoInput}
@@ -413,6 +427,7 @@ const styles = StyleSheet.create({
   calcDisc: { fontSize: 14, fontWeight: '800', color: D.error },
   calcTotal: { fontSize: 20, fontWeight: '900', color: D.primary },
   calcPer: { fontSize: 12, color: D.textMuted },
+  expiryHint: { fontSize: 13, color: D.primary, fontWeight: '700', marginTop: 8 },
   memoInput: { borderWidth: 1, borderColor: D.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: D.text, backgroundColor: '#F8FAFC', minHeight: 48, maxHeight: 100 },
   sendBtn: { marginTop: 18, paddingVertical: 15, borderRadius: 14, backgroundColor: D.primary, alignItems: 'center' },
   sendBtnOff: { backgroundColor: D.border },

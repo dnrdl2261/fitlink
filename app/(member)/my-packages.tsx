@@ -85,6 +85,8 @@ export default function MyPackagesScreen() {
           const discount = o.basePrice > 0 ? Math.max(0, Math.round((1 - o.pricePerSession / o.basePrice) * 100)) : 0;
           const total = o.pricePerSession * o.sessionCount;
           const baseTotal = o.basePrice * o.sessionCount;
+          const daysLeft = o.expiresAt ? Math.ceil((new Date(o.expiresAt).getTime() - new Date(today).getTime()) / 86400000) : null;
+          const expired = daysLeft !== null && daysLeft < 0;
           return (
             <View key={o.id} style={styles.offerCard}>
               <View style={styles.offerHead}>
@@ -106,16 +108,25 @@ export default function MyPackagesScreen() {
                 </View>
               </View>
               {!!o.memo && <Text style={styles.offerMemo}>“{o.memo}”</Text>}
+              {!!o.expiresAt && (
+                <View style={styles.offerExpiry}>
+                  <MaterialCommunityIcons name="calendar-clock" size={13} color={expired ? COLORS.error : COLORS.textSecondary} />
+                  <Text style={[styles.offerExpiryText, expired && { color: COLORS.error, fontWeight: '700' }]}>
+                    {expired ? '제안이 만료되었어요' : `${o.expiresAt}까지 · ${daysLeft === 0 ? '오늘 마감' : `D-${daysLeft}`}`}
+                  </Text>
+                </View>
+              )}
               <View style={styles.offerBtnRow}>
                 <TouchableOpacity style={styles.offerDecline} onPress={() => handleDecline(o.id)} activeOpacity={0.8}>
                   <Text style={styles.offerDeclineText}>거절</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.offerAccept}
-                  onPress={() => router.push({ pathname: '/booking/new', params: { trainerId: o.trainerId, offerId: o.id, offerCount: String(o.sessionCount), offerPrice: String(o.pricePerSession) } } as any)}
+                  style={[styles.offerAccept, expired && styles.offerAcceptOff]}
+                  onPress={() => { if (!expired) router.push({ pathname: '/booking/new', params: { trainerId: o.trainerId, offerId: o.id, offerCount: String(o.sessionCount), offerPrice: String(o.pricePerSession) } } as any); }}
+                  disabled={expired}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.offerAcceptText}>수락하고 등록</Text>
+                  <Text style={styles.offerAcceptText}>{expired ? '만료됨' : '수락하고 등록'}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -343,6 +354,9 @@ const styles = StyleSheet.create({
   offerTotal: { fontSize: 20, fontWeight: '900', color: COLORS.primary, marginTop: 1 },
   offerPer: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
   offerMemo: { fontSize: 13, color: COLORS.text, fontStyle: 'italic', backgroundColor: '#F8FAFC', borderRadius: 10, padding: 10 },
+  offerExpiry: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  offerExpiryText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '600' },
+  offerAcceptOff: { backgroundColor: COLORS.border },
   offerBtnRow: { flexDirection: 'row', gap: 10, marginTop: 2 },
   offerDecline: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 12, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center' },
   offerDeclineText: { fontSize: 14, fontWeight: '700', color: COLORS.textSecondary },

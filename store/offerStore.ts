@@ -16,6 +16,7 @@ export interface ReRegOffer {
   pricePerSession: number; // 제안 1회 가격
   basePrice: number;       // 정상가(할인 표시용)
   memo: string;
+  expiresAt: string;       // 제안 만료일 (YYYY-MM-DD)
   status: OfferStatus;
   createdAt: string;
 }
