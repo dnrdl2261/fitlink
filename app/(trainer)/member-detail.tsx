@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TextInput,
-  TouchableOpacity, SafeAreaView, Alert, Platform,
+  TouchableOpacity, SafeAreaView, Alert, Platform, Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useBookingStore } from '../../store/bookingStore';
 import { useMemberRecordStore } from '../../store/memberRecordStore';
 import { useNotificationStore } from '../../store/notificationStore';
+import { useOfferStore } from '../../store/offerStore';
 import { useChatStore } from '../../store/chatStore';
 import { formatPrice, formatDate } from '../../utils/formatters';
 
@@ -32,9 +33,19 @@ export default function MemberDetailScreen() {
   const { bookings } = useBookingStore();
   const { getRecords, addRecord, removeRecord } = useMemberRecordStore();
   const addNotification = useNotificationStore((s) => s.addNotification);
+  const addOffer = useOfferStore((s) => s.addOffer);
   const getOrCreate = useChatStore((s) => s.getOrCreate);
 
   const [draft, setDraft] = useState('');
+
+  const basePrice = trainer?.sessionPrice ?? 60000;
+  const [offerModal, setOfferModal] = useState(false);
+  const [offerCount, setOfferCount] = useState(10);
+  const [offerPriceStr, setOfferPriceStr] = useState(String(basePrice));
+  const [offerMemo, setOfferMemo] = useState('');
+  const [offerSent, setOfferSent] = useState(false);
+  const offerPriceN = Number(offerPriceStr) || 0;
+  const offerDiscount = basePrice > 0 ? Math.max(0, Math.round((1 - offerPriceN / basePrice) * 100)) : 0;
 
   const summary = useMemo(() => {
     const mine = bookings.filter((b) => b.trainerId === trainerId && b.memberId === mId && b.type !== 'consultation');
@@ -88,6 +99,37 @@ export default function MemberDetailScreen() {
       { text: '취소', style: 'cancel' },
       { text: '제안 보내기', onPress: apply },
     ]);
+  };
+
+  const openOffer = () => {
+    setOfferCount(10);
+    setOfferPriceStr(String(basePrice));
+    setOfferMemo('');
+    setOfferSent(false);
+    setOfferModal(true);
+  };
+
+  const sendOffer = () => {
+    if (offerCount <= 0 || offerPriceN <= 0) return;
+    addOffer({
+      trainerId,
+      trainerName: trainer?.name ?? '트레이너',
+      memberId: mId,
+      memberName: mName,
+      sessionCount: offerCount,
+      pricePerSession: offerPriceN,
+      basePrice,
+      memo: offerMemo.trim(),
+    });
+    addNotification({
+      type: 'trainer_proposal',
+      title: '🎁 트레이너 맞춤 재등록 제안',
+      body: `${trainer?.name ?? ''} 트레이너가 ${offerCount}회 ${offerPriceN.toLocaleString()}원/회 재등록을 제안했어요. 내 패키지에서 확인하세요.`,
+      targetRole: 'member',
+      userId: mId,
+      meta: { trainerId },
+    });
+    setOfferSent(true);
   };
 
   const handleMessage = () => {
@@ -161,6 +203,20 @@ export default function MemberDetailScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* 맞춤 재등록 제안 */}
+        <TouchableOpacity style={styles.reRegBtn} onPress={openOffer} activeOpacity={0.9}>
+          <MaterialCommunityIcons name="gift-outline" size={18} color="#fff" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.reRegBtnText}>맞춤 재등록 제안 보내기</Text>
+            <Text style={styles.reRegBtnSub}>
+              {summary.remaining === 0 && summary.count > 0
+                ? '세션을 모두 마쳤어요 · 재등록 시기입니다'
+                : '횟수·가격을 직접 정해 제안 (할인 가능)'}
+            </Text>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={20} color="#fff" />
+        </TouchableOpacity>
+
         {/* 운동 기록 */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>운동 기록 · 메모</Text>
@@ -209,6 +265,72 @@ export default function MemberDetailScreen() {
 
         <View style={{ height: 24 }} />
       </ScrollView>
+
+      {/* 맞춤 재등록 제안 모달 */}
+      <Modal visible={offerModal} transparent animationType="slide" onRequestClose={() => setOfferModal(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setOfferModal(false)}>
+          <TouchableOpacity style={styles.modalSheet} activeOpacity={1} onPress={() => {}}>
+            <View style={styles.modalHandle} />
+            {offerSent ? (
+              <View style={styles.sentBox}>
+                <Text style={{ fontSize: 40 }}>🎁</Text>
+                <Text style={styles.sentTitle}>제안을 보냈어요</Text>
+                <Text style={styles.sentSub}>{mName}님이 '내 패키지'에서 확인하고 수락할 수 있어요.</Text>
+                <TouchableOpacity style={styles.sentBtn} onPress={() => setOfferModal(false)}>
+                  <Text style={styles.sentBtnText}>확인</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <Text style={styles.modalTitle}>맞춤 재등록 제안</Text>
+                <Text style={styles.modalSub}>{mName}님께 보낼 횟수와 1회 가격을 정하세요.</Text>
+
+                <Text style={styles.fieldLabel}>횟수</Text>
+                <View style={styles.countChips}>
+                  {[5, 10, 20, 30, 40].map((c) => (
+                    <TouchableOpacity key={c} style={[styles.countChip, offerCount === c && styles.countChipOn]} onPress={() => setOfferCount(c)} activeOpacity={0.8}>
+                      <Text style={[styles.countChipText, offerCount === c && styles.countChipTextOn]}>{c}회</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={styles.fieldLabel}>1회 가격 (정상가 {formatPrice(basePrice)})</Text>
+                <TextInput
+                  style={styles.priceInput}
+                  value={offerPriceStr}
+                  onChangeText={(t) => setOfferPriceStr(t.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  placeholder={String(basePrice)}
+                  placeholderTextColor={D.textMuted}
+                />
+
+                <View style={styles.calcBox}>
+                  {offerDiscount > 0 && (
+                    <View style={styles.calcRow}><Text style={styles.calcLabel}>할인</Text><Text style={styles.calcDisc}>{offerDiscount}% ↓</Text></View>
+                  )}
+                  <View style={styles.calcRow}><Text style={styles.calcLabel}>총 결제</Text><Text style={styles.calcTotal}>{formatPrice(offerPriceN * offerCount)}</Text></View>
+                  <Text style={styles.calcPer}>{offerCount}회 × {formatPrice(offerPriceN)}</Text>
+                </View>
+
+                <Text style={styles.fieldLabel}>메모 (선택)</Text>
+                <TextInput
+                  style={styles.memoInput}
+                  value={offerMemo}
+                  onChangeText={setOfferMemo}
+                  placeholder="예) 재등록 감사 할인 🙏"
+                  placeholderTextColor={D.textMuted}
+                  multiline
+                />
+
+                <TouchableOpacity style={[styles.sendBtn, offerPriceN <= 0 && styles.sendBtnOff]} onPress={sendOffer} disabled={offerPriceN <= 0} activeOpacity={0.9}>
+                  <Text style={styles.sendBtnText}>제안 보내기</Text>
+                </TouchableOpacity>
+                <View style={{ height: 8 }} />
+              </ScrollView>
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -268,4 +390,36 @@ const styles = StyleSheet.create({
   recBar: { width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: D.primary },
   recDate: { fontSize: 12, fontWeight: '700', color: D.primary, marginBottom: 3 },
   recContent: { fontSize: 14, color: D.text, lineHeight: 20 },
+
+  reRegBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: D.primary, borderRadius: 16, padding: 16 },
+  reRegBtnText: { fontSize: 15, fontWeight: '800', color: '#fff' },
+  reRegBtnSub: { fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 28, maxHeight: '88%' },
+  modalHandle: { width: 40, height: 4, borderRadius: 9999, backgroundColor: D.border, alignSelf: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: D.text },
+  modalSub: { fontSize: 13, color: D.textSec, marginTop: 4, marginBottom: 8 },
+  fieldLabel: { fontSize: 13, fontWeight: '700', color: D.text, marginTop: 14, marginBottom: 8 },
+  countChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  countChip: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: D.border, backgroundColor: '#fff' },
+  countChipOn: { borderColor: D.primary, backgroundColor: D.primaryGlow },
+  countChipText: { fontSize: 14, fontWeight: '700', color: D.textSec },
+  countChipTextOn: { color: D.primary },
+  priceInput: { borderWidth: 1, borderColor: D.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, fontWeight: '700', color: D.text, backgroundColor: '#F8FAFC' },
+  calcBox: { backgroundColor: D.primaryGlow, borderRadius: 14, padding: 14, marginTop: 12, gap: 4 },
+  calcRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  calcLabel: { fontSize: 13, color: D.textSec, fontWeight: '600' },
+  calcDisc: { fontSize: 14, fontWeight: '800', color: D.error },
+  calcTotal: { fontSize: 20, fontWeight: '900', color: D.primary },
+  calcPer: { fontSize: 12, color: D.textMuted },
+  memoInput: { borderWidth: 1, borderColor: D.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: D.text, backgroundColor: '#F8FAFC', minHeight: 48, maxHeight: 100 },
+  sendBtn: { marginTop: 18, paddingVertical: 15, borderRadius: 14, backgroundColor: D.primary, alignItems: 'center' },
+  sendBtnOff: { backgroundColor: D.border },
+  sendBtnText: { fontSize: 15, fontWeight: '800', color: '#fff' },
+  sentBox: { alignItems: 'center', gap: 10, paddingVertical: 20 },
+  sentTitle: { fontSize: 18, fontWeight: '800', color: D.text },
+  sentSub: { fontSize: 13, color: D.textSec, textAlign: 'center', lineHeight: 19 },
+  sentBtn: { marginTop: 8, width: '100%', paddingVertical: 14, borderRadius: 14, backgroundColor: D.primary, alignItems: 'center' },
+  sentBtnText: { fontSize: 15, fontWeight: '800', color: '#fff' },
 });

@@ -9,6 +9,7 @@ import { useTrainerStore } from '../../store/trainerStore';
 import { useBookingStore, calcEndTime } from '../../store/bookingStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
+import { useOfferStore } from '../../store/offerStore';
 import { formatTime, formatPrice } from '../../utils/formatters';
 import { PAY_METHODS } from '../../utils/constants';
 
@@ -133,13 +134,19 @@ function ScreenHeader({ onBack }: { onBack: () => void }) {
 
 export default function NewBookingScreen() {
   const router = useRouter();
-  const { trainerId } = useLocalSearchParams<{ trainerId?: string }>();
+  const { trainerId, offerId, offerCount, offerPrice } = useLocalSearchParams<{ trainerId?: string; offerId?: string; offerCount?: string; offerPrice?: string }>();
   const { trainer: myTrainer, member } = useAuthStore();
   const { addNotification } = useNotificationStore();
+  const acceptOffer = useOfferStore((s) => s.acceptOffer);
   const storeTrainers = useTrainerStore((s) => s.trainers);
   const trainerFromStore = storeTrainers.find((t) => t.id === trainerId);
   const trainer = myTrainer?.id === trainerId ? myTrainer : trainerFromStore;
   const { addBooking } = useBookingStore();
+
+  // 트레이너 맞춤 재등록 제안으로 진입 시 횟수·1회가격 고정
+  const offerCountN = Number(offerCount) || 0;
+  const offerPriceN = Number(offerPrice) || 0;
+  const isOffer = !!offerId && offerCountN > 0 && offerPriceN > 0;
 
   const scrollRef = useRef<ScrollView>(null);
   const [step, setStep] = useState(1);
@@ -148,7 +155,7 @@ export default function NewBookingScreen() {
 
   const [classType, setClassType] = useState('');
   const [classPurpose, setClassPurpose] = useState('');
-  const [sessionCount, setSessionCount] = useState(0);
+  const [sessionCount, setSessionCount] = useState(isOffer ? offerCountN : 0);
 
   const [payMethod, setPayMethod] = useState('card');
   const [completedBookingId, setCompletedBookingId] = useState('');
@@ -156,9 +163,10 @@ export default function NewBookingScreen() {
   const endTime = startTime ? calcEndTime(startTime, DURATION) : '';
 
   const basePrice = trainer?.sessionPrice ?? 60000;
-  const pricePerSession = basePrice;
-  const rawTotal = basePrice * (sessionCount || 0);
+  const pricePerSession = isOffer ? offerPriceN : basePrice;
+  const rawTotal = pricePerSession * (sessionCount || 0);
   const finalPrice = rawTotal;
+  const offerDiscountPct = isOffer && basePrice > 0 ? Math.max(0, Math.round((1 - offerPriceN / basePrice) * 100)) : 0;
 
   const canProceed =
     step === 1 ? preferredDays.length > 0 && startTime !== '' :
@@ -197,6 +205,7 @@ export default function NewBookingScreen() {
       body: `${member?.name ?? '회원'}님이 ${sessionCount}회 패키지를 결제했습니다. 일정을 확인해주세요.`,
       meta: { bookingId, trainerId: trainer.id },
     });
+    if (isOffer && offerId) acceptOffer(offerId);
     setCompletedBookingId(bookingId);
     setStep(4);
   };
@@ -422,7 +431,27 @@ export default function NewBookingScreen() {
               </View>
             </View>
 
-            {/* 횟수 선택 */}
+            {/* 횟수 선택 (제안 모드: 고정) */}
+            {isOffer ? (
+              <View style={[s.card, { borderWidth: 1.5, borderColor: D.primary }]}>
+                <Text style={s.cardLabel}>🎁 트레이너 맞춤 재등록 제안</Text>
+                <View style={s.offerLockRow}>
+                  <View style={s.offerLockCount}>
+                    <Text style={s.offerLockCountNum}>{sessionCount}<Text style={s.offerLockCountUnit}>회</Text></Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    {offerDiscountPct > 0 && (
+                      <Text style={s.offerLockBase}>정상가 {formatPrice(basePrice * sessionCount)}</Text>
+                    )}
+                    <Text style={s.offerLockTotal}>{formatPrice(finalPrice)}</Text>
+                    <Text style={s.offerLockPer}>
+                      {formatPrice(pricePerSession)}/회{offerDiscountPct > 0 ? ` · ${offerDiscountPct}% 할인` : ''}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={s.offerLockNote}>트레이너가 보낸 맞춤 제안가입니다. 횟수·가격은 고정됩니다.</Text>
+              </View>
+            ) : (
             <View style={s.card}>
               <Text style={s.cardLabel}>횟수 선택</Text>
               <View style={s.countGrid}>
@@ -448,6 +477,7 @@ export default function NewBookingScreen() {
                 })}
               </View>
             </View>
+            )}
           </>
         )}
 
@@ -747,6 +777,15 @@ const s = StyleSheet.create({
   countUnit: { fontSize: 14, fontWeight: '600' },
   countTotal:{ fontSize: 15, fontWeight: '700', color: D.text },
   countPer:  { fontSize: 11, color: D.textSec },
+
+  offerLockRow: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: D.primaryGlow, borderRadius: 14, padding: 14 },
+  offerLockCount: { width: 64, height: 64, borderRadius: 16, backgroundColor: D.primary, alignItems: 'center', justifyContent: 'center' },
+  offerLockCountNum: { fontSize: 22, fontWeight: '900', color: '#fff' },
+  offerLockCountUnit: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  offerLockBase: { fontSize: 12, color: D.textMuted, textDecorationLine: 'line-through' },
+  offerLockTotal: { fontSize: 20, fontWeight: '900', color: D.primary, marginTop: 1 },
+  offerLockPer: { fontSize: 12, color: D.textSec, marginTop: 2, fontWeight: '600' },
+  offerLockNote: { fontSize: 11, color: D.textMuted, marginTop: 4 },
   freePtBadge: {
     marginTop: 4, alignSelf: 'flex-start',
     backgroundColor: '#ECFDF5', borderRadius: 6,

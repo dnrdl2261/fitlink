@@ -7,6 +7,7 @@ import { useRouter, useGlobalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { usePackageStore } from '../../store/packageStore';
+import { useOfferStore } from '../../store/offerStore';
 import { formatPrice } from '../../utils/formatters';
 import { COLORS } from '../../utils/constants';
 import { PackageContractStatus } from '../../types';
@@ -25,8 +26,18 @@ export default function MyPackagesScreen() {
   const { from } = useGlobalSearchParams<{ from?: string }>();
   const onBack = () => router.navigate((from === 'home' ? '/(member)/trainers' : '/(member)/more') as any);
   const { member } = useAuthStore();
+  const memberId = member?.id ?? '';
   const { getMemberContracts } = usePackageStore();
+  const allOffers = useOfferStore((s) => s.offers);
+  const declineOffer = useOfferStore((s) => s.declineOffer);
+  const pendingOffers = allOffers.filter((o) => o.memberId === memberId && o.status === '제안');
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
+
+  const handleDecline = (id: string) => {
+    if (typeof window !== 'undefined' && window.confirm) {
+      if (window.confirm('이 제안을 거절할까요?')) declineOffer(id);
+    } else { declineOffer(id); }
+  };
 
   const allContracts = getMemberContracts(member?.id ?? '');
   const filtered = activeTab === 'all' ? allContracts : allContracts.filter((c) => c.status === activeTab);
@@ -69,6 +80,48 @@ export default function MyPackagesScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        {/* 트레이너 맞춤 재등록 제안 */}
+        {pendingOffers.map((o) => {
+          const discount = o.basePrice > 0 ? Math.max(0, Math.round((1 - o.pricePerSession / o.basePrice) * 100)) : 0;
+          const total = o.pricePerSession * o.sessionCount;
+          const baseTotal = o.basePrice * o.sessionCount;
+          return (
+            <View key={o.id} style={styles.offerCard}>
+              <View style={styles.offerHead}>
+                <MaterialCommunityIcons name="gift-outline" size={18} color={COLORS.primary} />
+                <Text style={styles.offerHeadText}>트레이너 맞춤 재등록 제안</Text>
+                {discount > 0 && (
+                  <View style={styles.offerDiscBadge}><Text style={styles.offerDiscBadgeText}>{discount}% 할인</Text></View>
+                )}
+              </View>
+              <Text style={styles.offerTrainer}>{o.trainerName} 트레이너</Text>
+              <View style={styles.offerPriceRow}>
+                <View style={styles.offerCountBox}>
+                  <Text style={styles.offerCountNum}>{o.sessionCount}<Text style={styles.offerCountUnit}>회</Text></Text>
+                </View>
+                <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                  {discount > 0 && <Text style={styles.offerBase}>{formatPrice(baseTotal)}</Text>}
+                  <Text style={styles.offerTotal}>{formatPrice(total)}</Text>
+                  <Text style={styles.offerPer}>{formatPrice(o.pricePerSession)}/회</Text>
+                </View>
+              </View>
+              {!!o.memo && <Text style={styles.offerMemo}>“{o.memo}”</Text>}
+              <View style={styles.offerBtnRow}>
+                <TouchableOpacity style={styles.offerDecline} onPress={() => handleDecline(o.id)} activeOpacity={0.8}>
+                  <Text style={styles.offerDeclineText}>거절</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.offerAccept}
+                  onPress={() => router.push({ pathname: '/booking/new', params: { trainerId: o.trainerId, offerId: o.id, offerCount: String(o.sessionCount), offerPrice: String(o.pricePerSession) } } as any)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.offerAcceptText}>수락하고 등록</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        })}
+
         {filtered.length === 0 ? (
           <View style={styles.emptyWrap}>
             <View style={styles.emptyIconBox}>
@@ -270,4 +323,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 10,
   },
   bookBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+  offerCard: {
+    backgroundColor: COLORS.surface, borderRadius: 16, padding: 16, marginBottom: 14,
+    borderWidth: 1.5, borderColor: COLORS.primary,
+    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12, shadowRadius: 12, elevation: 4, gap: 8,
+  },
+  offerHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  offerHeadText: { fontSize: 13, fontWeight: '800', color: COLORS.primary, flex: 1 },
+  offerDiscBadge: { backgroundColor: COLORS.error, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  offerDiscBadgeText: { fontSize: 11, fontWeight: '800', color: '#fff' },
+  offerTrainer: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  offerPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: COLORS.primary + '0E', borderRadius: 14, padding: 14 },
+  offerCountBox: { width: 60, height: 60, borderRadius: 14, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
+  offerCountNum: { fontSize: 20, fontWeight: '900', color: '#fff' },
+  offerCountUnit: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  offerBase: { fontSize: 13, color: COLORS.textMuted, textDecorationLine: 'line-through' },
+  offerTotal: { fontSize: 20, fontWeight: '900', color: COLORS.primary, marginTop: 1 },
+  offerPer: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  offerMemo: { fontSize: 13, color: COLORS.text, fontStyle: 'italic', backgroundColor: '#F8FAFC', borderRadius: 10, padding: 10 },
+  offerBtnRow: { flexDirection: 'row', gap: 10, marginTop: 2 },
+  offerDecline: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 12, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center' },
+  offerDeclineText: { fontSize: 14, fontWeight: '700', color: COLORS.textSecondary },
+  offerAccept: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: COLORS.primary, alignItems: 'center' },
+  offerAcceptText: { fontSize: 14, fontWeight: '800', color: '#fff' },
 });
