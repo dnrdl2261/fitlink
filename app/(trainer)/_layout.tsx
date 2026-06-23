@@ -1,4 +1,4 @@
-import { Tabs, useRouter, useLocalSearchParams } from 'expo-router';
+import { Tabs, useRouter, useGlobalSearchParams } from 'expo-router';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
@@ -18,7 +18,7 @@ const TAB_BAR = {
 // 진입 출처에 따라 뒤로가기 목적지 결정 (홈에서 왔으면 홈, 아니면 내정보)
 function BackToMoreBtn() {
   const router = useRouter();
-  const { from } = useLocalSearchParams<{ from?: string }>();
+  const { from } = useGlobalSearchParams<{ from?: string }>();
   const target = from === 'home' ? '/(trainer)/' : '/(trainer)/more';
   return (
     <TouchableOpacity

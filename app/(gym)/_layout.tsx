@@ -1,4 +1,4 @@
-import { Tabs, useRouter, useLocalSearchParams } from 'expo-router';
+import { Tabs, useRouter, useGlobalSearchParams } from 'expo-router';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../utils/constants';
@@ -18,7 +18,7 @@ const TAB_BAR = {
 
 function BackBtn({ color }: { color: string }) {
   const router = useRouter();
-  const { from } = useLocalSearchParams<{ from?: string }>();
+  const { from } = useGlobalSearchParams<{ from?: string }>();
   const target = from === 'home' ? '/(gym)/bookings' : '/(gym)/more';
   return (
     <TouchableOpacity onPress={() => router.navigate(target as any)} style={{ paddingLeft: 20, paddingRight: 8 }}>
