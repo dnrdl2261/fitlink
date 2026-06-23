@@ -4,7 +4,7 @@
 
 // 영속 스키마 버전. 시드/구조를 바꿔 옛 저장값이 새 코드와 안 맞을 때 이 숫자를 올리면,
 // 다음 로드 시 모든 옛 localStorage 값이 자동으로 무시(초기화)되고 새 시드가 적용된다.
-const PERSIST_VERSION = 2;
+const PERSIST_VERSION = 3;
 
 const getLS = (): any => {
   try { return (globalThis as any).localStorage ?? null; } catch { return null; }

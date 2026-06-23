@@ -89,7 +89,7 @@ function genGymHistory(): SlotBooking[] {
     { id: 'trainer_002', name: '이지수' },
     { id: 'trainer_003', name: '박철수' },
   ];
-  const members = ['홍길동', '김영희', '박민수', '정수아', '이준호', '최지훈'];
+  const members = ['강서연', '김영희', '박민수', '정수아', '이준호', '최지훈'];
   const times = ['07:00', '09:00', '10:00', '14:00', '18:00', '19:00', '20:00'];
   const fees = [12000, 15000, 18000];
   const out: SlotBooking[] = [];
@@ -111,9 +111,9 @@ function genGymHistory(): SlotBooking[] {
 
 const SEED_SLOT_BOOKINGS: SlotBooking[] = [
   ...genGymHistory(),
-  { id: 'slot_seed_1', gymId: 'gym_001', gymName: '강남 피트니스 클럽', trainerId: 'trainer_001', trainerName: '김민준', memberId: 'member_001', memberName: '홍길동', date: slotDate(0), startTime: '10:00', memberCount: 1, facilityFee: 15000, status: 'confirmed', createdAt: slotDate(-2) },
-  { id: 'slot_seed_2', gymId: 'gym_002', gymName: '역삼 스포츠센터',   trainerId: 'trainer_001', trainerName: '김민준', memberId: 'member_002', memberName: '김영희', date: slotDate(2), startTime: '14:00', memberCount: 1, facilityFee: 12000, status: 'confirmed', createdAt: slotDate(-1) },
-  { id: 'slot_seed_3', gymId: 'gym_001', gymName: '강남 피트니스 클럽', trainerId: 'trainer_001', trainerName: '김민준', memberId: 'member_001', memberName: '홍길동', date: slotDate(3), startTime: '11:00', memberCount: 1, facilityFee: 15000, status: 'pending',   createdAt: slotDate(0) },
+  // 트레이너가 시설 슬롯을 예약한 데모(회원=비데모 회원). 시설 예약은 트레이너만 가능.
+  { id: 'slot_seed_2', gymId: 'gym_002', gymName: '역삼 스포츠센터',   trainerId: 'trainer_001', trainerName: '김민준', memberId: undefined, memberName: '김영희', date: slotDate(0), startTime: '14:00', memberCount: 1, facilityFee: 12000, status: 'confirmed', createdAt: slotDate(-1) },
+  { id: 'slot_seed_3', gymId: 'gym_001', gymName: '강남 피트니스 클럽', trainerId: 'trainer_001', trainerName: '김민준', memberId: undefined, memberName: '정수아', date: slotDate(3), startTime: '11:00', memberCount: 1, facilityFee: 15000, status: 'pending',   createdAt: slotDate(0) },
 ];
 
 const persisted = loadPersisted(PERSIST_KEY, {
