@@ -1,4 +1,4 @@
-import { Tabs, useRouter, useGlobalSearchParams } from 'expo-router';
+import { Tabs, useRouter, useGlobalSearchParams, Redirect } from 'expo-router';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
@@ -60,9 +60,13 @@ function TrainerBellBtn({ userId, color }: { userId: string; color: string }) {
 }
 
 export default function TrainerLayout() {
-  const { isLoggedIn, trainer } = useAuthStore();
+  const { isLoggedIn, role, trainer } = useAuthStore();
   const unread = useChatStore((s) => s.getUnreadTotal(trainer?.id ?? ''));
   if (!isLoggedIn) return null;
+  // 역할 가드: 다른 역할이 직접 진입(딥링크) 시 본인 역할 그룹으로 리다이렉트
+  if (role !== 'trainer') {
+    return <Redirect href={(role === 'member' ? '/(member)/trainers' : role === 'gym_admin' ? '/(gym)/bookings' : '/login') as any} />;
+  }
 
   return (
     <>
