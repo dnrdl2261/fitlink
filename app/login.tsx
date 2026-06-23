@@ -278,6 +278,17 @@ export default function LoginScreen() {
             </View>
           )}
 
+          {/* 입점 신청 / 운영자 */}
+          <View style={s.opRow}>
+            <TouchableOpacity onPress={() => router.push('/gym-apply' as any)} activeOpacity={0.7}>
+              <Text style={s.opLinkText}>🏢 헬스장 입점 신청</Text>
+            </TouchableOpacity>
+            <Text style={s.opDivider}>·</Text>
+            <TouchableOpacity onPress={() => router.push('/operator' as any)} activeOpacity={0.7}>
+              <Text style={s.opLinkText}>🛡️ 운영자 콘솔</Text>
+            </TouchableOpacity>
+          </View>
+
           <Text style={s.notice}>* 프로토타입 — 실제 결제가 발생하지 않습니다</Text>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -402,4 +413,7 @@ const s = StyleSheet.create({
   demoBtnTxt:  { fontSize: 12, color: TEXT_S, fontWeight: '600' },
 
   notice: { textAlign: 'center', fontSize: 11, color: '#d1d5db', marginTop: 16 },
+  opRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 18 },
+  opLinkText: { fontSize: 12, color: TEXT_S, fontWeight: '600' },
+  opDivider: { fontSize: 12, color: BORDER },
 });

@@ -69,6 +69,8 @@ export default function RootLayout() {
           <Stack.Screen name="chat/[id]"    options={{ headerShown: false }} />
           <Stack.Screen name="user-profile/[userId]" options={{ headerShown: false }} />
           <Stack.Screen name="location-picker" options={{ headerShown: false }} />
+          <Stack.Screen name="operator"  options={{ headerShown: false }} />
+          <Stack.Screen name="gym-apply" options={{ headerShown: false }} />
         </Stack>
       </PaperProvider>
     </WebFrame>
