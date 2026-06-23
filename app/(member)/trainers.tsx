@@ -439,6 +439,10 @@ export default function MemberHomeScreen() {
           <View style={styles.empty}>
             <MaterialCommunityIcons name="account-search" size={52} color={D.textMuted} />
             <Text style={styles.emptyText}>해당 조건의 트레이너가 없습니다</Text>
+            <TouchableOpacity style={styles.emptyResetBtn} onPress={() => { setQuery(''); setSpecFilter('전체'); setPriceKey('all'); setFavOnly(false); }} activeOpacity={0.8}>
+              <MaterialCommunityIcons name="refresh" size={15} color={D.primary} />
+              <Text style={styles.emptyResetText}>필터 초기화</Text>
+            </TouchableOpacity>
           </View>
         }
         showsVerticalScrollIndicator={false}
@@ -689,6 +693,8 @@ const styles = StyleSheet.create({
 
   empty:     { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 14, color: D.textMuted },
+  emptyResetBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: D.primary, marginTop: 4 },
+  emptyResetText: { fontSize: 13, fontWeight: '700', color: D.primary },
 
   /* ── 정렬 모달 ── */
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
