@@ -162,6 +162,7 @@ export default function TrainerDetailScreen() {
     : allNormalized;
   const visibleReviews = showAllReviews ? sortedReviews : sortedReviews.slice(0, 3);
   const visibleCerts = showAllCerts ? trainer.certifications : trainer.certifications.slice(0, 3);
+  const isVerified = trainer.certifications.some((c) => c.verified);
   const visibleWork = showAllWork ? trainer.workHistory : trainer.workHistory.slice(0, 2);
   const visibleGyms = showAllGyms ? partnerGyms : partnerGyms.slice(0, 3);
 
@@ -228,7 +229,15 @@ export default function TrainerDetailScreen() {
                 </View>
               ))}
             </View>
-            <Text style={st.heroOverlayName}>{trainer.name} 트레이너</Text>
+            <View style={st.heroNameRow}>
+              <Text style={st.heroOverlayName}>{trainer.name} 트레이너</Text>
+              {isVerified && (
+                <View style={st.heroVerifyBadge}>
+                  <MaterialCommunityIcons name="check-decagram" size={13} color="#fff" />
+                  <Text style={st.heroVerifyText}>자격 인증</Text>
+                </View>
+              )}
+            </View>
             <View style={st.heroOverlayMeta2}>
               {(trainer.address?.city || trainer.address?.district) && (
                 <View style={st.heroOverlayRow}>
@@ -914,7 +923,10 @@ const st = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
   },
   heroSpecText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  heroNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   heroOverlayName: { fontSize: 24, fontWeight: '900', color: '#fff', letterSpacing: -0.3 },
+  heroVerifyBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#16A34A', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  heroVerifyText: { fontSize: 11, fontWeight: '800', color: '#fff' },
   heroOverlayMeta2: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   heroOverlayRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   heroOverlayMetaText: { fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },

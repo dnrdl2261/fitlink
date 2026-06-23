@@ -175,6 +175,7 @@ export default function MemberLayout() {
       <Tabs.Screen name="notifications" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="safety"        options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="support"       options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="workout-log"   options={{ href: null, headerShown: false }} />
     </Tabs>
     <NotificationToast userId={member?.id ?? ''} route="/(member)/notifications" />
     <OfferExpiryReminder userId={member?.id ?? ''} />

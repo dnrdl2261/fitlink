@@ -32,7 +32,7 @@ export default function MemberDetailScreen() {
   const { trainer } = useAuthStore();
   const trainerId = trainer?.id ?? '';
   const { bookings } = useBookingStore();
-  const { getRecords, addRecord, removeRecord } = useMemberRecordStore();
+  const { getRecords, addRecord, removeRecord, toggleShared } = useMemberRecordStore();
   const addNotification = useNotificationStore((s) => s.addNotification);
   const addOffer = useOfferStore((s) => s.addOffer);
   const getOrCreate = useChatStore((s) => s.getOrCreate);
@@ -64,7 +64,7 @@ export default function MemberDetailScreen() {
   const handleAdd = () => {
     const content = draft.trim();
     if (!content) return;
-    addRecord({ trainerId, memberId: mId, date: TODAY, content });
+    addRecord({ trainerId, trainerName: trainer?.name ?? '트레이너', memberId: mId, date: TODAY, content, shared: true });
     setDraft('');
   };
 
@@ -224,7 +224,7 @@ export default function MemberDetailScreen() {
         {/* 운동 기록 */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>운동 기록 · 메모</Text>
-          <Text style={styles.sectionSub}>세션 진도, 중량, 특이사항을 기록하세요. 회원에게는 보이지 않습니다.</Text>
+          <Text style={styles.sectionSub}>세션 진도·중량·특이사항을 기록하세요. 공개하면 회원이 '내 운동 기록'에서 볼 수 있어요.</Text>
           <View style={styles.inputWrap}>
             <TextInput
               style={styles.input}
@@ -255,7 +255,13 @@ export default function MemberDetailScreen() {
                 <View key={r.id} style={styles.recItem}>
                   <View style={styles.recBar} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.recDate}>{formatDate(r.date)}</Text>
+                    <View style={styles.recTopRow}>
+                      <Text style={styles.recDate}>{formatDate(r.date)}</Text>
+                      <TouchableOpacity onPress={() => toggleShared(r.id)} style={[styles.shareTag, { backgroundColor: r.shared ? D.success + '15' : D.bg }]} activeOpacity={0.7}>
+                        <MaterialCommunityIcons name={r.shared ? 'eye-outline' : 'eye-off-outline'} size={12} color={r.shared ? D.success : D.textMuted} />
+                        <Text style={[styles.shareTagText, { color: r.shared ? D.success : D.textMuted }]}>{r.shared ? '회원 공개' : '비공개'}</Text>
+                      </TouchableOpacity>
+                    </View>
                     <Text style={styles.recContent}>{r.content}</Text>
                   </View>
                   <TouchableOpacity onPress={() => handleDelete(r.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -402,8 +408,11 @@ const styles = StyleSheet.create({
   recEmptyText: { fontSize: 13, color: D.textMuted },
   recItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: D.bg, borderRadius: 12, padding: 12 },
   recBar: { width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: D.primary },
-  recDate: { fontSize: 12, fontWeight: '700', color: D.primary, marginBottom: 3 },
+  recDate: { fontSize: 12, fontWeight: '700', color: D.primary },
   recContent: { fontSize: 14, color: D.text, lineHeight: 20 },
+  recTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 },
+  shareTag: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 7 },
+  shareTagText: { fontSize: 10, fontWeight: '800' },
 
   reRegBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: D.primary, borderRadius: 16, padding: 16 },
   reRegBtnText: { fontSize: 15, fontWeight: '800', color: '#fff' },

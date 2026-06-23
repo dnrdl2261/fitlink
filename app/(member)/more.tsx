@@ -84,6 +84,7 @@ export default function MemberMoreScreen() {
         { icon: '🏋️', label: '트레이너 찾기', sub: '전문 트레이너 검색 및 프로필 확인', onPress: () => router.push('/(member)/trainer-list' as any) },
         { icon: '📅', label: '내 예약', sub: '예약 내역 확인', onPress: () => router.navigate('/(member)/bookings' as any) },
         { icon: '🎫', label: '내 패키지', sub: '다회권 구매 내역 및 잔여 횟수', onPress: () => router.navigate('/(member)/my-packages' as any) },
+        { icon: '📝', label: '내 운동 기록', sub: '트레이너가 공유한 수업 일지·진도', onPress: () => router.push('/(member)/workout-log' as any) },
       ],
     },
     {

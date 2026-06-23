@@ -14,6 +14,7 @@ interface TrainerCardProps {
 export default function TrainerCard({ trainer, onPress, distance }: TrainerCardProps) {
   const isMale = trainer.gender === 'male';
   const specs = (trainer.trainingGoals ?? []).slice(0, 2);
+  const isVerified = (trainer.certifications ?? []).some((c) => c.verified);
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.72}>
@@ -28,6 +29,11 @@ export default function TrainerCard({ trainer, onPress, distance }: TrainerCardP
         {/* 이름 + 성별 뱃지 */}
         <View style={styles.nameRow}>
           <Text style={styles.name}>{trainer.name}</Text>
+          {isVerified && (
+            <View style={styles.verifyBadge}>
+              <Text style={styles.verifyText}>✓ 인증</Text>
+            </View>
+          )}
           <View style={[styles.genderBadge, { backgroundColor: isMale ? '#DBEAFE' : '#FCE7F3' }]}>
             <Text style={[styles.genderText, { color: isMale ? '#2563EB' : '#DB2777' }]}>
               {isMale ? '남' : '여'}
@@ -92,6 +98,8 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   genderText: { fontSize: 10, fontWeight: '700' },
+  verifyBadge: { backgroundColor: '#DCFCE7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  verifyText: { fontSize: 10, fontWeight: '800', color: '#16A34A' },
   exp: { fontSize: 11, color: '#9CA3AF', fontWeight: '500' },
   specRow: { flexDirection: 'row', gap: 6 },
   specChip: {

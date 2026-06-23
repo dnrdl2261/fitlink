@@ -398,6 +398,9 @@ export default function MemberHomeScreen() {
               <View style={styles.trainerInfo}>
                 <View style={styles.trainerNameRow}>
                   <Text style={styles.trainerName}>{item.name}</Text>
+                  {item.certifications?.some((c) => c.verified) && (
+                    <View style={styles.verifyBadge}><Text style={styles.verifyText}>✓ 인증</Text></View>
+                  )}
                   <Text style={styles.trainerExp}>{item.experienceYears}년</Text>
                 </View>
                 <View style={styles.specRow}>
@@ -666,6 +669,8 @@ const styles = StyleSheet.create({
   trainerNameRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
   trainerName:     { fontSize: 16, fontWeight: '800', color: D.text },
   trainerExp:      { fontSize: 11, color: D.textMuted, fontWeight: '500' },
+  verifyBadge:     { backgroundColor: '#DCFCE7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  verifyText:      { fontSize: 10, fontWeight: '800', color: '#16A34A' },
   specRow:         { flexDirection: 'row', gap: 6 },
   specChip:        { backgroundColor: D.primaryGlow, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   specText:        { fontSize: 11, fontWeight: '700', color: D.primary },
