@@ -5,6 +5,7 @@ import { COLORS } from '../../utils/constants';
 import { useAuthStore } from '../../store/authStore';
 import { useChatStore } from '../../store/chatStore';
 import { useNotificationStore } from '../../store/notificationStore';
+import NotificationToast from '../../components/NotificationToast';
 import { MOCK_GYMS } from '../../data/gyms';
 
 const PRETENDARD = "'Pretendard Variable', 'Pretendard', -apple-system, sans-serif";
@@ -203,6 +204,7 @@ export default function GymLayout() {
       />
       <Tabs.Screen name="notifications" options={{ href: null, headerShown: false }} />
     </Tabs>
+    <NotificationToast userId={gymAdmin?.id ?? ''} route="/(gym)/notifications" />
     </View>
   );
 }

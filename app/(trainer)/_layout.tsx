@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
+import NotificationToast from '../../components/NotificationToast';
 import { useChatStore } from '../../store/chatStore';
 
 const PRIMARY = '#4F63F5';
@@ -64,6 +65,7 @@ export default function TrainerLayout() {
   if (!isLoggedIn) return null;
 
   return (
+    <>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: PRIMARY,
@@ -150,6 +152,8 @@ export default function TrainerLayout() {
       <Tabs.Screen name="support"        options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="gym-list"       options={{ href: null, headerTitle: '헬스장 목록', headerLeft: () => <BackToMoreBtn /> }} />
     </Tabs>
+    <NotificationToast userId={trainer?.id ?? ''} route="/(trainer)/notifications" />
+    </>
   );
 }
 
