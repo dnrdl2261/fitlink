@@ -141,15 +141,15 @@ export default function TrainerCommunityScreen() {
   );
 
   const goPost = (postId: string) =>
-    router.push(`/(trainer)/community-post?postId=${postId}` as any);
+    router.push({ pathname: '/(trainer)/community-post', params: { postId, ...(from ? { from } : {}) } } as any);
   const goGroup = (groupId: string) =>
-    router.push(`/(trainer)/community-group?groupId=${groupId}` as any);
+    router.push({ pathname: '/(trainer)/community-group', params: { groupId, ...(from ? { from } : {}) } } as any);
   const goWrite = () =>
     router.push({ pathname: '/(trainer)/community-write', params: { t: String(Date.now()), ...(from ? { from } : {}) } } as any);
   const goGroupWrite = () =>
     router.push({ pathname: '/(trainer)/community-group-write', params: { t: String(Date.now()), ...(from ? { from } : {}) } } as any);
   const goStory = (postId: string) =>
-    router.push(`/(trainer)/community-story?postId=${postId}` as any);
+    router.push({ pathname: '/(trainer)/community-story', params: { postId, ...(from ? { from } : {}) } } as any);
 
   return (
     <SafeAreaView style={styles.container}>

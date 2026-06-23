@@ -75,7 +75,7 @@ export default function CommunityGroupWriteScreen() {
       >
         {/* 헤더 */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.navigate('/(member)/community' as any)} style={styles.headerBtn}>
+          <TouchableOpacity onPress={() => router.navigate({ pathname: '/(member)/community', params: from ? { from } : {} } as any)} style={styles.headerBtn}>
             <Text style={styles.cancelText}>취소</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>모임 만들기</Text>

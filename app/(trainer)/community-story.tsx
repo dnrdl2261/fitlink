@@ -132,7 +132,7 @@ function StoryItem({
 }
 
 export default function TrainerCommunityStoryScreen() {
-  const { postId } = useLocalSearchParams<{ postId: string }>();
+  const { postId, from } = useLocalSearchParams<{ postId: string; from?: string }>();
   const router = useRouter();
   const { trainer } = useAuthStore();
   const { isFollowing, follow, unfollow } = useFollowStore();
@@ -183,7 +183,7 @@ export default function TrainerCommunityStoryScreen() {
     if (Platform.OS === 'web') alert(`"${post.title}" 링크가 복사됩니다.`);
   }, []);
 
-  const goBack = () => router.navigate('/(trainer)/community' as any);
+  const goBack = () => router.navigate({ pathname: '/(trainer)/community', params: from ? { from } : {} } as any);
   const goGroup = (groupId: string) =>
     router.push(`/(trainer)/community-group?groupId=${groupId}` as any);
 

@@ -132,7 +132,7 @@ function StoryItem({
 }
 
 export default function GymCommunityStoryScreen() {
-  const { postId } = useLocalSearchParams<{ postId: string }>();
+  const { postId, from } = useLocalSearchParams<{ postId: string; from?: string }>();
   const router = useRouter();
   const { gymAdmin } = useAuthStore();
   const { isFollowing, follow, unfollow } = useFollowStore();
@@ -184,7 +184,7 @@ export default function GymCommunityStoryScreen() {
     if (Platform.OS === 'web') alert(`"${post.title}" 링크가 복사됩니다.`);
   }, []);
 
-  const goBack = () => router.navigate('/(gym)/community' as any);
+  const goBack = () => router.navigate({ pathname: '/(gym)/community', params: from ? { from } : {} } as any);
   const goGroup = (groupId: string) =>
     router.push(`/(gym)/community-group?groupId=${groupId}` as any);
 

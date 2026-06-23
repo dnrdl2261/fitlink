@@ -137,7 +137,7 @@ function StoryItem({
 }
 
 export default function MemberCommunityStoryScreen() {
-  const { postId } = useLocalSearchParams<{ postId: string }>();
+  const { postId, from } = useLocalSearchParams<{ postId: string; from?: string }>();
   const router = useRouter();
   const { member } = useAuthStore();
   const { isFollowing, follow, unfollow } = useFollowStore();
@@ -191,7 +191,7 @@ export default function MemberCommunityStoryScreen() {
     if (Platform.OS === 'web') alert(`"${post.title}" 링크가 복사됩니다.`);
   }, []);
 
-  const goBack = () => router.navigate('/(member)/community' as any);
+  const goBack = () => router.navigate({ pathname: '/(member)/community', params: from ? { from } : {} } as any);
   const goGroup = (groupId: string) =>
     router.push(`/(member)/community-group?groupId=${groupId}` as any);
 

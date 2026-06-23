@@ -141,15 +141,15 @@ export default function MemberCommunityScreen() {
   );
 
   const goPost = (postId: string) =>
-    router.push(`/(member)/community-post?postId=${postId}` as any);
+    router.push({ pathname: '/(member)/community-post', params: { postId, ...(from ? { from } : {}) } } as any);
   const goGroup = (groupId: string) =>
-    router.push(`/(member)/community-group?groupId=${groupId}` as any);
+    router.push({ pathname: '/(member)/community-group', params: { groupId, ...(from ? { from } : {}) } } as any);
   const goWrite = () =>
     router.push({ pathname: '/(member)/community-write', params: { t: String(Date.now()), ...(from ? { from } : {}) } } as any);
   const goGroupWrite = () =>
     router.push({ pathname: '/(member)/community-group-write', params: { t: String(Date.now()), ...(from ? { from } : {}) } } as any);
   const goStory = (postId: string) =>
-    router.push(`/(member)/community-story?postId=${postId}` as any);
+    router.push({ pathname: '/(member)/community-story', params: { postId, ...(from ? { from } : {}) } } as any);
 
   return (
     <SafeAreaView style={styles.container}>
