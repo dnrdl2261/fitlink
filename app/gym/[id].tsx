@@ -18,6 +18,7 @@ import { useChatStore } from '../../store/chatStore';
 import { usePartnerStore } from '../../store/partnerStore';
 import { useBookingStore } from '../../store/bookingStore';
 import { useReviewStore } from '../../store/reviewStore';
+import { useReportStore } from '../../store/reportStore';
 import { MOCK_TRAINERS } from '../../data/trainers';
 import { MOCK_GYM_ADMINS } from '../../data/users';
 import { formatDistance } from '../../utils/distance';
@@ -25,6 +26,15 @@ import { formatPrice } from '../../utils/formatters';
 import { COLORS, DAY_LABELS } from '../../utils/constants';
 import StarRating from '../../components/StarRating';
 import TrainerCard from '../../components/TrainerCard';
+
+const GYM_REPORT_REASONS = [
+  '허위 시설·정보 기재',
+  '환불·요금 분쟁',
+  '위생·안전 문제',
+  '부적절한 응대',
+  '사기 또는 금전 갈취',
+  '기타',
+];
 
 export default function GymDetailScreen() {
   const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
@@ -40,6 +50,9 @@ export default function GymDetailScreen() {
   const { applyToGym, isPartner, hasActiveRequest } = usePartnerStore();
   const { getMyBookings } = useBookingStore();
   const { getGymReviews, hasReviewedGym } = useReviewStore();
+  const { addReport } = useReportStore();
+  const [reportModal, setReportModal] = useState(false);
+  const [reportDone, setReportDone] = useState(false);
 
   const isAlreadyPartner = trainer && gym ? isPartner(gym.id, trainer.id, gym.partnerTrainerIds) : false;
   const isPending = trainer && gym ? hasActiveRequest(gym.id, trainer.id) : false;
@@ -76,6 +89,20 @@ export default function GymDetailScreen() {
       { id: adminId, name: adminName, role: 'gym_admin' }
     );
     router.push(`/chat/${convId}` as any);
+  };
+
+  const submitReport = (reason: string) => {
+    if (!gym) return;
+    addReport({
+      reporterId: member?.id ?? '',
+      reporterName: member?.name ?? '회원',
+      targetType: 'gym',
+      targetId: gym.id,
+      targetName: gym.name,
+      reason,
+    });
+    setReportModal(false);
+    setReportDone(true);
   };
 
   if (!gym) {
@@ -129,6 +156,11 @@ export default function GymDetailScreen() {
           <StarRating rating={gym.rating} reviewCount={gym.reviewCount} size="medium" />
           <Text style={styles.description}>{gym.description}</Text>
           <Text style={styles.phone}>📞 {gym.phoneNumber}</Text>
+          {!isTrainer && (
+            <TouchableOpacity style={styles.reportLink} onPress={() => setReportModal(true)}>
+              <Text style={styles.reportLinkText}>🚩 이 헬스장 신고하기</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* 시설 */}
@@ -327,6 +359,36 @@ export default function GymDetailScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* 헬스장 신고 - 사유 선택 */}
+      <Modal visible={reportModal} transparent animationType="fade" onRequestClose={() => setReportModal(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setReportModal(false)}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalEmoji}>🚩</Text>
+            <Text style={styles.modalTitle}>{gym.name} 신고</Text>
+            <Text style={styles.modalBody}>신고 사유를 선택하세요.{'\n'}허위 신고 시 이용이 제한될 수 있습니다.</Text>
+            {GYM_REPORT_REASONS.map((r) => (
+              <TouchableOpacity key={r} style={styles.reasonBtn} onPress={() => submitReport(r)}>
+                <Text style={styles.reasonBtnText}>{r}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* 신고 접수 완료 */}
+      <Modal visible={reportDone} transparent animationType="fade" onRequestClose={() => setReportDone(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setReportDone(false)}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalEmoji}>✅</Text>
+            <Text style={styles.modalTitle}>신고가 접수되었습니다</Text>
+            <Text style={styles.modalBody}>운영팀이 검토 후 조치합니다.{'\n'}처리 상태는 [내정보 → 안전 및 보안 → 신고 내역]에서 확인할 수 있어요.</Text>
+            <TouchableOpacity style={styles.modalSingleBtn} onPress={() => setReportDone(false)}>
+              <Text style={styles.modalSingleBtnText}>확인</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -519,4 +581,12 @@ const styles = StyleSheet.create({
     alignItems: 'center', backgroundColor: COLORS.secondary,
   },
   modalSingleBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+
+  reportLink: { marginTop: 10, alignSelf: 'flex-start' },
+  reportLinkText: { fontSize: 13, fontWeight: '600', color: COLORS.error },
+  reasonBtn: {
+    width: '100%', paddingVertical: 13, borderRadius: 12, marginTop: 4,
+    alignItems: 'center', backgroundColor: COLORS.background,
+  },
+  reasonBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.text },
 });
