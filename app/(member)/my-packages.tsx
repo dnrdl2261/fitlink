@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   SafeAreaView,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { usePackageStore } from '../../store/packageStore';
@@ -22,8 +22,7 @@ const TABS: { key: FilterTab; label: string }[] = [
 
 export default function MyPackagesScreen() {
   const router = useRouter();
-  const { from } = useLocalSearchParams<{ from?: string }>();
-  const backTarget = from === 'home' ? '/(member)/trainers' : '/(member)/more';
+  const onBack = () => { if (router.canGoBack()) router.back(); else router.navigate('/(member)/more' as any); };
   const { member } = useAuthStore();
   const { getMemberContracts } = usePackageStore();
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
@@ -37,7 +36,7 @@ export default function MyPackagesScreen() {
     <SafeAreaView style={styles.container}>
       {/* 헤더 */}
       <View style={styles.pageHeader}>
-        <TouchableOpacity onPress={() => router.navigate(backTarget as any)} style={styles.backBtn}>
+        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <Text style={styles.backBtnText}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.pageTitle}>내 패키지</Text>

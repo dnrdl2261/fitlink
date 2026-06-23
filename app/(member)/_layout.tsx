@@ -1,4 +1,4 @@
-import { Tabs, useRouter, useLocalSearchParams } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../utils/constants';
@@ -37,10 +37,10 @@ const TAB_BAR = {
 
 function BackBtn({ color }: { color: string }) {
   const router = useRouter();
-  const { from } = useLocalSearchParams<{ from?: string }>();
-  const target = from === 'home' ? '/(member)/trainers' : '/(member)/more';
+  // 실제 진입 history로 복귀. history 없으면(딥링크 등) 내정보로 fallback.
+  const onBack = () => { if (router.canGoBack()) router.back(); else router.navigate('/(member)/more' as any); };
   return (
-    <TouchableOpacity onPress={() => router.navigate(target as any)} style={{ paddingLeft: 20, paddingRight: 8 }}>
+    <TouchableOpacity onPress={onBack} style={{ paddingLeft: 20, paddingRight: 8 }}>
       <Text style={{ fontSize: 34, fontWeight: '300', color }}>‹</Text>
     </TouchableOpacity>
   );

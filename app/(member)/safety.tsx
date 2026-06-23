@@ -63,7 +63,7 @@ export default function SafetyScreen() {
     <SafeAreaView style={s.container}>
       {/* 헤더 */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.navigate('/(member)/more' as any)} style={s.backBtn}>
+        <TouchableOpacity onPress={() => { if (router.canGoBack()) router.back(); else router.navigate('/(member)/more' as any); }} style={s.backBtn}>
           <MaterialCommunityIcons name="chevron-left" size={26} color={D.primary} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>안전 및 보안</Text>
