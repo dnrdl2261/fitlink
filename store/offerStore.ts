@@ -17,6 +17,7 @@ export interface ReRegOffer {
   basePrice: number;       // 정상가(할인 표시용)
   memo: string;
   expiresAt: string;       // 제안 만료일 (YYYY-MM-DD)
+  expiryReminded?: boolean; // 만료 임박 알림 발송 여부
   status: OfferStatus;
   createdAt: string;
 }
@@ -28,9 +29,28 @@ interface OfferState {
   getPendingForMember: (memberId: string) => ReRegOffer[];
   acceptOffer: (id: string) => void;
   declineOffer: (id: string) => void;
+  markExpiryReminded: (id: string) => void;
 }
 
-const init = loadPersisted(KEY, { offers: [] as ReRegOffer[] });
+const dateAfter = (days: number) => {
+  const d = new Date(); d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+// 데모용 마감 임박 제안(회원 진입 시 만료 임박 알림 시연)
+const SEED_OFFERS: ReRegOffer[] = [
+  {
+    id: 'offer_demo_1',
+    trainerId: 'trainer_001', trainerName: '김민준',
+    memberId: 'member_001', memberName: '홍길동',
+    sessionCount: 10, pricePerSession: 70000, basePrice: 90000,
+    memo: '재등록 감사 할인 🙏 다음 달도 함께해요!',
+    expiresAt: dateAfter(1),
+    status: '제안', createdAt: dateAfter(-2),
+  },
+];
+
+const init = loadPersisted(KEY, { offers: SEED_OFFERS });
 
 export const useOfferStore = create<OfferState>((set, get) => ({
   offers: init.offers,
@@ -49,6 +69,7 @@ export const useOfferStore = create<OfferState>((set, get) => ({
 
   acceptOffer: (id) => set((s) => ({ offers: s.offers.map((x) => (x.id === id ? { ...x, status: '수락' } : x)) })),
   declineOffer: (id) => set((s) => ({ offers: s.offers.map((x) => (x.id === id ? { ...x, status: '거절' } : x)) })),
+  markExpiryReminded: (id) => set((s) => ({ offers: s.offers.map((x) => (x.id === id ? { ...x, expiryReminded: true } : x)) })),
 }));
 
 persistOnChange(useOfferStore, KEY, (s) => ({ offers: s.offers }));

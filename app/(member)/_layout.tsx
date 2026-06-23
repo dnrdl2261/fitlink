@@ -7,6 +7,7 @@ import { useChatStore } from '../../store/chatStore';
 import { useLocationStore } from '../../store/locationStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import NotificationToast from '../../components/NotificationToast';
+import OfferExpiryReminder from '../../components/OfferExpiryReminder';
 
 function LocationHeader() {
   const router = useRouter();
@@ -176,6 +177,7 @@ export default function MemberLayout() {
       <Tabs.Screen name="support"       options={{ href: null, headerShown: false }} />
     </Tabs>
     <NotificationToast userId={member?.id ?? ''} route="/(member)/notifications" />
+    <OfferExpiryReminder userId={member?.id ?? ''} />
     </>
   );
 }
