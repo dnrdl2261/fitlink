@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   SafeAreaView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useGlobalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { usePackageStore } from '../../store/packageStore';
@@ -22,7 +22,8 @@ const TABS: { key: FilterTab; label: string }[] = [
 
 export default function MyPackagesScreen() {
   const router = useRouter();
-  const onBack = () => { if (router.canGoBack()) router.back(); else router.navigate('/(member)/more' as any); };
+  const { from } = useGlobalSearchParams<{ from?: string }>();
+  const onBack = () => router.navigate((from === 'home' ? '/(member)/trainers' : '/(member)/more') as any);
   const { member } = useAuthStore();
   const { getMemberContracts } = usePackageStore();
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
