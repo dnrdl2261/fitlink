@@ -15,7 +15,7 @@ const WRITE_CATS = GROUP_CATS.filter((c) => c !== '전체') as Exclude<GroupCat,
 
 export default function CommunityGroupWriteScreen() {
   const router = useRouter();
-  const { t } = useLocalSearchParams<{ t: string }>();
+  const { t, from } = useLocalSearchParams<{ t: string; from?: string }>();
   const { addGroup } = useCommunityStore();
 
   const [category, setCategory] = useState<Exclude<GroupCat, '전체'> | null>(null);
@@ -64,7 +64,7 @@ export default function CommunityGroupWriteScreen() {
     } else {
       Alert.alert('완료', '모임이 개설됐습니다!');
     }
-    router.navigate('/(member)/community' as any);
+    router.navigate({ pathname: '/(member)/community', params: from ? { from } : {} } as any);
   };
 
   return (

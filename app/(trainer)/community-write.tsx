@@ -17,7 +17,7 @@ const MAX_IMAGES = 5;
 
 export default function CommunityWriteScreen() {
   const router = useRouter();
-  const { t } = useLocalSearchParams<{ t: string }>();
+  const { t, from } = useLocalSearchParams<{ t: string; from?: string }>();
   const { trainer } = useAuthStore();
   const { addPost } = useCommunityStore();
 
@@ -102,7 +102,7 @@ export default function CommunityWriteScreen() {
     } else {
       Alert.alert('완료', '게시글이 등록됐습니다!');
     }
-    router.navigate('/(trainer)/community' as any);
+    router.navigate({ pathname: '/(trainer)/community', params: from ? { from } : {} } as any);
   };
 
   return (
@@ -113,7 +113,7 @@ export default function CommunityWriteScreen() {
       >
         {/* 헤더 */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.navigate('/(trainer)/community' as any)} style={styles.headerBtn}>
+          <TouchableOpacity onPress={() => router.navigate({ pathname: '/(trainer)/community', params: from ? { from } : {} } as any)} style={styles.headerBtn}>
             <Text style={styles.cancelText}>취소</Text>
           </TouchableOpacity>
           <View style={styles.headerCenter}>

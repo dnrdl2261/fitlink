@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, SafeAreaView, FlatList,
   TouchableOpacity, Image,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useGlobalSearchParams } from 'expo-router';
 import { useScrollToTop } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../utils/constants';
@@ -116,6 +116,7 @@ function GroupCard({ group, isJoined, onPress }: { group: Group; isJoined: boole
 
 export default function MemberCommunityScreen() {
   const router = useRouter();
+  const { from } = useGlobalSearchParams<{ from?: string }>();
   const scrollRef = useRef<any>(null);
   useScrollToTop(scrollRef);
   const { posts, groups, joinedGroups, dislikedPosts } = useCommunityStore();
@@ -144,9 +145,9 @@ export default function MemberCommunityScreen() {
   const goGroup = (groupId: string) =>
     router.push(`/(member)/community-group?groupId=${groupId}` as any);
   const goWrite = () =>
-    router.push(`/(member)/community-write?t=${Date.now()}` as any);
+    router.push({ pathname: '/(member)/community-write', params: { t: String(Date.now()), ...(from ? { from } : {}) } } as any);
   const goGroupWrite = () =>
-    router.push(`/(member)/community-group-write?t=${Date.now()}` as any);
+    router.push({ pathname: '/(member)/community-group-write', params: { t: String(Date.now()), ...(from ? { from } : {}) } } as any);
   const goStory = (postId: string) =>
     router.push(`/(member)/community-story?postId=${postId}` as any);
 

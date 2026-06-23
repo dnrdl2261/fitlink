@@ -17,7 +17,7 @@ const MAX_IMAGES = 5;
 
 export default function CommunityWriteScreen() {
   const router = useRouter();
-  const { t } = useLocalSearchParams<{ t: string }>();
+  const { t, from } = useLocalSearchParams<{ t: string; from?: string }>();
   const { member } = useAuthStore();
   const { addPost } = useCommunityStore();
 
@@ -104,7 +104,7 @@ export default function CommunityWriteScreen() {
     } else {
       Alert.alert('완료', '게시글이 등록됐습니다!');
     }
-    router.navigate('/(member)/community' as any);
+    router.navigate({ pathname: '/(member)/community', params: from ? { from } : {} } as any);
   };
 
   return (

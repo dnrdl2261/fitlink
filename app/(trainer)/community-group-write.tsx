@@ -16,7 +16,7 @@ const WRITE_CATS = GROUP_CATS.filter((c) => c !== '전체') as Exclude<GroupCat,
 
 export default function CommunityGroupWriteScreen() {
   const router = useRouter();
-  const { t } = useLocalSearchParams<{ t: string }>();
+  const { t, from } = useLocalSearchParams<{ t: string; from?: string }>();
   const { trainer } = useAuthStore();
   const { addGroup } = useCommunityStore();
 
@@ -66,7 +66,7 @@ export default function CommunityGroupWriteScreen() {
     } else {
       Alert.alert('완료', '모임이 개설됐습니다!');
     }
-    router.navigate('/(trainer)/community' as any);
+    router.navigate({ pathname: '/(trainer)/community', params: from ? { from } : {} } as any);
   };
 
   return (
@@ -77,7 +77,7 @@ export default function CommunityGroupWriteScreen() {
       >
         {/* 헤더 */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.navigate('/(trainer)/community' as any)} style={styles.headerBtn}>
+          <TouchableOpacity onPress={() => router.navigate({ pathname: '/(trainer)/community', params: from ? { from } : {} } as any)} style={styles.headerBtn}>
             <Text style={styles.cancelText}>취소</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>모임 만들기</Text>
