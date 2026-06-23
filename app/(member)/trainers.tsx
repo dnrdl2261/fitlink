@@ -409,6 +409,9 @@ export default function MemberHomeScreen() {
                       <Text numberOfLines={1} style={styles.specText}>{g}</Text>
                     </View>
                   ))}
+                  <View style={styles.consultChip}>
+                    <Text style={styles.consultChipText}>💬 무료 상담</Text>
+                  </View>
                 </View>
                 {item.address && (
                   <Text style={styles.trainerLocation} numberOfLines={1}>
@@ -671,6 +674,8 @@ const styles = StyleSheet.create({
   trainerExp:      { fontSize: 11, color: D.textMuted, fontWeight: '500' },
   verifyBadge:     { backgroundColor: '#DCFCE7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   verifyText:      { fontSize: 10, fontWeight: '800', color: '#16A34A' },
+  consultChip:     { backgroundColor: '#EFF6FF', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
+  consultChipText: { fontSize: 10, fontWeight: '800', color: '#2563EB' },
   specRow:         { flexDirection: 'row', gap: 6 },
   specChip:        { backgroundColor: D.primaryGlow, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   specText:        { fontSize: 11, fontWeight: '700', color: D.primary },

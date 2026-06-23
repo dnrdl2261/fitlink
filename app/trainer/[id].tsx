@@ -622,7 +622,7 @@ export default function TrainerDetailScreen() {
               style={st.consultBtn}
               onPress={() => router.push({ pathname: '/booking/consultation', params: { trainerId: trainer.id } } as any)}
             >
-              <Text style={st.consultBtnText}>무료상담</Text>
+              <Text style={st.consultBtnText}>💬 무료상담</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={st.bottomBtn}

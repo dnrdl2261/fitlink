@@ -42,13 +42,16 @@ export default function TrainerCard({ trainer, onPress, distance }: TrainerCardP
           <Text style={styles.exp}>{trainer.experienceYears}년</Text>
         </View>
 
-        {/* 전문 분야 칩 */}
+        {/* 전문 분야 칩 + 무료 상담 */}
         <View style={styles.specRow}>
           {specs.map((s) => (
             <View key={s} style={styles.specChip}>
               <Text style={styles.specText} numberOfLines={1}>{s}</Text>
             </View>
           ))}
+          <View style={styles.consultChip}>
+            <Text style={styles.consultChipText}>💬 무료 상담</Text>
+          </View>
         </View>
 
         {/* 위치 */}
@@ -106,6 +109,8 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   specText: { fontSize: 11, fontWeight: '700', color: COLORS.textSecondary },
+  consultChip: { backgroundColor: '#EFF6FF', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
+  consultChipText: { fontSize: 10, fontWeight: '800', color: '#2563EB' },
   location: { fontSize: 11, color: '#9CA3AF' },
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
