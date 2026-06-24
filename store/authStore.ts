@@ -66,6 +66,16 @@ async function buildFromSupabase(userId: string, email: string) {
   return buildUserState(role, data?.name || '', email, undefined, userId);
 }
 
+// 프로필 기본 필드(name/phone)를 Supabase profiles에 동기화. 실 사용자만; 데모/미설정은 no-op.
+function syncProfileToSupabase(userId: string | undefined, data: any) {
+  if (!isSupabaseConfigured || !userId) return;
+  const fields: Record<string, any> = {};
+  if (typeof data?.name === 'string') fields.name = data.name;
+  if (typeof data?.phone === 'string') fields.phone = data.phone;
+  if (Object.keys(fields).length === 0) return;
+  supabase.from('profiles').update(fields).eq('id', userId).then(() => {}, () => {});
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
   role: null,
   member: null,
@@ -138,6 +148,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   updateMember: (data) => {
+    syncProfileToSupabase(useAuthStore.getState().member?.id, data);
     set((state) => ({
       member: state.member ? { ...state.member, ...data } : null,
     }));
@@ -146,6 +157,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   updateTrainer: (data) => {
     const trainer = useAuthStore.getState().trainer;
     if (!trainer) return;
+    syncProfileToSupabase(trainer.id, data);
     const updated = { ...trainer, ...data };
     // 공유 트레이너 스토어에도 반영 → 회원 화면/로그아웃 후에도 유지
     useTrainerStore.getState().updateTrainer(updated.id, data);
@@ -153,6 +165,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   updateGymAdmin: (data) => {
+    syncProfileToSupabase(useAuthStore.getState().gymAdmin?.id, data);
     set((state) => ({
       gymAdmin: state.gymAdmin ? { ...state.gymAdmin, ...data } : null,
     }));
