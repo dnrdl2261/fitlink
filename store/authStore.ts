@@ -115,7 +115,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
       if (error) return { success: false, message: error.message };
       if (!data.session) {
-        return { success: false, message: '확인 메일을 보냈어요. 메일의 인증 링크를 누르면 로그인됩니다.' };
+        return { success: false, message: '확인 메일을 보냈어요. 메일의 인증 링크를 누르면 로그인됩니다.\n\n이미 가입된 이메일이라면 메일이 오지 않을 수 있어요. 그땐 로그인해 주세요.' };
       }
       const state = buildUserState(role, name.trim(), email.trim().toLowerCase(), undefined, data.user?.id);
       if (role === 'member' && address && state.member) {
