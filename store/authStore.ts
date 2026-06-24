@@ -51,6 +51,14 @@ function buildUserState(role: UserRole, name?: string, email?: string, gymId?: s
   };
 }
 
+// 이메일 확인 링크가 돌아올 앱 주소 (웹). 배포 base가 /fitlink 이므로 origin + /fitlink/.
+function emailRedirectUrl(): string | undefined {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}/fitlink/`;
+  }
+  return undefined;
+}
+
 // Supabase 사용자 → profiles 조회 후 로컬 상태 구성
 async function buildFromSupabase(userId: string, email: string) {
   const { data } = await supabase.from('profiles').select('role, name').eq('id', userId).single();
@@ -103,11 +111,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       const { data, error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
-        options: { data: { name: name.trim(), role } },
+        options: { data: { name: name.trim(), role }, emailRedirectTo: emailRedirectUrl() },
       });
       if (error) return { success: false, message: error.message };
       if (!data.session) {
-        return { success: false, message: '확인 이메일을 보냈어요. 메일에서 인증 후 로그인해주세요.' };
+        return { success: false, message: '확인 메일을 보냈어요. 메일의 인증 링크를 누르면 로그인됩니다.' };
       }
       const state = buildUserState(role, name.trim(), email.trim().toLowerCase(), undefined, data.user?.id);
       if (role === 'member' && address && state.member) {

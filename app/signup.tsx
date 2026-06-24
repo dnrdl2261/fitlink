@@ -19,6 +19,15 @@ import { COLORS } from '../utils/constants';
 import { UserRole } from '../types';
 import { CITIES, getDistricts, getDongs } from '../data/regions';
 
+// RN-Web은 Alert.alert가 화면에 표시되지 않으므로 웹에선 window.alert 사용
+function notify(title: string, msg?: string) {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.alert) window.alert(msg ? `${title}\n\n${msg}` : title);
+  } else {
+    Alert.alert(title, msg);
+  }
+}
+
 const ROLES: { role: UserRole; label: string; emoji: string; desc: string; color: string }[] = [
   { role: 'member',    label: '회원',          emoji: '🏃', desc: '헬스장 탐색 & PT 예약',  color: COLORS.primary },
   { role: 'trainer',   label: 'PT 트레이너',   emoji: '💪', desc: '일정 관리 & 수익 확인',  color: COLORS.secondary },
@@ -65,11 +74,11 @@ export default function SignupScreen() {
 
   const handleSignup = async () => {
     if (password !== confirmPw) {
-      Alert.alert('비밀번호 불일치', '비밀번호가 일치하지 않습니다.');
+      notify('비밀번호 불일치', '비밀번호가 일치하지 않습니다.');
       return;
     }
     if (role === 'member' && (!addrCity || !addrDistrict || !addrDong)) {
-      Alert.alert('주소 미입력', '활동 지역(시/구/동)을 모두 선택해주세요.');
+      notify('주소 미입력', '활동 지역(시/구/동)을 모두 선택해주세요.');
       return;
     }
     setLoading(true);
@@ -81,11 +90,12 @@ export default function SignupScreen() {
       if (role === 'member')         router.replace('/(member)');
       else if (role === 'trainer')   router.replace('/(trainer)');
       else                           router.replace('/(gym)');
-    } else if (result.message?.includes('이메일')) {
+    } else if (result.message?.includes('이메일') || result.message?.includes('메일')) {
       // 이메일 인증 필요 (Supabase Confirm email ON) → 안내 후 로그인 화면으로
-      Alert.alert('이메일 인증 필요', result.message, [{ text: '확인', onPress: () => router.replace('/login' as any) }]);
+      notify('이메일 인증 필요', result.message);
+      router.replace('/login' as any);
     } else {
-      Alert.alert('회원가입 실패', result.message);
+      notify('회원가입 실패', result.message);
     }
   };
 

@@ -25,6 +25,15 @@ import OnboardingModal from '../components/OnboardingModal';
 
 WebBrowser.maybeCompleteAuthSession();
 
+// RN-Web은 Alert.alert가 표시되지 않으므로 웹에선 window.alert 사용
+function notify(title: string, msg?: string) {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.alert) window.alert(msg ? `${title}\n\n${msg}` : title);
+  } else {
+    Alert.alert(title, msg);
+  }
+}
+
 const BLUE   = COLORS.primary;
 const BLUE_L = COLORS.primaryPale;
 const TEXT   = COLORS.text;
@@ -104,7 +113,7 @@ export default function LoginScreen() {
       loginWithSocial('kakao', '카카오 사용자', '');
       router.replace('/(member)');
     } else if (kakaoResponse?.type === 'error') {
-      Alert.alert('카카오 로그인 실패', '다시 시도해주세요.');
+      notify('카카오 로그인 실패', '다시 시도해주세요.');
     }
   }, [kakaoResponse]);
 
@@ -116,7 +125,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
-      Alert.alert('입력 오류', '이메일과 비밀번호를 입력해주세요.');
+      notify('입력 오류', '이메일과 비밀번호를 입력해주세요.');
       return;
     }
     setLoading(true);
@@ -125,7 +134,7 @@ export default function LoginScreen() {
     if (result.success) {
       navigateByRole(router, useAuthStore.getState().role!);
     } else {
-      Alert.alert('로그인 실패', result.message);
+      notify('로그인 실패', result.message);
     }
   };
 
