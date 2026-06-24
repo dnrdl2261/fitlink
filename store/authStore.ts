@@ -2,8 +2,9 @@ import { create } from 'zustand';
 import { UserRole, Member, GymAdmin, Trainer } from '../types';
 import { MOCK_MEMBER, MOCK_TRAINER_USER, MOCK_GYM_ADMINS } from '../data/users';
 import { useTrainerStore } from './trainerStore';
+import { supabase, isSupabaseConfigured } from '../config/supabase';
 
-// 테스트용 계정 (프로토타입)
+// 데모/테스트용 계정 (둘러보기 + 미설정 시 mock 로그인)
 const MOCK_CREDENTIALS: Array<{
   email: string;
   password: string;
@@ -25,27 +26,36 @@ interface AuthState {
   gymAdmin: GymAdmin | null;
   isLoggedIn: boolean;
 
-  login: (email: string, password: string) => { success: boolean; message?: string };
+  login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   loginWithSocial: (provider: 'google' | 'kakao' | 'naver', name: string, email: string) => void;
-  signup: (name: string, email: string, password: string, role: UserRole, address?: { city: string; district: string; dong: string }) => { success: boolean; message?: string };
+  signup: (name: string, email: string, password: string, role: UserRole, address?: { city: string; district: string; dong: string }) => Promise<{ success: boolean; message?: string }>;
   selectRole: (role: UserRole) => void;
   updateMember: (data: Partial<Member>) => void;
   updateTrainer: (data: Partial<Trainer>) => void;
   updateGymAdmin: (data: Partial<GymAdmin>) => void;
+  restoreSession: () => Promise<void>;
   logout: () => void;
 }
 
-function buildUserState(role: UserRole, name?: string, email?: string, gymId?: string) {
+// 실 사용자/데모 공통 로컬 상태 구성. realId가 있으면 실제 인증 ID로 덮어쓴다(실 사용자는 데모 데이터와 분리).
+function buildUserState(role: UserRole, name?: string, email?: string, gymId?: string, realId?: string) {
   const gymAdminBase = role === 'gym_admin'
     ? (MOCK_GYM_ADMINS.find((a) => a.gymId === gymId) ?? MOCK_GYM_ADMINS[0])
     : null;
   return {
     role,
     isLoggedIn: true,
-    member:   role === 'member'    ? { ...MOCK_MEMBER,   ...(name ? { name } : {}), ...(email ? { email } : {}) } : null,
-    trainer:  role === 'trainer'   ? { ...(useTrainerStore.getState().getTrainer(MOCK_TRAINER_USER.id) ?? MOCK_TRAINER_USER) } : null,
-    gymAdmin: gymAdminBase ? { ...gymAdminBase, ...(name ? { name } : {}), ...(email ? { email } : {}) } : null,
+    member:   role === 'member'    ? { ...MOCK_MEMBER,   ...(realId ? { id: realId } : {}), ...(name ? { name } : {}), ...(email ? { email } : {}) } : null,
+    trainer:  role === 'trainer'   ? { ...(useTrainerStore.getState().getTrainer(MOCK_TRAINER_USER.id) ?? MOCK_TRAINER_USER), ...(realId ? { id: realId } : {}), ...(name ? { name } : {}) } : null,
+    gymAdmin: gymAdminBase ? { ...gymAdminBase, ...(realId ? { id: realId } : {}), ...(name ? { name } : {}), ...(email ? { email } : {}) } : null,
   };
+}
+
+// Supabase 사용자 → profiles 조회 후 로컬 상태 구성
+async function buildFromSupabase(userId: string, email: string) {
+  const { data } = await supabase.from('profiles').select('role, name').eq('id', userId).single();
+  const role = (data?.role as UserRole) ?? 'member';
+  return buildUserState(role, data?.name || '', email, undefined, userId);
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -59,7 +69,15 @@ export const useAuthStore = create<AuthState>((set) => ({
     set(buildUserState('member', name, email));
   },
 
-  login: (email, password) => {
+  login: async (email, password) => {
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+      if (error || !data.user) {
+        return { success: false, message: error?.message ?? '이메일 또는 비밀번호가 올바르지 않습니다.' };
+      }
+      set(await buildFromSupabase(data.user.id, data.user.email ?? email));
+      return { success: true };
+    }
     const account = MOCK_CREDENTIALS.find(
       (a) => a.email === email.trim().toLowerCase() && a.password === password
     );
@@ -70,7 +88,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     return { success: true };
   },
 
-  signup: (name, email, password, role, address) => {
+  signup: async (name, email, password, role, address) => {
     if (!name.trim() || !email.trim() || !password) {
       return { success: false, message: '모든 항목을 입력해주세요.' };
     }
@@ -80,6 +98,25 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (password.length < 4) {
       return { success: false, message: '비밀번호는 4자 이상이어야 합니다.' };
     }
+
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: { data: { name: name.trim(), role } },
+      });
+      if (error) return { success: false, message: error.message };
+      if (!data.session) {
+        return { success: false, message: '확인 이메일을 보냈어요. 메일에서 인증 후 로그인해주세요.' };
+      }
+      const state = buildUserState(role, name.trim(), email.trim().toLowerCase(), undefined, data.user?.id);
+      if (role === 'member' && address && state.member) {
+        state.member = { ...state.member, address };
+      }
+      set(state);
+      return { success: true };
+    }
+
     const state = buildUserState(role, name.trim(), email.trim().toLowerCase());
     if (role === 'member' && address && state.member) {
       state.member = { ...state.member, address };
@@ -113,7 +150,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     }));
   },
 
+  restoreSession: async () => {
+    if (!isSupabaseConfigured) return;
+    const { data } = await supabase.auth.getSession();
+    const user = data.session?.user;
+    if (user) {
+      set(await buildFromSupabase(user.id, user.email ?? ''));
+    }
+  },
+
   logout: () => {
+    if (isSupabaseConfigured) supabase.auth.signOut().catch(() => {});
     set({ role: null, member: null, trainer: null, gymAdmin: null, isLoggedIn: false });
   },
 }));

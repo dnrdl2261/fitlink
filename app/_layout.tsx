@@ -2,8 +2,9 @@ import { Stack, useRouter } from 'expo-router';
 import { PaperProvider } from 'react-native-paper';
 import { StatusBar } from 'expo-status-bar';
 import { Platform, View, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import { type PropsWithChildren } from 'react';
+import { type PropsWithChildren, useEffect } from 'react';
 import { COLORS } from '../utils/constants';
+import { useAuthStore } from '../store/authStore';
 
 import { MD3LightTheme } from 'react-native-paper';
 
@@ -49,6 +50,9 @@ const detailScreenOptions = {
 };
 
 export default function RootLayout() {
+  // Supabase 세션 복원 (새로고침해도 로그인 유지). 미설정 시 no-op.
+  useEffect(() => { useAuthStore.getState().restoreSession(); }, []);
+
   return (
     <WebFrame>
       <PaperProvider theme={theme}>

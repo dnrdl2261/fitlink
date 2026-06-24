@@ -63,7 +63,7 @@ export default function SignupScreen() {
     setAddrModal(null);
   };
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     if (password !== confirmPw) {
       Alert.alert('비밀번호 불일치', '비밀번호가 일치하지 않습니다.');
       return;
@@ -74,13 +74,16 @@ export default function SignupScreen() {
     }
     setLoading(true);
     const address = role === 'member' ? { city: addrCity, district: addrDistrict, dong: addrDong } : undefined;
-    const result = signup(name, email, password, role, address);
+    const result = await signup(name, email, password, role, address);
     setLoading(false);
 
     if (result.success) {
       if (role === 'member')         router.replace('/(member)');
       else if (role === 'trainer')   router.replace('/(trainer)');
       else                           router.replace('/(gym)');
+    } else if (result.message?.includes('이메일')) {
+      // 이메일 인증 필요 (Supabase Confirm email ON) → 안내 후 로그인 화면으로
+      Alert.alert('이메일 인증 필요', result.message, [{ text: '확인', onPress: () => router.replace('/login' as any) }]);
     } else {
       Alert.alert('회원가입 실패', result.message);
     }

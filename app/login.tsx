@@ -120,7 +120,7 @@ export default function LoginScreen() {
       return;
     }
     setLoading(true);
-    const result = login(email, password);
+    const result = await login(email, password);
     setLoading(false);
     if (result.success) {
       navigateByRole(router, useAuthStore.getState().role!);
