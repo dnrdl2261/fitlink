@@ -17,13 +17,24 @@ export default function GymApplyScreen() {
   const [err, setErr] = useState('');
 
   const bizOk = /^\d{3}-?\d{2}-?\d{5}$/.test(businessNumber.trim());
-  const canSubmit = gymName.trim() && ownerName.trim() && bizOk && phone.trim() && address.trim();
+
+  // 익명 공개 폼이라 연타·실수 중복 제출 방지(같은 기기 60초 쿨다운). DB의 형식검증·중복차단과 2층 방어.
+  const COOLDOWN_MS = 60_000;
+  const LAST_KEY = 'flowin-gymapp-last';
 
   const submit = () => {
     setErr('');
-    if (!gymName.trim() || !ownerName.trim() || !phone.trim() || !address.trim()) { setErr('모든 항목을 입력해주세요.'); return; }
+    const missing = !gymName.trim() ? '헬스장명'
+      : !ownerName.trim() ? '대표자명'
+      : !businessNumber.trim() ? '사업자등록번호'
+      : !phone.trim() ? '담당자 연락처'
+      : !address.trim() ? '주소' : '';
+    if (missing) { setErr(`${missing} 항목을 입력해주세요.`); return; }
     if (!bizOk) { setErr('사업자등록번호 형식이 올바르지 않습니다. (예: 123-45-67890)'); return; }
+    const last = Number(globalThis.localStorage?.getItem(LAST_KEY) ?? 0);
+    if (Date.now() - last < COOLDOWN_MS) { setErr('신청이 접수되었습니다. 잠시 후 다시 시도해주세요. (연속 제출 방지)'); return; }
     addApplication({ gymName: gymName.trim(), ownerName: ownerName.trim(), businessNumber: businessNumber.trim(), phone: phone.trim(), address: address.trim() });
+    globalThis.localStorage?.setItem(LAST_KEY, String(Date.now()));
     setDone(true);
   };
 
@@ -64,12 +75,12 @@ export default function GymApplyScreen() {
 
           <Field label="헬스장명" value={gymName} onChange={setGymName} placeholder="예) 스트롱짐 강남점" />
           <Field label="대표자명" value={ownerName} onChange={setOwnerName} placeholder="예) 홍길동" />
-          <Field label="사업자등록번호" value={businessNumber} onChange={setBusinessNumber} placeholder="123-45-67890" keyboard="numbers-and-punctuation" />
+          <Field label="사업자등록번호" value={businessNumber} onChange={setBusinessNumber} placeholder="123-45-67890" keyboard="numbers-and-punctuation" hint={businessNumber.trim() && !bizOk ? '형식: 123-45-67890 (숫자 3-2-5자리)' : undefined} />
           <Field label="담당자 연락처" value={phone} onChange={setPhone} placeholder="010-0000-0000" keyboard="phone-pad" />
           <Field label="주소" value={address} onChange={setAddress} placeholder="예) 서울 강남구 테헤란로 123" />
 
           {!!err && <Text style={s.err}>{err}</Text>}
-          <TouchableOpacity style={[s.submit, !canSubmit && s.submitOff]} onPress={submit} disabled={!canSubmit}>
+          <TouchableOpacity style={s.submit} onPress={submit}>
             <Text style={s.submitText}>입점 신청하기</Text>
           </TouchableOpacity>
           <View style={{ height: 24 }} />
@@ -79,11 +90,12 @@ export default function GymApplyScreen() {
   );
 }
 
-function Field({ label, value, onChange, placeholder, keyboard }: { label: string; value: string; onChange: (v: string) => void; placeholder: string; keyboard?: any }) {
+function Field({ label, value, onChange, placeholder, keyboard, hint }: { label: string; value: string; onChange: (v: string) => void; placeholder: string; keyboard?: any; hint?: string }) {
   return (
     <View style={{ marginBottom: 14 }}>
       <Text style={s.label}>{label}</Text>
       <TextInput style={s.input} value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor={COLORS.textMuted} keyboardType={keyboard} />
+      {!!hint && <Text style={s.hint}>{hint}</Text>}
     </View>
   );
 }
@@ -99,9 +111,9 @@ const s = StyleSheet.create({
 
   label: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 7 },
   input: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: COLORS.text, backgroundColor: COLORS.surface },
+  hint: { fontSize: 12, color: COLORS.error, fontWeight: '600', marginTop: 5 },
   err: { fontSize: 13, color: COLORS.error, fontWeight: '600', marginBottom: 8 },
   submit: { marginTop: 8, paddingVertical: 15, borderRadius: 14, backgroundColor: COLORS.primary, alignItems: 'center' },
-  submitOff: { backgroundColor: COLORS.border },
   submitText: { fontSize: 16, fontWeight: '800', color: '#fff' },
 
   doneWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },

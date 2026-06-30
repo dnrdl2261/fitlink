@@ -1,9 +1,13 @@
 import { create } from 'zustand';
+import { supabase, isSupabaseConfigured } from '../config/supabase';
 
 export interface FollowLink {
   followerId: string;
   followeeId: string;
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isRealUser = (id?: string) => isSupabaseConfigured && !!id && UUID_RE.test(id);
 
 interface FollowState {
   links: FollowLink[];
@@ -13,6 +17,7 @@ interface FollowState {
   getFollowingIds: (followerId: string) => string[];
   getFollowerCount: (followeeId: string) => number;
   getFollowingCount: (followerId: string) => number;
+  loadFromSupabase: () => Promise<void>;
 }
 
 export const useFollowStore = create<FollowState>((set, get) => ({
@@ -41,6 +46,9 @@ export const useFollowStore = create<FollowState>((set, get) => ({
     );
     if (already) return;
     set(s => ({ links: [...s.links, { followerId, followeeId }] }));
+    if (isRealUser(followerId)) {
+      supabase.from('follows').upsert({ follower_id: followerId, followee_id: followeeId }).then(() => {}, () => {});
+    }
   },
 
   unfollow: (followerId, followeeId) => {
@@ -49,6 +57,9 @@ export const useFollowStore = create<FollowState>((set, get) => ({
         l => !(l.followerId === followerId && l.followeeId === followeeId)
       ),
     }));
+    if (isRealUser(followerId)) {
+      supabase.from('follows').delete().eq('follower_id', followerId).eq('followee_id', followeeId).then(() => {}, () => {});
+    }
   },
 
   isFollowing: (followerId, followeeId) =>
@@ -62,4 +73,17 @@ export const useFollowStore = create<FollowState>((set, get) => ({
 
   getFollowingCount: (followerId) =>
     get().links.filter(l => l.followerId === followerId).length,
+
+  // 공개 팔로우 관계를 로드해 병합(팔로워/팔로잉 카운트용). mock 시드 유지. 미설정은 no-op.
+  loadFromSupabase: async () => {
+    if (!isSupabaseConfigured) return;
+    const { data, error } = await supabase.from('follows').select('follower_id, followee_id');
+    if (error || !data) return;
+    const rows: FollowLink[] = data.map((r: any) => ({ followerId: r.follower_id, followeeId: r.followee_id }));
+    set((s) => {
+      const key = (l: FollowLink) => `${l.followerId}|${l.followeeId}`;
+      const seen = new Set(rows.map(key));
+      return { links: [...rows, ...s.links.filter((l) => !seen.has(key(l)))] };
+    });
+  },
 }));

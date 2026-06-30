@@ -8,8 +8,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useChatStore } from '../../store/chatStore';
 import { formatChatTime } from '../../utils/formatters';
-import { MOCK_GYMS } from '../../data/gyms';
+import { useGymStore } from '../../store/gymStore';
 import { COLORS } from '../../utils/constants';
+import { Gym } from '../../types';
 
 const TRAINER = '#4F63F5';
 
@@ -18,6 +19,7 @@ export default function TrainerChatScreen() {
   const { trainer } = useAuthStore();
   const { getConversationsForUser, getMessages, getOrCreate } = useChatStore();
   useChatStore((s) => s.conversations);
+  const allGyms = useGymStore((s) => s.gyms);
 
   const [newModal, setNewModal] = useState(false);
 
@@ -28,7 +30,7 @@ export default function TrainerChatScreen() {
     router.push(`/chat/${conversationId}` as any);
   };
 
-  const startWithGym = (gym: typeof MOCK_GYMS[number]) => {
+  const startWithGym = (gym: Gym) => {
     if (!trainer) return;
     // gym의 adminUserId를 상대방 ID로 사용
     const adminId = gym.adminUserId;
@@ -115,7 +117,7 @@ export default function TrainerChatScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              {MOCK_GYMS.map((gym) => {
+              {allGyms.map((gym) => {
                 const alreadyChat = chatGymIds.has(gym.adminUserId);
                 return (
                   <TouchableOpacity

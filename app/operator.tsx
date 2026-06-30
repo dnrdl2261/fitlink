@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, Redirect } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useReportStore, ReportStatus } from '../store/reportStore';
 import { useGymApplicationStore, GymAppStatus } from '../store/gymApplicationStore';
+import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../utils/constants';
 
 const R_STATUS: Record<ReportStatus, string> = { '접수': '#F59E0B', '검토중': '#4F63F5', '조치완료': '#10B981', '반려': '#94A3B8' };
@@ -11,11 +12,16 @@ const A_STATUS: Record<GymAppStatus, string> = { '대기': '#F59E0B', '승인': 
 
 export default function OperatorConsole() {
   const router = useRouter();
+  const role = useAuthStore((s) => s.role);
+  const logout = useAuthStore((s) => s.logout);
   const reports = useReportStore((s) => s.reports);
   const setReportStatus = useReportStore((s) => s.setStatus);
   const applications = useGymApplicationStore((s) => s.applications);
   const setAppStatus = useGymApplicationStore((s) => s.setStatus);
   const [tab, setTab] = useState<'reports' | 'apps'>('reports');
+
+  // 운영자 전용 — 인증된 운영자만 접근. 그 외(비로그인·일반 역할)는 로그인으로.
+  if (role !== 'operator') return <Redirect href={'/login' as any} />;
 
   const pendingReports = reports.filter((r) => r.status === '접수' || r.status === '검토중').length;
   const pendingApps = applications.filter((a) => a.status === '대기').length;
@@ -23,12 +29,12 @@ export default function OperatorConsole() {
   return (
     <SafeAreaView style={s.c}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.replace('/login' as any)} style={s.back}>
+        <TouchableOpacity onPress={() => { logout(); router.replace('/login' as any); }} style={s.back}>
           <MaterialCommunityIcons name="chevron-left" size={26} color="#fff" />
         </TouchableOpacity>
         <View>
           <Text style={s.title}>운영자 콘솔</Text>
-          <Text style={s.sub}>FLOWIN 플랫폼 관리 (데모)</Text>
+          <Text style={s.sub}>FLOWIN 플랫폼 관리</Text>
         </View>
         <View style={{ width: 36 }} />
       </View>

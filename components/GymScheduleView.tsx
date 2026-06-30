@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGymSlotStore } from '../store/gymSlotStore';
-import { MOCK_GYMS } from '../data/gyms';
+import { useGymStore } from '../store/gymStore';
 
 const D = {
   surface: '#FFFFFF',
@@ -52,7 +52,7 @@ export default function GymScheduleView({ gymId }: { gymId: string }) {
 
   const slotBookings = useGymSlotStore((s) => s.slotBookings);
   const getCapacity = useGymSlotStore((s) => s.getCapacity);
-  const gym = MOCK_GYMS.find((g) => g.id === gymId);
+  const gym = useGymStore((s) => s.gyms.find((g) => g.id === gymId));
 
   // 확정된 슬롯 예약만 (gymId)
   const confirmed = useMemo(

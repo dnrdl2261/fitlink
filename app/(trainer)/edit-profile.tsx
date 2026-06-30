@@ -69,7 +69,7 @@ export default function EditProfileScreen() {
   const handlePickMediaPhoto = async () => {
     if (!(await requestPermission())) return;
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
@@ -84,7 +84,7 @@ export default function EditProfileScreen() {
   const handlePickMediaVideo = async () => {
     if (!(await requestPermission())) return;
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      mediaTypes: ['videos'],
       allowsEditing: true,
       quality: 1,
     });
@@ -108,7 +108,7 @@ export default function EditProfileScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -185,10 +185,13 @@ export default function EditProfileScreen() {
         {/* ── 프로필 사진 ── */}
         <View style={styles.photoSection}>
           <TouchableOpacity style={styles.photoWrapper} onPress={handlePickImage} activeOpacity={0.8}>
-            <Image
-              source={{ uri: profileImageUrl || 'https://picsum.photos/seed/default/200/200' }}
-              style={styles.profilePhoto}
-            />
+            {profileImageUrl ? (
+              <Image source={{ uri: profileImageUrl }} style={styles.profilePhoto} />
+            ) : (
+              <View style={[styles.profilePhoto, { alignItems: 'center', justifyContent: 'center' }]}>
+                <MaterialCommunityIcons name="account" size={52} color={COLORS.textSecondary} />
+              </View>
+            )}
             <View style={styles.photoEditBadge}>
               <MaterialCommunityIcons name="camera" size={16} color="#fff" />
             </View>

@@ -7,7 +7,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import TrainerCard from '../../components/TrainerCard';
 import { MOCK_TRAINERS } from '../../data/trainers';
-import { MOCK_GYMS } from '../../data/gyms';
+import { useGymStore } from '../../store/gymStore';
 import { useAuthStore } from '../../store/authStore';
 import { useGymSlotStore } from '../../store/gymSlotStore';
 import { usePartnerStore } from '../../store/partnerStore';
@@ -20,7 +20,7 @@ type Tab = 'partners' | 'requests' | 'blacklist';
 export default function GymTrainersScreen() {
   const router = useRouter();
   const { gymAdmin } = useAuthStore();
-  const gym = MOCK_GYMS.find(g => g.id === gymAdmin?.gymId);
+  const gym = useGymStore((s) => s.gyms.find(g => g.id === gymAdmin?.gymId));
   const GYM_ID = gymAdmin?.gymId ?? 'gym_001';
   const GYM_NAME = gym?.name ?? '';
   const staticPartnerIds = gym?.partnerTrainerIds ?? [];

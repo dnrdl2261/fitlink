@@ -182,11 +182,17 @@ export default function TrainerDetailScreen() {
 
         {/* ── 히어로 이미지 ── */}
         <View style={st.hero}>
-          <Image
-            source={{ uri: trainer.profileImageUrl ?? `https://picsum.photos/seed/${trainer.id}/600/800` }}
-            style={st.heroImg}
-            resizeMode="cover"
-          />
+          {trainer.profileImageUrl ? (
+            <Image
+              source={{ uri: trainer.profileImageUrl }}
+              style={st.heroImg}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[st.heroImg, { backgroundColor: '#1A2235', alignItems: 'center', justifyContent: 'center' }]}>
+              <MaterialCommunityIcons name="account" size={96} color="#526080" />
+            </View>
+          )}
 
           {/* 그라데이션 오버레이 레이어 (상단 투명 → 하단 불투명) */}
           <View style={st.heroGrad1} />

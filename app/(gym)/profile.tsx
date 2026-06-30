@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useGymProfileStore } from '../../store/gymProfileStore';
-import { MOCK_GYMS } from '../../data/gyms';
+import { useGymStore } from '../../store/gymStore';
 import { formatPrice } from '../../utils/formatters';
 import { COLORS } from '../../utils/constants';
 import StarRating from '../../components/StarRating';
@@ -22,7 +22,7 @@ import StarRating from '../../components/StarRating';
 export default function GymProfileScreen() {
   const router = useRouter();
   const { gymAdmin, logout } = useAuthStore();
-  const baseGym = MOCK_GYMS.find((g) => g.id === (gymAdmin?.gymId ?? 'gym_001'));
+  const baseGym = useGymStore((s) => s.gyms.find((g) => g.id === (gymAdmin?.gymId ?? 'gym_001')));
   const editsRaw = useGymProfileStore(s => s.edits[gymAdmin?.gymId ?? 'gym_001']);
   const edits = editsRaw ?? {};
   const gym = baseGym ? { ...baseGym, ...edits } : baseGym;

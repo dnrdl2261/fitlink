@@ -66,15 +66,6 @@ const STEPS = [
 type StepId = typeof STEPS[number]['id'];
 type Selections = Record<StepId, string[]>;
 
-function getPhotos(trainer: typeof MOCK_TRAINERS[0]) {
-  const s = trainer.id.replace('trainer_', '');
-  return [
-    trainer.profileImageUrl ?? `https://picsum.photos/seed/${s}a/200/260`,
-    `https://picsum.photos/seed/${s}b/200/260`,
-    `https://picsum.photos/seed/${s}c/200/260`,
-  ];
-}
-
 function getPrimaryGym(trainer: typeof MOCK_TRAINERS[0], gyms: Gym[]) {
   return gyms.find(g => trainer.partnerGymIds.includes(g.id))?.name ?? null;
 }
@@ -210,7 +201,6 @@ export default function CustomPlanScreen() {
 
           {/* 트레이너 카드 목록 */}
           {recommended.map((t, rank) => {
-            const photos = getPhotos(t);
             const pct = calcMatchPct(t, selections);
             const matchedTags = getMatchedTags(t, selections);
             const gym = getPrimaryGym(t, mergedGyms);
@@ -230,7 +220,13 @@ export default function CustomPlanScreen() {
                 )}
 
                 {/* 사진 */}
-                <Image source={{ uri: photos[0] }} style={[s.resultPhoto, { width: PHOTO_W, height: PHOTO_W * 1.25 }]} resizeMode="cover" />
+                {t.profileImageUrl ? (
+                  <Image source={{ uri: t.profileImageUrl }} style={[s.resultPhoto, { width: PHOTO_W, height: PHOTO_W * 1.25 }]} resizeMode="cover" />
+                ) : (
+                  <View style={[s.resultPhoto, { width: PHOTO_W, height: PHOTO_W * 1.25, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }]}>
+                    <MaterialCommunityIcons name="account" size={48} color="#9CA3AF" />
+                  </View>
+                )}
 
                 {/* 정보 */}
                 <View style={s.resultInfo}>

@@ -169,7 +169,6 @@ export default function MemberLayout() {
       <Tabs.Screen name="community-write" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="community-group-write" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="community-story" options={{ href: null, headerShown: false, tabBarStyle: { display: 'none' } }} />
-      <Tabs.Screen name="my-packages" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="trainer-list" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="custom-plan" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="notifications" options={{ href: null, headerShown: false }} />

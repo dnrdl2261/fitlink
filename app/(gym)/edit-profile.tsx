@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity,
-  StyleSheet, SafeAreaView, Image, Alert, Platform,
+  StyleSheet, SafeAreaView, Image, Alert, Platform, Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../store/authStore';
 import { useGymProfileStore } from '../../store/gymProfileStore';
-import { MOCK_GYMS } from '../../data/gyms';
+import { useGymStore } from '../../store/gymStore';
 import { COLORS } from '../../utils/constants';
 import { FacilityTag, PricingTier } from '../../types';
+import { REGION_DATA } from '../../data/regions';
+import { forwardGeocode } from '../../utils/geocode';
 
 const ALL_FACILITIES: FacilityTag[] = [
   '샤워실', '주차장', '락커룸', '요가스튜디오',
@@ -28,7 +30,7 @@ export default function GymEditProfileScreen() {
   const { gymAdmin, updateGymAdmin } = useAuthStore();
   const { updateProfile, getEdits } = useGymProfileStore();
 
-  const baseGym = MOCK_GYMS.find(g => g.id === gymAdmin?.gymId);
+  const baseGym = useGymStore((s) => s.gyms.find(g => g.id === gymAdmin?.gymId));
   if (!gymAdmin || !baseGym) return null;
 
   const savedEdits = getEdits(baseGym.id);
@@ -37,14 +39,15 @@ export default function GymEditProfileScreen() {
   // 관리자 정보
   const [adminName, setAdminName] = useState(gymAdmin.name);
   const [profileImageUrl, setProfileImageUrl] = useState(
-    gymAdmin.profileImageUrl ?? gym.images[0] ?? 'https://picsum.photos/seed/gym1/200/200'
+    gym.images[0] ?? gymAdmin.profileImageUrl ?? ''
   );
+  const [saving, setSaving] = useState(false);
 
   const handlePickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') return;
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -59,12 +62,26 @@ export default function GymEditProfileScreen() {
   const [phoneNumber, setPhoneNumber] = useState(gym.phoneNumber);
   const [description, setDescription] = useState(gym.description);
 
+  // 위치(지역)
+  const [city, setCity] = useState(gym.city || '');
+  const [district, setDistrict] = useState(gym.district || '');
+  const [dong, setDong] = useState(gym.dong || '');
+  const [regionModal, setRegionModal] = useState(false);
+  const [regionStep, setRegionStep] = useState<'city' | 'district' | 'dong'>('city');
+  const regionLabel = [city, district, dong].filter(Boolean).join(' ');
+
   // 시설
   const [facilities, setFacilities] = useState<FacilityTag[]>([...gym.facilities]);
 
-  // 이용 요금
+  // 이용 요금 — 비어 있으면(신규/기존 빈 헬스장) 기본 3종 입력칸 제공
   const [pricing, setPricing] = useState<PricingTier[]>(
-    gym.pricing.map(p => ({ ...p }))
+    gym.pricing.length > 0
+      ? gym.pricing.map(p => ({ ...p }))
+      : [
+          { sessionType: 'single', facilityFee: 0, label: '1회 이용' },
+          { sessionType: 'package_5', facilityFee: 0, label: '5회 패키지' },
+          { sessionType: 'package_10', facilityFee: 0, label: '10회 패키지' },
+        ]
   );
 
   // 이용 규칙
@@ -90,7 +107,16 @@ export default function GymEditProfileScreen() {
   };
   const removeRule = (idx: number) => setRules(prev => prev.filter((_, i) => i !== idx));
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    // 지역(시/구/동)이 바뀌었으면 좌표를 지오코딩해 거리정렬 정확도 확보. 실패/네트워크 시 기존 좌표 유지.
+    let coordinate = baseGym.coordinate;
+    const regionChanged = city !== (gym.city || '') || district !== (gym.district || '') || dong !== (gym.dong || '');
+    if (regionLabel && (regionChanged || !baseGym.coordinate?.latitude)) {
+      const geo = await forwardGeocode(regionLabel);
+      if (geo) coordinate = { latitude: geo.latitude, longitude: geo.longitude };
+    }
     updateGymAdmin({ name: adminName.trim() || gymAdmin.name, profileImageUrl });
     updateProfile(baseGym.id, {
       name: gymName.trim() || baseGym.name,
@@ -99,7 +125,13 @@ export default function GymEditProfileScreen() {
       facilities,
       pricing,
       usageRules: rules.filter(r => r.trim()),
+      city, district, dong,
+      address: regionLabel || baseGym.address,
+      coordinate,
+      // 헬스장 대표 사진을 gym.images에 저장(상세·목록·관리자 화면이 gym.images를 표시)
+      images: profileImageUrl ? [profileImageUrl, ...baseGym.images.slice(1)] : baseGym.images,
     });
+    setSaving(false);
     if (Platform.OS === 'web') {
       window.alert('수정이 완료되었습니다');
       router.replace('/(gym)/profile' as any);
@@ -118,8 +150,8 @@ export default function GymEditProfileScreen() {
           <Text style={styles.navCancel}>취소</Text>
         </TouchableOpacity>
         <Text style={styles.navTitle}>프로필 수정</Text>
-        <TouchableOpacity onPress={handleSave} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Text style={styles.navSave}>저장</Text>
+        <TouchableOpacity onPress={handleSave} disabled={saving} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          <Text style={[styles.navSave, saving && { opacity: 0.5 }]}>{saving ? '저장 중…' : '저장'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -128,7 +160,13 @@ export default function GymEditProfileScreen() {
         {/* ── 프로필 사진 ── */}
         <View style={styles.photoSection}>
           <TouchableOpacity style={styles.photoWrapper} onPress={handlePickImage} activeOpacity={0.8}>
-            <Image source={{ uri: profileImageUrl }} style={styles.profilePhoto} />
+            {profileImageUrl ? (
+              <Image source={{ uri: profileImageUrl }} style={styles.profilePhoto} />
+            ) : (
+              <View style={[styles.profilePhoto, { alignItems: 'center', justifyContent: 'center' }]}>
+                <MaterialCommunityIcons name="image-plus" size={40} color={COLORS.textSecondary} />
+              </View>
+            )}
             <View style={styles.photoEditBadge}>
               <MaterialCommunityIcons name="camera" size={16} color="#fff" />
             </View>
@@ -184,6 +222,18 @@ export default function GymEditProfileScreen() {
               textAlign="right"
             />
           </View>
+        </View>
+
+        {/* ── 위치 ── */}
+        <Text style={styles.groupLabel}>위치</Text>
+        <View style={styles.card}>
+          <TouchableOpacity style={styles.inputRow} onPress={() => { setRegionStep('city'); setRegionModal(true); }} activeOpacity={0.6}>
+            <Text style={styles.inputLabel}>지역</Text>
+            <View style={styles.regionRight}>
+              <Text style={[styles.regionValue, !regionLabel && { color: COLORS.textSecondary }]}>{regionLabel || '선택하세요'}</Text>
+              <MaterialCommunityIcons name="chevron-right" size={20} color={COLORS.textSecondary} />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* ── 헬스장 소개 ── */}
@@ -283,12 +333,70 @@ export default function GymEditProfileScreen() {
 
         <View style={{ height: 48 }} />
       </ScrollView>
+
+      {/* 지역 선택 모달 */}
+      <Modal visible={regionModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            {regionStep === 'city' && <>
+              <Text style={styles.modalTitle}>시 / 도</Text>
+              <ScrollView>
+                {Object.keys(REGION_DATA).map(c => (
+                  <TouchableOpacity key={c} style={styles.modalRow} onPress={() => { setCity(c); setDistrict(''); setDong(''); setRegionStep('district'); }}>
+                    <Text style={[styles.modalRowText, city === c && styles.modalRowActive]}>{c}</Text>
+                    {city === c && <MaterialCommunityIcons name="check" size={18} color={COLORS.primary} />}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </>}
+            {regionStep === 'district' && <>
+              <Text style={styles.modalTitle}>{city} · 구 / 군</Text>
+              <ScrollView>
+                {Object.keys(REGION_DATA[city] ?? {}).map(d => (
+                  <TouchableOpacity key={d} style={styles.modalRow} onPress={() => { setDistrict(d); setDong(''); setRegionStep('dong'); }}>
+                    <Text style={[styles.modalRowText, district === d && styles.modalRowActive]}>{d}</Text>
+                    {district === d && <MaterialCommunityIcons name="check" size={18} color={COLORS.primary} />}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </>}
+            {regionStep === 'dong' && <>
+              <Text style={styles.modalTitle}>{district} · 동</Text>
+              <ScrollView>
+                {(REGION_DATA[city]?.[district] ?? []).map(d => (
+                  <TouchableOpacity key={d} style={styles.modalRow} onPress={() => { setDong(d); setRegionModal(false); }}>
+                    <Text style={[styles.modalRowText, dong === d && styles.modalRowActive]}>{d}</Text>
+                    {dong === d && <MaterialCommunityIcons name="check" size={18} color={COLORS.primary} />}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </>}
+            <TouchableOpacity style={styles.modalClose} onPress={() => setRegionModal(false)}>
+              <Text style={styles.modalCloseText}>닫기</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F1F5F9' },
+
+  regionRight: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  regionValue: { fontSize: 15, color: COLORS.text, fontWeight: '500' },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modalSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 16, maxHeight: '72%' },
+  modalHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: COLORS.border, alignSelf: 'center', marginTop: 10, marginBottom: 4 },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text, paddingHorizontal: 20, paddingVertical: 14 },
+  modalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 15, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.border },
+  modalRowText: { fontSize: 15, color: COLORS.text },
+  modalRowActive: { color: COLORS.primary, fontWeight: '700' },
+  modalClose: { marginHorizontal: 16, marginTop: 12, paddingVertical: 13, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center' },
+  modalCloseText: { fontSize: 15, fontWeight: '600', color: COLORS.textSecondary },
 
   navBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

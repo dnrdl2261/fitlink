@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Trainer } from '../types';
 import { formatDistance } from '../utils/distance';
 import { formatPrice } from '../utils/formatters';
@@ -19,10 +20,13 @@ export default function TrainerCard({ trainer, onPress, distance }: TrainerCardP
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.72}>
       {/* 원형 프로필 사진 */}
-      <Image
-        source={{ uri: trainer.profileImageUrl ?? `https://picsum.photos/seed/${trainer.id}/200/200` }}
-        style={styles.avatar}
-      />
+      {trainer.profileImageUrl ? (
+        <Image source={{ uri: trainer.profileImageUrl }} style={styles.avatar} />
+      ) : (
+        <View style={[styles.avatar, { alignItems: 'center', justifyContent: 'center' }]}>
+          <MaterialCommunityIcons name="account" size={36} color={COLORS.textSecondary} />
+        </View>
+      )}
 
       {/* 정보 영역 */}
       <View style={styles.info}>

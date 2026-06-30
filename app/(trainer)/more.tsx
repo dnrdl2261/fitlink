@@ -70,7 +70,6 @@ export default function TrainerMoreScreen() {
         { icon: '📋', label: '내 슬롯 예약 현황', sub: '신청한 시설 이용 예약 상태 확인', onPress: () => router.push('/(trainer)/my-slot-bookings' as any) },
         { icon: '🤝', label: '파트너 입점 관리', sub: '헬스장 입점 신청 및 파트너 관리', onPress: () => router.push('/(trainer)/partner-gyms') },
         { icon: '💰', label: '수익 현황', sub: '정산 및 수입 확인', onPress: () => router.push('/(trainer)/earnings') },
-        { icon: '🎫', label: '패키지 관리', sub: '다회권 상품 등록 및 관리', onPress: () => router.push('/(trainer)/package-manage') },
       ],
     },
     {

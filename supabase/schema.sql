@@ -71,6 +71,8 @@ create table if not exists public.gyms (
   review_count    int     not null default 0,
   is_partner      boolean not null default false,
   admin_id        uuid    references public.profiles(id) on delete set null,
+  capacity_overrides jsonb not null default '{}',   -- { dayOfWeek: max } 관리자 수용인원 override
+  blacklist       jsonb   not null default '[]',     -- BlacklistEntry[] 차단 트레이너
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now()
 );
@@ -148,14 +150,602 @@ create policy "gyms read"         on public.gyms         for select using (true)
 create policy "trainers read"     on public.trainers     for select using (true);
 create policy "gym_trainers read" on public.gym_trainers for select using (true);
 
--- gyms: 해당 헬스장 관리자만 수정
+-- gyms: 해당 헬스장 관리자만 생성/수정 (실 헬스장 id == admin uuid). upsert 위해 insert+update 둘 다 필요.
+create policy "gyms insert by admin" on public.gyms for insert
+  with check (admin_id = auth.uid());
 create policy "gyms update by admin" on public.gyms for update
-  using (admin_id = auth.uid());
+  using (admin_id = auth.uid()) with check (admin_id = auth.uid());
 
--- trainers: 본인(연결된 profile)만 수정
+-- trainers: 본인(연결된 profile)만 생성/수정. upsert 위해 insert+update 둘 다 정책 필요.
+create policy "trainers insert self" on public.trainers for insert
+  with check (profile_id = auth.uid());
 create policy "trainers update self" on public.trainers for update
-  using (profile_id = auth.uid());
+  using (profile_id = auth.uid()) with check (profile_id = auth.uid());
 
 -- gym_admins: 본인만
 create policy "gym_admins self" on public.gym_admins
   for all using (auth.uid() = profile_id) with check (auth.uid() = profile_id);
+
+-- ============================================================
+-- Phase 2-a: 예약(bookings)
+--   회원이 트레이너에게 PT/상담을 예약. sessions는 jsonb(PTSession[])로 비정규화 —
+--   스토어가 항상 booking 전체를 통째로 쓰고, 세션은 메모리에서만 계산하므로
+--   별도 행/조인이 불필요(가장 단순). schedule도 jsonb(WeeklySchedule).
+-- ============================================================
+create table if not exists public.bookings (
+  id                 text primary key,
+  member_id          uuid not null references public.profiles(id) on delete cascade,
+  member_name        text not null default '',
+  trainer_id         text not null,                 -- 트레이너 카탈로그 id (현재 mock 카탈로그)
+  trainer_name       text not null default '',
+  product_id         text not null default '',
+  total_sessions     int  not null default 0,
+  remaining_sessions int  not null default 0,
+  used_sessions      int  not null default 0,
+  price_per_session  int  not null default 0,
+  total_amount       int  not null default 0,
+  schedule           jsonb not null default '{}',   -- WeeklySchedule
+  sessions           jsonb not null default '[]',   -- PTSession[]
+  status             text  not null default 'pending'
+                       check (status in ('pending','active','completed','cancelled','refunded')),
+  start_date         text  not null default '',
+  notes              text,
+  type               text  not null default 'pt' check (type in ('pt','consultation')),
+  refunded_amount    int,
+  refunded_at        timestamptz,
+  created_at         timestamptz not null default now(),
+  updated_at         timestamptz not null default now()
+);
+create index if not exists idx_bookings_member  on public.bookings(member_id);
+create index if not exists idx_bookings_trainer on public.bookings(trainer_id);
+create trigger trg_bookings_updated before update on public.bookings
+  for each row execute function public.set_updated_at();
+
+alter table public.bookings enable row level security;
+
+-- 회원은 본인 예약을, 트레이너는 (카탈로그 profile_id가 연결된) 자신 대상 예약을 조회
+create policy "bookings select own" on public.bookings for select
+  using (
+    member_id = auth.uid()
+    or exists (select 1 from public.trainers t
+               where t.id = public.bookings.trainer_id and t.profile_id = auth.uid())
+  );
+-- 생성/취소·환불은 본인(회원)만
+create policy "bookings insert own" on public.bookings for insert
+  with check (member_id = auth.uid());
+create policy "bookings update member" on public.bookings for update
+  using (member_id = auth.uid()) with check (member_id = auth.uid());
+create policy "bookings delete own" on public.bookings for delete
+  using (member_id = auth.uid());
+-- 확정/완료요청 등 상태변경은 해당 트레이너(profile 연결 시)도 허용 (트레이너 카탈로그 실연동 대비)
+create policy "bookings update trainer" on public.bookings for update
+  using (exists (select 1 from public.trainers t
+                 where t.id = public.bookings.trainer_id and t.profile_id = auth.uid()));
+
+-- ============================================================
+-- Phase 2-c: 시설 슬롯 예약(slot_bookings)
+--   트레이너가 헬스장 시설 슬롯을 예약(트레이너→헬스장), 헬스장 관리자가 승인/취소.
+--   trainer_id = 트레이너 카탈로그 id(실 트레이너는 auth uuid), gym_id = 헬스장 id(실 헬스장은 admin uuid).
+-- ============================================================
+create table if not exists public.slot_bookings (
+  id            text primary key,
+  gym_id        text not null,
+  gym_name      text not null default '',
+  trainer_id    text not null default '',     -- 관리자 직접등록(addAdminSlot) 시 빈 문자열
+  trainer_name  text not null default '',
+  member_id     text,
+  member_name   text,
+  date          text not null,
+  start_time    text not null,
+  member_count  int  not null default 1,
+  facility_fee  int  not null default 0,
+  status        text not null default 'pending' check (status in ('pending','confirmed','cancelled')),
+  created_at    text not null default '',
+  updated_at    timestamptz not null default now()
+);
+create index if not exists idx_slot_bookings_gym     on public.slot_bookings(gym_id);
+create index if not exists idx_slot_bookings_trainer on public.slot_bookings(trainer_id);
+create trigger trg_slot_bookings_updated before update on public.slot_bookings
+  for each row execute function public.set_updated_at();
+
+alter table public.slot_bookings enable row level security;
+
+-- 조회: 본인(트레이너) 예약 + 자기 헬스장(관리자) 예약
+create policy "slot_bookings select" on public.slot_bookings for select using (
+  trainer_id = auth.uid()::text
+  or exists (select 1 from public.gyms g where g.id = public.slot_bookings.gym_id and g.admin_id = auth.uid())
+);
+-- 생성: 트레이너(본인 slot) 또는 헬스장 관리자(자기 헬스장 slot 직접등록)
+create policy "slot_bookings insert trainer" on public.slot_bookings for insert
+  with check (trainer_id = auth.uid()::text);
+create policy "slot_bookings insert gym" on public.slot_bookings for insert
+  with check (exists (select 1 from public.gyms g where g.id = public.slot_bookings.gym_id and g.admin_id = auth.uid()));
+-- 수정(확정/취소): 트레이너(본인) 또는 헬스장 관리자(자기 헬스장)
+create policy "slot_bookings update" on public.slot_bookings for update using (
+  trainer_id = auth.uid()::text
+  or exists (select 1 from public.gyms g where g.id = public.slot_bookings.gym_id and g.admin_id = auth.uid())
+);
+create policy "slot_bookings delete trainer" on public.slot_bookings for delete
+  using (trainer_id = auth.uid()::text);
+
+-- ============================================================
+-- Phase 3-a: 알림(notifications)
+--   한 사용자가 다른 사용자에게 알림 생성(예: 회원 예약→트레이너 알림). user_id = 수신자(실 사용자 uuid).
+-- ============================================================
+create table if not exists public.notifications (
+  id          text primary key,
+  type        text not null,
+  title       text not null default '',
+  body        text not null default '',
+  is_read     boolean not null default false,
+  created_at  text not null default '',
+  target_role text not null,
+  user_id     text not null,       -- 수신자
+  meta        jsonb,
+  inserted_at timestamptz not null default now()
+);
+create index if not exists idx_notifications_user on public.notifications(user_id);
+
+alter table public.notifications enable row level security;
+-- 조회/읽음처리: 수신자 본인만. 생성: 인증된 사용자는 누구에게나(앱 내부 알림).
+create policy "notifications select own" on public.notifications for select
+  using (user_id = auth.uid()::text);
+create policy "notifications insert" on public.notifications for insert
+  with check (auth.uid() is not null);
+create policy "notifications update own" on public.notifications for update
+  using (user_id = auth.uid()::text) with check (user_id = auth.uid()::text);
+
+-- ============================================================
+-- Phase 3-b: 채팅(conversations + chat_messages)
+--   참여자(participant_ids text[])에 본인이 있으면 접근. 회원↔트레이너 / 트레이너↔헬스장.
+-- ============================================================
+create table if not exists public.conversations (
+  id              text primary key,
+  type            text not null,
+  participant_ids text[] not null default '{}',
+  participants    jsonb  not null default '[]',   -- {id,name,role}[]
+  unread          jsonb  not null default '{}',   -- {userId: count}
+  updated_at      timestamptz not null default now()
+);
+alter table public.conversations enable row level security;
+create policy "conversations select" on public.conversations for select using (auth.uid()::text = any(participant_ids));
+create policy "conversations insert" on public.conversations for insert with check (auth.uid()::text = any(participant_ids));
+create policy "conversations update" on public.conversations for update using (auth.uid()::text = any(participant_ids)) with check (auth.uid()::text = any(participant_ids));
+
+create table if not exists public.chat_messages (
+  id              text primary key,
+  conversation_id text not null,
+  sender_id       text not null,
+  sender_name     text not null default '',
+  body            text not null default '',
+  ts              bigint not null default 0,
+  inserted_at     timestamptz not null default now()
+);
+create index if not exists idx_chat_messages_conv on public.chat_messages(conversation_id);
+alter table public.chat_messages enable row level security;
+create policy "chat_messages select" on public.chat_messages for select using (
+  exists (select 1 from public.conversations c where c.id = public.chat_messages.conversation_id and auth.uid()::text = any(c.participant_ids))
+);
+create policy "chat_messages insert" on public.chat_messages for insert with check (
+  exists (select 1 from public.conversations c where c.id = public.chat_messages.conversation_id and auth.uid()::text = any(c.participant_ids))
+);
+
+-- ============================================================
+-- Phase 3-c: 후기(trainer_reviews + gym_reviews)
+--   공개 읽기(카탈로그 신뢰신호), 회원 본인만 작성.
+-- ============================================================
+create table if not exists public.trainer_reviews (
+  id            text primary key,
+  trainer_id    text not null,
+  trainer_name  text not null default '',
+  booking_id    text,
+  member_id     text not null,
+  member_name   text not null default '',
+  member_avatar text,
+  rating        int  not null default 5,
+  comment       text not null default '',
+  media         jsonb not null default '[]',
+  created_at    text not null default ''
+);
+create index if not exists idx_trainer_reviews_trainer on public.trainer_reviews(trainer_id);
+alter table public.trainer_reviews enable row level security;
+create policy "trainer_reviews read" on public.trainer_reviews for select using (true);
+create policy "trainer_reviews insert own" on public.trainer_reviews for insert with check (member_id = auth.uid()::text);
+
+create table if not exists public.gym_reviews (
+  id            text primary key,
+  gym_id        text not null,
+  gym_name      text not null default '',
+  member_id     text not null,
+  member_name   text not null default '',
+  member_avatar text,
+  rating        int  not null default 5,
+  comment       text not null default '',
+  created_at    text not null default ''
+);
+create index if not exists idx_gym_reviews_gym on public.gym_reviews(gym_id);
+alter table public.gym_reviews enable row level security;
+create policy "gym_reviews read" on public.gym_reviews for select using (true);
+create policy "gym_reviews insert own" on public.gym_reviews for insert with check (member_id = auth.uid()::text);
+
+-- ============================================================
+-- Phase 3-d: 파트너 신청(partner_requests)
+--   트레이너→헬스장(application) / 헬스장→트레이너(invite). 양측(트레이너 본인 / 헬스장 관리자) 접근.
+-- ============================================================
+create table if not exists public.partner_requests (
+  id                      text primary key,
+  gym_id                  text not null,
+  gym_name                text not null default '',
+  trainer_id              text not null,
+  trainer_name            text not null default '',
+  trainer_tagline         text,
+  trainer_specializations jsonb not null default '[]',
+  type                    text not null check (type in ('application','invite')),
+  status                  text not null default 'pending' check (status in ('pending','approved','rejected')),
+  created_at              text not null default '',
+  updated_at              timestamptz not null default now()
+);
+create index if not exists idx_partner_requests_gym     on public.partner_requests(gym_id);
+create index if not exists idx_partner_requests_trainer on public.partner_requests(trainer_id);
+alter table public.partner_requests enable row level security;
+-- 트레이너 본인 또는 해당 헬스장 관리자만 접근(조회/생성/수정/삭제)
+create policy "partner_requests select" on public.partner_requests for select using (
+  trainer_id = auth.uid()::text
+  or exists (select 1 from public.gyms g where g.id = public.partner_requests.gym_id and g.admin_id = auth.uid())
+);
+create policy "partner_requests insert" on public.partner_requests for insert with check (
+  trainer_id = auth.uid()::text
+  or exists (select 1 from public.gyms g where g.id = public.partner_requests.gym_id and g.admin_id = auth.uid())
+);
+create policy "partner_requests update" on public.partner_requests for update using (
+  trainer_id = auth.uid()::text
+  or exists (select 1 from public.gyms g where g.id = public.partner_requests.gym_id and g.admin_id = auth.uid())
+);
+create policy "partner_requests delete" on public.partner_requests for delete using (
+  trainer_id = auth.uid()::text
+  or exists (select 1 from public.gyms g where g.id = public.partner_requests.gym_id and g.admin_id = auth.uid())
+);
+
+-- ============================================================
+-- Phase 3-e: 재등록 제안(offers)  — 트레이너→회원
+-- ============================================================
+create table if not exists public.offers (
+  id                text primary key,
+  trainer_id        text not null,
+  trainer_name      text not null default '',
+  member_id         text not null,
+  member_name       text not null default '',
+  session_count     int  not null default 0,
+  price_per_session int  not null default 0,
+  base_price        int  not null default 0,
+  memo              text not null default '',
+  expires_at        text not null default '',
+  expiry_reminded   boolean not null default false,
+  status            text not null default '제안' check (status in ('제안','수락','거절')),
+  created_at        text not null default ''
+);
+create index if not exists idx_offers_member  on public.offers(member_id);
+create index if not exists idx_offers_trainer on public.offers(trainer_id);
+alter table public.offers enable row level security;
+create policy "offers select" on public.offers for select using (trainer_id = auth.uid()::text or member_id = auth.uid()::text);
+create policy "offers insert trainer" on public.offers for insert with check (trainer_id = auth.uid()::text);
+create policy "offers update" on public.offers for update using (trainer_id = auth.uid()::text or member_id = auth.uid()::text);
+
+-- ============================================================
+-- Phase 3-f: 팔로우(follows)  — 공개 카운트, 본인만 추가/삭제
+-- ============================================================
+create table if not exists public.follows (
+  follower_id text not null,
+  followee_id text not null,
+  created_at  timestamptz not null default now(),
+  primary key (follower_id, followee_id)
+);
+create index if not exists idx_follows_followee on public.follows(followee_id);
+alter table public.follows enable row level security;
+create policy "follows read" on public.follows for select using (true);
+create policy "follows insert own" on public.follows for insert with check (follower_id = auth.uid()::text);
+create policy "follows delete own" on public.follows for delete using (follower_id = auth.uid()::text);
+
+-- ============================================================
+-- Phase B: 운영자(operator) + 신고(reports) + 입점신청(gym_applications)
+--   운영자 역할 도입. 운영자만 전체 신고/입점신청을 조회·처리.
+--   ⚠️ 운영자 계정은 가입이 아니라 기존 profiles 행의 role을 'operator'로 직접 설정:
+--      update public.profiles set role='operator' where id='<운영자 uuid>';
+-- ============================================================
+
+-- profiles.role 제약에 'operator' 추가 (기존 테이블이라 alter 필요)
+alter table public.profiles drop constraint if exists profiles_role_check;
+alter table public.profiles add constraint profiles_role_check check (role in ('member','trainer','gym_admin','operator'));
+
+-- 운영자 여부 헬퍼(RLS에서 재사용). SECURITY DEFINER로 profiles RLS 우회.
+create or replace function public.is_operator()
+returns boolean language sql security definer stable as $$
+  select exists (select 1 from public.profiles where id = auth.uid() and role = 'operator');
+$$;
+
+-- ── 신고(reports) ── 로그인 회원/트레이너가 작성. 본인 또는 운영자만 조회, 운영자만 상태변경.
+create table if not exists public.reports (
+  id            text primary key,
+  reporter_id   text not null,
+  reporter_name text not null default '',
+  target_type   text not null check (target_type in ('trainer','gym','member','content')),
+  target_id     text,
+  target_name   text not null default '',
+  reason        text not null default '',
+  detail        text,
+  status        text not null default '접수' check (status in ('접수','검토중','조치완료','반려')),
+  created_at    text not null default ''
+);
+create index if not exists idx_reports_reporter on public.reports(reporter_id);
+alter table public.reports enable row level security;
+create policy "reports insert own" on public.reports for insert with check (reporter_id = auth.uid()::text);
+create policy "reports select own or operator" on public.reports for select using (reporter_id = auth.uid()::text or public.is_operator());
+create policy "reports update operator" on public.reports for update using (public.is_operator()) with check (public.is_operator());
+
+-- ── 입점신청(gym_applications) ── 비로그인 공개 폼 제출 → 운영자만 조회·처리.
+create table if not exists public.gym_applications (
+  id              text primary key,
+  gym_name        text not null default '',
+  owner_name      text not null default '',
+  business_number text not null default '',
+  phone           text not null default '',
+  address         text not null default '',
+  status          text not null default '대기' check (status in ('대기','승인','반려')),
+  created_at      text not null default ''
+);
+alter table public.gym_applications enable row level security;
+create policy "gym_applications insert public" on public.gym_applications for insert with check (true);
+create policy "gym_applications select operator" on public.gym_applications for select using (public.is_operator());
+create policy "gym_applications update operator" on public.gym_applications for update using (public.is_operator()) with check (public.is_operator());
+
+-- ============================================================
+-- Phase E: 채팅 실시간화 (Supabase Realtime)
+--   열린 채팅방에서 상대방 신규 메시지를 실시간 수신하려면 chat_messages 테이블을
+--   realtime publication에 추가해야 한다. (대시보드 Database > Replication 에서 토글하거나 아래 실행)
+--   ✅ 보안(2026-07-01 정정): postgres_changes는 INSERT/UPDATE에 대해 구독자의 SELECT RLS를 강제한다.
+--      chat_messages "select" 정책(참여자 본인만)이 있으므로 참여 대화의 메시지만 수신된다.
+--      ⚠️ 단 Realtime에 로그인 JWT가 설정돼 있어야 함 → config/supabase.ts의 onAuthStateChange→
+--         realtime.setAuth가 보장. (DELETE는 RLS 미적용이나 채팅은 INSERT만 구독하므로 무관.)
+-- ============================================================
+alter publication supabase_realtime add table public.chat_messages;
+
+-- ============================================================
+-- Phase E2: 개인데이터(다기기 동기화) — 찜/회원기록/수동일정
+--   각자 본인 데이터만 접근. 회원기록은 트레이너가 작성, 회원은 공개(shared)분만 조회.
+-- ============================================================
+
+-- ── 찜(favorites) ── 회원이 찜한 트레이너. 본인만.
+create table if not exists public.favorites (
+  user_id    text not null,
+  trainer_id text not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, trainer_id)
+);
+alter table public.favorites enable row level security;
+create policy "favorites select own" on public.favorites for select using (user_id = auth.uid()::text);
+create policy "favorites insert own" on public.favorites for insert with check (user_id = auth.uid()::text);
+create policy "favorites delete own" on public.favorites for delete using (user_id = auth.uid()::text);
+
+-- ── 회원 운동기록(member_records) ── 트레이너 작성. 트레이너=본인 전체, 회원=공개분 조회.
+create table if not exists public.member_records (
+  id           text primary key,
+  trainer_id   text not null,
+  trainer_name text not null default '',
+  member_id    text not null,
+  date         text not null default '',
+  content      text not null default '',
+  shared       boolean not null default false,
+  created_at   text not null default ''
+);
+create index if not exists idx_member_records_trainer on public.member_records(trainer_id);
+create index if not exists idx_member_records_member  on public.member_records(member_id);
+alter table public.member_records enable row level security;
+create policy "member_records select" on public.member_records for select using (trainer_id = auth.uid()::text or (member_id = auth.uid()::text and shared));
+create policy "member_records insert trainer" on public.member_records for insert with check (trainer_id = auth.uid()::text);
+create policy "member_records update trainer" on public.member_records for update using (trainer_id = auth.uid()::text) with check (trainer_id = auth.uid()::text);
+create policy "member_records delete trainer" on public.member_records for delete using (trainer_id = auth.uid()::text);
+
+-- ── 수동 일정(manual_sessions) ── 트레이너가 직접 추가한 일정. 본인만.
+create table if not exists public.manual_sessions (
+  id          text primary key,
+  trainer_id  text not null,
+  date        text not null default '',
+  start_time  text not null default '',
+  end_time    text not null default '',
+  member_name text not null default '',
+  memo        text not null default '',
+  status      text not null default 'scheduled' check (status in ('scheduled','completed','cancelled')),
+  color       text not null default ''
+);
+create index if not exists idx_manual_sessions_trainer on public.manual_sessions(trainer_id);
+alter table public.manual_sessions enable row level security;
+create policy "manual_sessions all own" on public.manual_sessions for all using (trainer_id = auth.uid()::text) with check (trainer_id = auth.uid()::text);
+
+-- ── 숨긴 예약(hidden_sessions) ── 트레이너가 스케줄에서 숨긴 세션 id. 본인만.
+create table if not exists public.hidden_sessions (
+  trainer_id text not null,
+  session_id text not null,
+  primary key (trainer_id, session_id)
+);
+alter table public.hidden_sessions enable row level security;
+create policy "hidden_sessions select own" on public.hidden_sessions for select using (trainer_id = auth.uid()::text);
+create policy "hidden_sessions insert own" on public.hidden_sessions for insert with check (trainer_id = auth.uid()::text);
+
+-- ============================================================
+-- Phase E3: 커뮤니티(community) — 게시글/댓글/그룹 + 반응/가입
+--   콘텐츠는 공개 읽기, 작성자만 작성. 좋아요/싫어요는 공개 카운트(집계용), 저장은 본인만.
+--   좋아요/댓글/멤버 수는 반응/댓글/멤버 테이블에서 집계(동시성 안전). 조회수만 원자 증가 RPC.
+-- ============================================================
+
+-- ── 게시글(posts) ──
+create table if not exists public.posts (
+  id              text primary key,
+  category        text not null default '자유',
+  title           text not null default '',
+  content         text not null default '',
+  author          text not null default '',
+  author_id       text,
+  author_avatar   text,
+  location        text not null default '',
+  views           int  not null default 0,
+  image_url       text,
+  is_video        boolean not null default false,
+  video_url       text,
+  related_group_id text,
+  created_at      timestamptz not null default now()
+);
+alter table public.posts enable row level security;
+create policy "posts read" on public.posts for select using (true);
+create policy "posts insert own" on public.posts for insert with check (author_id = auth.uid()::text);
+
+-- ── 댓글(comments) ──
+create table if not exists public.comments (
+  id            text primary key,
+  post_id       text not null,
+  author        text not null default '',
+  author_id     text,
+  author_avatar text,
+  content       text not null default '',
+  created_at    timestamptz not null default now()
+);
+create index if not exists idx_comments_post on public.comments(post_id);
+alter table public.comments enable row level security;
+create policy "comments read" on public.comments for select using (true);
+create policy "comments insert own" on public.comments for insert with check (author_id = auth.uid()::text);
+
+-- ── 그룹(groups) ──
+create table if not exists public.groups (
+  id           text primary key,
+  category     text not null default '운동',
+  name         text not null default '',
+  description  text not null default '',
+  location     text not null default '',
+  max_members  int  not null default 0,
+  is_recruiting boolean not null default true,
+  image_url    text,
+  creator_id   text,
+  created_at   timestamptz not null default now()
+);
+alter table public.groups enable row level security;
+create policy "groups read" on public.groups for select using (true);
+create policy "groups insert own" on public.groups for insert with check (creator_id = auth.uid()::text);
+
+-- ── 게시글 반응(post_reactions) ── like/dislike(공개 집계) + save(본인만)
+create table if not exists public.post_reactions (
+  user_id    text not null,
+  post_id    text not null,
+  type       text not null check (type in ('like','dislike','save')),
+  created_at timestamptz not null default now(),
+  primary key (user_id, post_id, type)
+);
+create index if not exists idx_post_reactions_post on public.post_reactions(post_id);
+alter table public.post_reactions enable row level security;
+create policy "post_reactions read" on public.post_reactions for select using (type in ('like','dislike') or user_id = auth.uid()::text);
+create policy "post_reactions insert own" on public.post_reactions for insert with check (user_id = auth.uid()::text);
+create policy "post_reactions delete own" on public.post_reactions for delete using (user_id = auth.uid()::text);
+
+-- ── 그룹 가입(group_members) ── 공개 카운트, 본인만 가입/탈퇴
+create table if not exists public.group_members (
+  user_id    text not null,
+  group_id   text not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, group_id)
+);
+create index if not exists idx_group_members_group on public.group_members(group_id);
+alter table public.group_members enable row level security;
+create policy "group_members read" on public.group_members for select using (true);
+create policy "group_members insert own" on public.group_members for insert with check (user_id = auth.uid()::text);
+create policy "group_members delete own" on public.group_members for delete using (user_id = auth.uid()::text);
+
+-- 조회수 원자 증가(동시성 안전). 게시자 아닌 누구나 +1 가능하도록 SECURITY DEFINER.
+create or replace function public.increment_post_views(p_id text)
+returns void language sql security definer as $$
+  update public.posts set views = views + 1 where id = p_id;
+$$;
+
+-- ============================================================
+-- Phase F: 보안 강화 패치 (RLS 전수 점검 2026-07-01)
+--   ⚠️ 기존 환경은 이 블록만 실행하면 적용됨. 신규 환경은 전체 재실행 시 마지막에 덮어쓴다.
+--   C1=권한상승, C2=개인정보노출, M1=발신자위조, M4=카탈로그 사칭.
+-- ============================================================
+
+-- ── C1. profiles 권한 상승 차단 (operator 탈취) ──
+--   ① 가입 경로: handle_new_user가 메타데이터 role을 그대로 신뢰 → operator 가입 가능했음.
+--      허용 역할(member/trainer/gym_admin)만 받고, 그 외는 member로 강등.
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer as $$
+begin
+  insert into public.profiles (id, role, name, email)
+  values (
+    new.id,
+    case when new.raw_user_meta_data->>'role' in ('member','trainer','gym_admin')
+         then new.raw_user_meta_data->>'role' else 'member' end,
+    coalesce(new.raw_user_meta_data->>'name', ''),
+    new.email
+  )
+  on conflict (id) do nothing;
+  return new;
+end; $$;
+
+--   ② 직접 insert 경로: 클라가 profiles를 role='operator'로 직접 생성 못 하게.
+drop policy if exists "profiles upsert self" on public.profiles;
+create policy "profiles upsert self" on public.profiles for insert
+  with check (auth.uid() = id and role <> 'operator');
+
+--   ③ update 경로: 본인 행 role을 임의 변경 못 하게. auth.uid()가 있는(일반 사용자) 토큰에서
+--      role 변경 시 원래 값으로 되돌림. 운영자 지정은 service_role(SQL Editor, auth.uid() null)이라 영향 없음.
+create or replace function public.protect_profile_role()
+returns trigger language plpgsql as $$
+begin
+  if auth.uid() is not null and new.role is distinct from old.role then
+    new.role := old.role;
+  end if;
+  return new;
+end; $$;
+drop trigger if exists trg_protect_profile_role on public.profiles;
+create trigger trg_protect_profile_role before update on public.profiles
+  for each row execute function public.protect_profile_role();
+
+drop policy if exists "profiles update self" on public.profiles;
+create policy "profiles update self" on public.profiles for update
+  using (auth.uid() = id) with check (auth.uid() = id);
+
+-- ── C2. profiles 개인정보 노출 차단 ──
+--   read 정책(using true)은 name/avatar 공개 위해 유지하되, phone/email 컬럼만 select 권한 회수.
+--   (클라이언트는 profiles에서 role/name만 읽으므로 앱 영향 없음. 본인 정보 표시 필요 시 별도 경로로.)
+revoke select (phone, email) on public.profiles from anon, authenticated;
+
+-- ── M1. 채팅 발신자 위조 차단 ──
+--   같은 대화 참여자라도 sender_id는 본인이어야 insert 가능.
+drop policy if exists "chat_messages insert" on public.chat_messages;
+create policy "chat_messages insert" on public.chat_messages for insert with check (
+  sender_id = auth.uid()::text
+  and exists (select 1 from public.conversations c
+              where c.id = public.chat_messages.conversation_id and auth.uid()::text = any(c.participant_ids))
+);
+
+-- ── M4. mock 카탈로그 사칭 차단 ──
+--   실 트레이너/헬스장은 id == auth uuid 컨벤션. id를 임의 지정(trainer_001 등)해 사칭하지 못하게 강제.
+drop policy if exists "trainers insert self" on public.trainers;
+create policy "trainers insert self" on public.trainers for insert
+  with check (profile_id = auth.uid() and id = auth.uid()::text);
+
+drop policy if exists "gyms insert by admin" on public.gyms;
+create policy "gyms insert by admin" on public.gyms for insert
+  with check (admin_id = auth.uid() and id = auth.uid()::text);
+
+-- ── ③. gym_applications 스팸 방어 ──
+--   익명 공개 폼이라 봇이 garbage를 무제한 넣을 수 있었음(with check true).
+--   ① 형식 검증: 필수 항목 비어있지 않을 것 + 사업자번호 형식(3-2-5).
+--   ② 대기중 동일 사업자번호 중복 차단(부분 unique index). 반려/승인 후 재신청은 허용.
+--   ※ IP/캡차 기반 완전 봇 차단은 별도 인프라(Edge Function/Turnstile) 필요 — 후속 과제.
+drop policy if exists "gym_applications insert public" on public.gym_applications;
+create policy "gym_applications insert public" on public.gym_applications for insert with check (
+  length(btrim(gym_name)) > 0
+  and length(btrim(owner_name)) > 0
+  and business_number ~ '^[0-9]{3}-?[0-9]{2}-?[0-9]{5}$'
+  and length(btrim(phone)) >= 9
+  and length(btrim(address)) > 0
+);
+create unique index if not exists uq_gym_app_pending_biz
+  on public.gym_applications (business_number) where status = '대기';

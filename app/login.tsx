@@ -56,6 +56,7 @@ const DEMO_ACCOUNTS: { role: UserRole; label: string; emoji: string }[] = [
 function navigateByRole(router: ReturnType<typeof useRouter>, role: UserRole) {
   if (role === 'member')    router.replace('/(member)');
   else if (role === 'trainer') router.replace('/(trainer)');
+  else if (role === 'operator') router.replace('/operator' as any);
   else                      router.replace('/(gym)');
 }
 
@@ -121,6 +122,7 @@ export default function LoginScreen() {
     if (role === 'member')    return <Redirect href="/(member)" />;
     if (role === 'trainer')   return <Redirect href="/(trainer)" />;
     if (role === 'gym_admin') return <Redirect href="/(gym)" />;
+    if (role === 'operator')  return <Redirect href={'/operator' as any} />;
   }
 
   const handleLogin = async () => {
@@ -293,7 +295,7 @@ export default function LoginScreen() {
               <Text style={s.opLinkText}>🏢 헬스장 입점 신청</Text>
             </TouchableOpacity>
             <Text style={s.opDivider}>·</Text>
-            <TouchableOpacity onPress={() => router.push('/operator' as any)} activeOpacity={0.7}>
+            <TouchableOpacity onPress={() => handleDemo('operator')} activeOpacity={0.7}>
               <Text style={s.opLinkText}>🛡️ 운영자 콘솔</Text>
             </TouchableOpacity>
           </View>

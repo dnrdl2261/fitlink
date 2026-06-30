@@ -8,7 +8,7 @@ import { useScrollToTop } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useGymProfileStore } from '../../store/gymProfileStore';
-import { MOCK_GYMS } from '../../data/gyms';
+import { useGymStore } from '../../store/gymStore';
 import { useGymSlotStore } from '../../store/gymSlotStore';
 import { usePartnerStore } from '../../store/partnerStore';
 import { COLORS } from '../../utils/constants';
@@ -28,7 +28,7 @@ export default function GymMoreScreen() {
   useScrollToTop(scrollRef);
   const { gymAdmin } = useAuthStore();
   const GYM_ID = gymAdmin?.gymId ?? 'gym_001';
-  const baseGym = MOCK_GYMS.find(g => g.id === GYM_ID);
+  const baseGym = useGymStore((s) => s.gyms.find(g => g.id === GYM_ID));
   const gymEditsRaw = useGymProfileStore(s => s.edits[GYM_ID]);
   const gymEdits = gymEditsRaw ?? {};
   const gym = baseGym ? { ...baseGym, ...gymEdits } : baseGym;

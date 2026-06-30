@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { UserRole, Member, GymAdmin, Trainer } from '../types';
 import { MOCK_MEMBER, MOCK_TRAINER_USER, MOCK_GYM_ADMINS } from '../data/users';
 import { useTrainerStore } from './trainerStore';
+import { useGymStore, emptyGym } from './gymStore';
 import { supabase, isSupabaseConfigured } from '../config/supabase';
 
 // 데모/테스트용 계정 (둘러보기 + 미설정 시 mock 로그인)
@@ -37,7 +38,22 @@ interface AuthState {
   logout: () => void;
 }
 
+// 실 트레이너의 빈 프로필(데모 데이터 상속 방지). 본인이 edit-profile에서 채운다.
+function emptyTrainerProfile(id: string, name: string, email: string): Trainer {
+  return {
+    id, role: 'trainer', name, email, phone: '', createdAt: new Date().toISOString(),
+    gender: 'male', tagline: '', bio: '', region: '',
+    address: { city: '', district: '', dong: '' },
+    specializations: [], certifications: [], workHistory: [],
+    experienceYears: 0, rating: 0, reviewCount: 0, reviews: [],
+    sessionPrice: 0, partnerGymIds: [], availableSlots: [],
+    totalSessions: 0, monthlyEarnings: 0,
+    photos: [], videos: [], exerciseTypes: [], trainingGoals: [], trainingStyles: [], conveniences: [],
+  };
+}
+
 // 실 사용자/데모 공통 로컬 상태 구성. realId가 있으면 실제 인증 ID로 덮어쓴다(실 사용자는 데모 데이터와 분리).
+// 실 트레이너(realId)는 데모(trainer_001) 데이터를 상속하지 않도록 빈 프로필로 시작한다.
 function buildUserState(role: UserRole, name?: string, email?: string, gymId?: string, realId?: string) {
   const gymAdminBase = role === 'gym_admin'
     ? (MOCK_GYM_ADMINS.find((a) => a.gymId === gymId) ?? MOCK_GYM_ADMINS[0])
@@ -46,8 +62,17 @@ function buildUserState(role: UserRole, name?: string, email?: string, gymId?: s
     role,
     isLoggedIn: true,
     member:   role === 'member'    ? { ...MOCK_MEMBER,   ...(realId ? { id: realId } : {}), ...(name ? { name } : {}), ...(email ? { email } : {}) } : null,
-    trainer:  role === 'trainer'   ? { ...(useTrainerStore.getState().getTrainer(MOCK_TRAINER_USER.id) ?? MOCK_TRAINER_USER), ...(realId ? { id: realId } : {}), ...(name ? { name } : {}) } : null,
-    gymAdmin: gymAdminBase ? { ...gymAdminBase, ...(realId ? { id: realId } : {}), ...(name ? { name } : {}), ...(email ? { email } : {}) } : null,
+    trainer:  role === 'trainer'
+      ? (realId
+          ? emptyTrainerProfile(realId, name ?? '', email ?? '')
+          : { ...(useTrainerStore.getState().getTrainer(MOCK_TRAINER_USER.id) ?? MOCK_TRAINER_USER), ...(name ? { name } : {}) })
+      : null,
+    gymAdmin: role === 'gym_admin'
+      ? (realId
+          // 실 관리자: 자신의 헬스장(gymId == 관리자 uuid)을 가진다(트레이너 패턴).
+          ? { id: realId, name: name ?? '', email: email ?? '', phone: '', role: 'gym_admin' as const, createdAt: new Date().toISOString(), gymId: realId }
+          : (gymAdminBase ? { ...gymAdminBase, ...(name ? { name } : {}), ...(email ? { email } : {}) } : null))
+      : null,
   };
 }
 
@@ -63,7 +88,23 @@ function emailRedirectUrl(): string | undefined {
 async function buildFromSupabase(userId: string, email: string) {
   const { data } = await supabase.from('profiles').select('role, name').eq('id', userId).single();
   const role = (data?.role as UserRole) ?? 'member';
-  return buildUserState(role, data?.name || '', email, undefined, userId);
+  const base = buildUserState(role, data?.name || '', email, undefined, userId);
+  // 실 트레이너는 저장된 카탈로그 프로필(trainers 테이블)을 로컬 상태로 반영. 없으면 mock 템플릿 유지(첫 프로필 작성 전).
+  if (role === 'trainer') {
+    await useTrainerStore.getState().loadFromSupabase();
+    const dbTrainer = useTrainerStore.getState().getTrainer(userId);
+    if (dbTrainer) {
+      base.trainer = { ...dbTrainer, name: data?.name || dbTrainer.name, email };
+    }
+  }
+  // 실 관리자: 자신의 헬스장(gyms 행, id==uuid)을 로드. 없으면 로컬 빈 헬스장 시드(첫 시설설정 전, 관리자 화면이 찾도록).
+  if (role === 'gym_admin') {
+    await useGymStore.getState().loadFromSupabase();
+    if (!useGymStore.getState().getGym(userId)) {
+      useGymStore.getState().ensureLocalGym(emptyGym(userId, data?.name || ''));
+    }
+  }
+  return base;
 }
 
 // 프로필 기본 필드(name/phone)를 Supabase profiles에 동기화. 실 사용자만; 데모/미설정은 no-op.
@@ -159,8 +200,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (!trainer) return;
     syncProfileToSupabase(trainer.id, data);
     const updated = { ...trainer, ...data };
-    // 공유 트레이너 스토어에도 반영 → 회원 화면/로그아웃 후에도 유지
-    useTrainerStore.getState().updateTrainer(updated.id, data);
+    // 공유 트레이너 스토어에 반영(회원 화면/로그아웃 후에도 유지) + 실 트레이너는 trainers 카탈로그에 영속
+    useTrainerStore.getState().upsertTrainer(updated);
     set({ trainer: updated });
   },
 

@@ -146,8 +146,6 @@ export default function TrainerLayout() {
       <Tabs.Screen name="profile"      options={{ href: null, headerTitle: '내 프로필', headerLeft: () => <BackToMoreBtn /> }} />
       <Tabs.Screen name="edit-profile" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="partner-gyms" options={{ href: null, headerShown: false }} />
-      <Tabs.Screen name="slot-add"     options={{ href: null, headerShown: false, tabBarStyle: { display: 'none' } }} />
-      <Tabs.Screen name="package-manage" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="gym-book-pay"   options={{ href: null, headerShown: false, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="my-slot-bookings" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="member-detail"  options={{ href: null, headerShown: false }} />

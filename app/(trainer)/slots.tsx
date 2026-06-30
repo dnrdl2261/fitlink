@@ -6,7 +6,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
-import { MOCK_GYMS } from '../../data/gyms';
+import { useGymStore } from '../../store/gymStore';
 import { useGymSlotStore } from '../../store/gymSlotStore';
 import { useGymProfileStore, mergeGymEdits } from '../../store/gymProfileStore';
 import { useLocationStore } from '../../store/locationStore';
@@ -147,6 +147,7 @@ export default function TrainerSlotsScreen() {
   const { getAvailableSlots, cancelSlot, isBlacklisted, toggleFavorite, favoriteGyms } = useGymSlotStore();
   useGymSlotStore((s) => s.slotBookings);
   const gymEdits = useGymProfileStore((s) => s.edits); // 관리자 수정값(가격·시간 등) 반영
+  const allGyms = useGymStore((s) => s.gyms); // mock 데모 + 실 헬스장(uuid) 병합 목록
   const { currentLocation } = useLocationStore();
 
   // ── 상태 ──────────────────────────────────────────────────────
@@ -184,7 +185,7 @@ export default function TrainerSlotsScreen() {
 
   // ── 헬스장 목록 ───────────────────────────────────────────────
   const sortedGyms = useMemo(() => {
-    return MOCK_GYMS.map((g0) => {
+    return allGyms.map((g0) => {
       const g = mergeGymEdits(g0, gymEdits);
       return {
         ...g,
@@ -196,7 +197,7 @@ export default function TrainerSlotsScreen() {
       if (af !== bf) return af - bf;
       return a.distance - b.distance;
     });
-  }, [currentLocation, favoriteGyms, gymEdits]);
+  }, [currentLocation, favoriteGyms, gymEdits, allGyms]);
 
   const filteredGyms = useMemo(() => {
     let list = sortedGyms;

@@ -1,7 +1,29 @@
 import { create } from 'zustand';
 import { loadPersisted, persistOnChange } from '../utils/persist';
+import { supabase, isSupabaseConfigured } from '../config/supabase';
 
 const KEY = 'flowin-member-records';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isRealUser = (id?: string) => isSupabaseConfigured && !!id && UUID_RE.test(id);
+
+function recToRow(r: MemberRecord) {
+  return {
+    id: r.id, trainer_id: r.trainerId, trainer_name: r.trainerName, member_id: r.memberId,
+    date: r.date, content: r.content, shared: r.shared, created_at: r.createdAt,
+  };
+}
+function recFromRow(x: any): MemberRecord {
+  return {
+    id: x.id, trainerId: x.trainer_id, trainerName: x.trainer_name ?? '', memberId: x.member_id,
+    date: x.date ?? '', content: x.content ?? '', shared: !!x.shared, createdAt: x.created_at ?? '',
+  };
+}
+function mergeRecords(local: MemberRecord[], remote: MemberRecord[]): MemberRecord[] {
+  const map = new Map(local.map((r) => [r.id, r]));
+  remote.forEach((r) => map.set(r.id, r));
+  return Array.from(map.values());
+}
 
 export interface MemberRecord {
   id: string;
@@ -43,18 +65,36 @@ interface MemberRecordState {
   toggleShared: (id: string) => void;
   getRecords: (trainerId: string, memberId: string) => MemberRecord[];
   getMemberRecords: (memberId: string) => MemberRecord[];
+  loadForTrainer: (trainerId: string) => Promise<void>;
+  loadForMember: (memberId: string) => Promise<void>;
 }
 
 const init = loadPersisted(KEY, { records: SEED });
 
 export const useMemberRecordStore = create<MemberRecordState>((set, get) => ({
   records: init.records,
-  addRecord: (r) =>
-    set((s) => ({
-      records: [{ ...r, id: `rec_${Date.now()}`, createdAt: new Date().toISOString() }, ...s.records],
-    })),
-  removeRecord: (id) => set((s) => ({ records: s.records.filter((x) => x.id !== id) })),
-  toggleShared: (id) => set((s) => ({ records: s.records.map((x) => (x.id === id ? { ...x, shared: !x.shared } : x)) })),
+  addRecord: (r) => {
+    const rec: MemberRecord = { ...r, id: `rec_${Date.now()}`, createdAt: new Date().toISOString() };
+    set((s) => ({ records: [rec, ...s.records] }));
+    // 실 트레이너가 작성한 기록만 DB 미러.
+    if (isRealUser(rec.trainerId)) {
+      supabase.from('member_records').insert(recToRow(rec)).then(() => {}, () => {});
+    }
+  },
+  removeRecord: (id) => {
+    const rec = get().records.find((x) => x.id === id);
+    set((s) => ({ records: s.records.filter((x) => x.id !== id) }));
+    if (rec && isRealUser(rec.trainerId)) {
+      supabase.from('member_records').delete().eq('id', id).then(() => {}, () => {});
+    }
+  },
+  toggleShared: (id) => {
+    set((s) => ({ records: s.records.map((x) => (x.id === id ? { ...x, shared: !x.shared } : x)) }));
+    const rec = get().records.find((x) => x.id === id);
+    if (rec && isRealUser(rec.trainerId)) {
+      supabase.from('member_records').update({ shared: rec.shared }).eq('id', id).then(() => {}, () => {});
+    }
+  },
   getRecords: (trainerId, memberId) =>
     get()
       .records.filter((x) => x.trainerId === trainerId && x.memberId === memberId)
@@ -63,6 +103,20 @@ export const useMemberRecordStore = create<MemberRecordState>((set, get) => ({
     get()
       .records.filter((x) => x.memberId === memberId && x.shared)
       .sort((a, b) => (a.date !== b.date ? b.date.localeCompare(a.date) : b.createdAt.localeCompare(a.createdAt))),
+
+  // 트레이너: 본인이 작성한 전체 기록 로드. 회원: 본인에게 공개된 기록 로드. 데모/미설정은 no-op.
+  loadForTrainer: async (trainerId) => {
+    if (!isRealUser(trainerId)) return;
+    const { data } = await supabase.from('member_records').select('*').eq('trainer_id', trainerId);
+    if (!data) return;
+    set((s) => ({ records: mergeRecords(s.records, data.map(recFromRow)) }));
+  },
+  loadForMember: async (memberId) => {
+    if (!isRealUser(memberId)) return;
+    const { data } = await supabase.from('member_records').select('*').eq('member_id', memberId).eq('shared', true);
+    if (!data) return;
+    set((s) => ({ records: mergeRecords(s.records, data.map(recFromRow)) }));
+  },
 }));
 
 persistOnChange(useMemberRecordStore, KEY, (s) => ({ records: s.records }));

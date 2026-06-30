@@ -7,7 +7,7 @@ import { useRouter } from 'expo-router';
 import { useScrollToTop } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTrainerStore } from '../../store/trainerStore';
-import { MOCK_GYMS } from '../../data/gyms';
+import { useGymStore } from '../../store/gymStore';
 import { Trainer } from '../../types';
 import { useLocation } from '../../hooks/useLocation';
 import { useLocationStore } from '../../store/locationStore';
@@ -36,7 +36,6 @@ const TODAY = (() => { const d = new Date(); return `${d.getFullYear()}-${String
 const QUICK_ACTIONS = [
   { icon: 'calendar-plus',          label: '예약',   route: '/(member)/trainer-list' },
   { icon: 'clipboard-text-outline', label: '내 예약', route: '/(member)/bookings' },
-  { icon: 'package-variant-closed', label: '패키지', route: '/(member)/my-packages' },
 ] as const;
 
 type PriceKey = 'all' | 'u50' | 'm5080' | 'o80';
@@ -139,18 +138,19 @@ export default function MemberHomeScreen() {
   }, [bookings, memberId]);
 
   const trainers = useTrainerStore((s) => s.trainers);
+  const allGyms = useGymStore((s) => s.gyms);
 
   // ── 트레이너 거리(위치별) ──
   const trainerDistances = useMemo(() => {
     const map: Record<string, number> = {};
     for (const t of trainers) {
-      const gyms = MOCK_GYMS.filter((g) => t.partnerGymIds.includes(g.id));
+      const gyms = allGyms.filter((g) => t.partnerGymIds.includes(g.id));
       map[t.id] = gyms.length === 0
         ? Infinity
         : Math.min(...gyms.map((g) => calculateDistance(currentLocation, g.coordinate)));
     }
     return map;
-  }, [currentLocation, trainers]);
+  }, [currentLocation, trainers, allGyms]);
 
   // ── 검색 + 운동목적별 + 정렬 ──
   const filtered = useMemo(() => {
@@ -390,11 +390,17 @@ export default function MemberHomeScreen() {
                   color={fav ? '#EF4444' : D.textMuted}
                 />
               </TouchableOpacity>
-              <Image
-                source={{ uri: item.profileImageUrl ?? `https://picsum.photos/seed/${item.id}/200/200` }}
-                style={styles.trainerPhoto}
-                resizeMode="cover"
-              />
+              {item.profileImageUrl ? (
+                <Image
+                  source={{ uri: item.profileImageUrl }}
+                  style={styles.trainerPhoto}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={[styles.trainerPhoto, { alignItems: 'center', justifyContent: 'center' }]}>
+                  <MaterialCommunityIcons name="account" size={40} color={D.textMuted} />
+                </View>
+              )}
               <View style={styles.trainerInfo}>
                 <View style={styles.trainerNameRow}>
                   <Text style={styles.trainerName}>{item.name}</Text>

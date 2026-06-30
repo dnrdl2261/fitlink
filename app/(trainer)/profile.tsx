@@ -69,10 +69,13 @@ export default function TrainerProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* 프로필 헤더 */}
         <View style={styles.header}>
-          <Image
-            source={{ uri: trainer.profileImageUrl ?? 'https://picsum.photos/seed/default/200/200' }}
-            style={styles.avatar}
-          />
+          {trainer.profileImageUrl ? (
+            <Image source={{ uri: trainer.profileImageUrl }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, { alignItems: 'center', justifyContent: 'center' }]}>
+              <MaterialCommunityIcons name="account" size={48} color={COLORS.textSecondary} />
+            </View>
+          )}
           <Text style={styles.name}>{trainer.name} 트레이너</Text>
           {trainer.tagline ? (
             <Text style={styles.tagline}>{trainer.tagline}</Text>

@@ -1,4 +1,4 @@
-export type UserRole = 'member' | 'trainer' | 'gym_admin';
+export type UserRole = 'member' | 'trainer' | 'gym_admin' | 'operator';
 
 export interface BaseUser {
   id: string;

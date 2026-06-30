@@ -22,3 +22,12 @@ export const supabase = createClient(
     },
   },
 );
+
+// Realtime 보안: postgres_changes는 구독자의 SELECT RLS를 강제하지만, 그러려면 Realtime에
+// 로그인 사용자의 JWT가 설정돼 있어야 한다(없으면 anon으로 평가 → 참여자 RLS가 빈 결과).
+// auth 상태 변화(로그인/세션복원/토큰갱신/로그아웃)마다 토큰을 명시적으로 동기화해 race를 제거.
+if (isSupabaseConfigured) {
+  supabase.auth.onAuthStateChange((_event, session) => {
+    supabase.realtime.setAuth(session?.access_token ?? null);
+  });
+}

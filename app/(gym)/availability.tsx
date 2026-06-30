@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { MOCK_GYMS } from '../../data/gyms';
+import { useGymStore } from '../../store/gymStore';
 import { useGymSlotStore } from '../../store/gymSlotStore';
 import { useGymProfileStore } from '../../store/gymProfileStore';
 import { useAuthStore } from '../../store/authStore';
@@ -32,7 +32,7 @@ const MINUTE_OPTIONS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 export default function AvailabilityScreen() {
   const { gymAdmin } = useAuthStore();
   const GYM_ID = gymAdmin?.gymId ?? 'gym_001';
-  const baseGym = MOCK_GYMS.find((g) => g.id === GYM_ID)!;
+  const baseGym = useGymStore((s) => s.gyms.find((g) => g.id === GYM_ID))!;
   const updateProfile = useGymProfileStore((s) => s.updateProfile);
   const gymEdits = useGymProfileStore((s) => s.edits[GYM_ID]) ?? {};
   const gym = { ...baseGym, ...gymEdits };

@@ -9,7 +9,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useBookingStore } from '../../store/bookingStore';
 import { usePartnerStore } from '../../store/partnerStore';
-import { MOCK_GYMS } from '../../data/gyms';
+import { useGymStore } from '../../store/gymStore';
 import { formatDate, formatPrice } from '../../utils/formatters';
 
 const D = {
@@ -46,13 +46,14 @@ export default function TrainerMembersScreen() {
   const [bookingMember, setBookingMember] = useState<{ memberId: string; memberName: string } | null>(null);
   const [gymPickOpen, setGymPickOpen] = useState(false);
 
+  const allGyms = useGymStore((s) => s.gyms);
   const partnerGyms = useMemo(() => {
     const myReqs = allRequests.filter(r => r.trainerId === trainerId);
     const approvedIds = myReqs.filter(r => r.status === 'approved').map(r => r.gymId);
     const allIds = [...new Set([...(trainer?.partnerGymIds ?? []), ...approvedIds])]
       .filter(gid => !(removedPartnerIds[gid] ?? []).includes(trainerId));
-    return MOCK_GYMS.filter(g => allIds.includes(g.id));
-  }, [trainer, allRequests, removedPartnerIds, trainerId]);
+    return allGyms.filter(g => allIds.includes(g.id));
+  }, [trainer, allRequests, removedPartnerIds, trainerId, allGyms]);
 
   const memberData = useMemo(() => {
     const myBookings = bookings.filter((b) => b.trainerId === trainerId);

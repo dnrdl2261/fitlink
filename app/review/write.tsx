@@ -54,7 +54,7 @@ export default function ReviewWriteScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsMultipleSelection: true,
       selectionLimit: remaining,
       quality: 0.8,
@@ -67,7 +67,7 @@ export default function ReviewWriteScreen() {
   const pickVideo = async () => {
     if (!(await requestPermission())) return;
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      mediaTypes: ['videos'],
       quality: 0.8,
     });
     if (!result.canceled) {

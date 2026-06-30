@@ -6,7 +6,7 @@ import {
 import { useRouter, useNavigation } from 'expo-router';
 import { useScrollToTop } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { MOCK_GYMS } from '../../data/gyms';
+import { useGymStore } from '../../store/gymStore';
 import { useGymProfileStore, mergeGymEdits } from '../../store/gymProfileStore';
 import { useLocationStore } from '../../store/locationStore';
 import { useLocation } from '../../hooks/useLocation';
@@ -47,6 +47,7 @@ export default function GymListScreen() {
   useLocation(); // GPS 현재위치를 기본 기준으로 가져옴
   const { currentLocation, selectedDong } = useLocationStore();
   const gymEdits = useGymProfileStore((s) => s.edits); // 관리자 수정값(가격 등) 반영
+  const allGyms = useGymStore((s) => s.gyms); // mock 데모 + 실 헬스장(uuid) 병합 목록
 
   const [query, setQuery]       = useState('');
   const [regionFilter, setRegionFilter] = useState<{ city: string; district?: string } | null>(null);
@@ -68,11 +69,11 @@ export default function GymListScreen() {
     if (!q) return empty;
     const lq = q.toLowerCase();
     const pool = regionFilter
-      ? MOCK_GYMS.filter(g => g.city === regionFilter.city && (!regionFilter.district || g.district === regionFilter.district))
-      : MOCK_GYMS;
+      ? allGyms.filter(g => g.city === regionFilter.city && (!regionFilter.district || g.district === regionFilter.district))
+      : allGyms;
     const regionMap = new Map<string, { city: string; district?: string; label: string }>();
     if (!regionFilter) {
-      MOCK_GYMS.forEach(g => {
+      allGyms.forEach(g => {
         if (g.city.includes(q)) regionMap.set(g.city, { city: g.city, label: g.city });
         const cd = `${g.city} ${g.district}`;
         if (g.district.includes(q) || cd.includes(q))
@@ -83,10 +84,10 @@ export default function GymListScreen() {
       regions: Array.from(regionMap.values()).slice(0, 4),
       gyms: pool.filter(g => g.name.toLowerCase().includes(lq)).slice(0, 5),
     };
-  }, [query, regionFilter]);
+  }, [query, regionFilter, allGyms]);
 
   const filtered = useMemo(() => {
-    let result = MOCK_GYMS.map((g) => mergeGymEdits(g, gymEdits));
+    let result = allGyms.map((g) => mergeGymEdits(g, gymEdits));
 
     if (regionFilter)
       result = result.filter(g =>
@@ -125,7 +126,7 @@ export default function GymListScreen() {
       });
     }
     return result;
-  }, [query, regionFilter, sortBy, currentLocation, gymEdits]);
+  }, [query, regionFilter, sortBy, currentLocation, gymEdits, allGyms]);
 
   const currentSort = SORT_OPTIONS.find(o => o.key === sortBy)!;
   const selectedMapGym = filtered.find(g => g.id === selectedGymId);

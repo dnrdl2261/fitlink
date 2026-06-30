@@ -7,11 +7,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useScrollToTop } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useBookingStore } from '../../store/bookingStore';
+import { gymMonthlyRevenue } from '../../utils/gymRevenue';
 import { useGymSlotStore } from '../../store/gymSlotStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { MOCK_TRAINERS } from '../../data/trainers';
-import { MOCK_GYMS } from '../../data/gyms';
+import { useGymStore } from '../../store/gymStore';
 import { formatTime, formatPrice } from '../../utils/formatters';
 import { COLORS, BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS, DAY_LABELS, WEEKDAY_ORDER } from '../../utils/constants';
 import { SlotBooking } from '../../types';
@@ -838,24 +839,14 @@ const QUICK_ACTIONS = [
   { icon: 'account-cancel-outline', label: '블랙리스트', route: '/(gym)/blacklist' },
 ] as const;
 
-// 이번 달 매출 미니 차트(시연용 목 데이터)
-const REV_BARS = [
-  { label: '12월', amount: 18500000 },
-  { label: '1월',  amount: 21200000 },
-  { label: '2월',  amount: 19800000 },
-  { label: '3월',  amount: 23400000 },
-  { label: '4월',  amount: 22100000 },
-  { label: '5월',  amount: 24800000 },
-];
-
 export default function GymBookingsScreen() {
   const scrollRef = useRef<any>(null);
   useScrollToTop(scrollRef);
   const router = useRouter();
   const { gymAdmin } = useAuthStore();
   const GYM_ID = gymAdmin?.gymId ?? 'gym_001';
-  const gym    = MOCK_GYMS.find((g) => g.id === GYM_ID);
-  const revMax = Math.max(...REV_BARS.map((b) => b.amount));
+  const isRealGymCtx = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(GYM_ID);
+  const gym    = useGymStore((s) => s.gyms.find((g) => g.id === GYM_ID));
   const greeting = (() => { const h = new Date().getHours(); return h < 12 ? '좋은 아침이에요' : h < 17 ? '좋은 오후예요' : '오늘도 수고하셨어요'; })();
 
   const { bookings }                               = useBookingStore();
@@ -892,6 +883,19 @@ export default function GymBookingsScreen() {
   const pendingSlots   = mySlots.filter((b) => b.status === 'pending');
   const confirmedSlots = mySlots.filter((b) => b.status === 'confirmed');
   const todayConfirmed = confirmedSlots.filter((b) => b.date === today);
+
+  // 이번 달 매출 미니차트 — 확정 슬롯 시설료 실집계(최근 6개월). 신규 헬스장은 0.
+  const revBars = useMemo(
+    () => gymMonthlyRevenue(slotBookings, GYM_ID, 6).map((m) => ({ label: m.label, amount: m.amount })),
+    [slotBookings, GYM_ID]
+  );
+  const revMax = Math.max(...revBars.map((b) => b.amount), 1);
+  const revGrowth = (() => {
+    if (revBars.length < 2) return null;
+    const prev = revBars[revBars.length - 2].amount, cur = revBars[revBars.length - 1].amount;
+    if (prev <= 0) return null;
+    return Math.round(((cur - prev) / prev) * 1000) / 10;
+  })();
 
   const pendingGroups = useMemo<TrainerGroup[]>(() => {
     const map = new Map<string, SlotBooking[]>();
@@ -962,7 +966,8 @@ export default function GymBookingsScreen() {
     }));
   }, [filteredSlots]);
 
-  const allPTBookings       = bookings.filter((b) => b.status === 'active' || b.status === 'completed');
+  // 실 헬스장은 PT 예약(회원↔트레이너)과 연결되지 않음(Booking에 gymId 없음) → 표시 안 함. 데모(mock 헬스장)만 시연용 표시.
+  const allPTBookings       = (isRealGymCtx ? [] : bookings).filter((b) => b.status === 'active' || b.status === 'completed');
   const todayPTBookings     = allPTBookings.filter((b) => b.sessions.some((s) => s.date === today && s.status === 'scheduled'));
   const activePTBookings    = allPTBookings.filter((b) => b.status === 'active');
   const completedPTBookings = allPTBookings.filter((b) => b.status === 'completed');
@@ -1112,17 +1117,19 @@ export default function GymBookingsScreen() {
               <View style={st.revHead}>
                 <View>
                   <Text style={st.revTitle}>이번 달 매출</Text>
-                  <Text style={st.revAmount}>{formatPrice(REV_BARS[REV_BARS.length - 1].amount)}</Text>
+                  <Text style={st.revAmount}>{formatPrice(revBars[revBars.length - 1].amount)}</Text>
                 </View>
-                <View style={st.revGrowth}>
-                  <MaterialCommunityIcons name="trending-up" size={12} color="#10B981" />
-                  <Text style={st.revGrowthText}>+12.2%</Text>
-                </View>
+                {revGrowth !== null && (
+                  <View style={st.revGrowth}>
+                    <MaterialCommunityIcons name={revGrowth >= 0 ? 'trending-up' : 'trending-down'} size={12} color={revGrowth >= 0 ? '#10B981' : '#EF4444'} />
+                    <Text style={st.revGrowthText}>{revGrowth >= 0 ? '+' : ''}{revGrowth}%</Text>
+                  </View>
+                )}
               </View>
               <View style={st.revChart}>
-                {REV_BARS.map((bar, i) => {
+                {revBars.map((bar, i) => {
                   const barH = Math.max((bar.amount / revMax) * 64, 4);
-                  const isLast = i === REV_BARS.length - 1;
+                  const isLast = i === revBars.length - 1;
                   return (
                     <View key={bar.label} style={st.revBarWrap}>
                       <View style={st.revValRow}>

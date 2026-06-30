@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { supabase, isSupabaseConfigured } from '../config/supabase';
 
 export type NotifType =
   | 'booking_confirmed'
@@ -116,35 +117,86 @@ const MOCK: Notification[] = [
   },
 ];
 
+// ── Supabase 연동 (실 수신자만; 데모 mock id는 로컬만) ──────────
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isRealUser = (id?: string) => isSupabaseConfigured && !!id && UUID_RE.test(id);
+
+function notifToRow(n: Notification) {
+  return {
+    id: n.id, type: n.type, title: n.title, body: n.body,
+    is_read: n.isRead, created_at: n.createdAt,
+    target_role: n.targetRole, user_id: n.userId, meta: n.meta ?? null,
+  };
+}
+
+function notifFromRow(r: any): Notification {
+  return {
+    id: r.id, type: r.type, title: r.title ?? '', body: r.body ?? '',
+    isRead: !!r.is_read, createdAt: r.created_at ?? '',
+    targetRole: r.target_role, userId: r.user_id, meta: r.meta ?? undefined,
+  };
+}
+
 interface NotifState {
   notifications: Notification[];
   markRead: (id: string) => void;
   markAllRead: (userId: string) => void;
   addNotification: (n: Omit<Notification, 'id' | 'createdAt' | 'isRead'>) => void;
   getUnread: (userId: string) => number;
+  loadFromSupabase: (userId: string) => Promise<void>;
 }
 
 export const useNotificationStore = create<NotifState>((set, get) => ({
   notifications: MOCK,
 
-  markRead: (id) => set((s) => ({
-    notifications: s.notifications.map((n) => n.id === id ? { ...n, isRead: true } : n),
-  })),
+  markRead: (id) => {
+    set((s) => ({
+      notifications: s.notifications.map((n) => n.id === id ? { ...n, isRead: true } : n),
+    }));
+    const n = get().notifications.find((x) => x.id === id);
+    if (n && isRealUser(n.userId)) {
+      supabase.from('notifications').update({ is_read: true }).eq('id', id).then(() => {}, () => {});
+    }
+  },
 
-  markAllRead: (userId) => set((s) => ({
-    notifications: s.notifications.map((n) =>
-      n.userId === userId ? { ...n, isRead: true } : n
-    ),
-  })),
+  markAllRead: (userId) => {
+    set((s) => ({
+      notifications: s.notifications.map((n) =>
+        n.userId === userId ? { ...n, isRead: true } : n
+      ),
+    }));
+    if (isRealUser(userId)) {
+      supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).then(() => {}, () => {});
+    }
+  },
 
-  addNotification: (data) => set((s) => ({
-    notifications: [{
+  addNotification: (data) => {
+    const n: Notification = {
       ...data,
-      id: `n_${Date.now()}`,
+      id: `n_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       isRead: false,
       createdAt: new Date().toISOString(),
-    }, ...s.notifications],
-  })),
+    };
+    set((s) => ({ notifications: [n, ...s.notifications] }));
+    // 실 수신자 알림만 DB에 미러(작성자=다른 사용자라도 RLS insert는 인증 사용자 누구나 허용).
+    if (isRealUser(n.userId)) {
+      supabase.from('notifications').insert(notifToRow(n)).then(() => {}, () => {});
+    }
+  },
 
   getUnread: (userId) => get().notifications.filter((n) => n.userId === userId && !n.isRead).length,
+
+  // 실 사용자(uuid)의 알림을 Supabase에서 로드해 병합(id 기준). 데모/미설정은 no-op.
+  loadFromSupabase: async (userId) => {
+    if (!isRealUser(userId)) return;
+    const { data, error } = await supabase
+      .from('notifications').select('*').eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (error || !data) return;
+    const rows = data.map(notifFromRow);
+    set((s) => {
+      const ids = new Set(rows.map((r) => r.id));
+      return { notifications: [...rows, ...s.notifications.filter((n) => !ids.has(n.id))] };
+    });
+  },
 }));

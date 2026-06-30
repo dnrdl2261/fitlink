@@ -6,7 +6,7 @@ import {
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTrainerStore } from '../../store/trainerStore';
-import { MOCK_GYMS } from '../../data/gyms';
+import { useGymStore } from '../../store/gymStore';
 import { Trainer } from '../../types';
 import { COLORS } from '../../utils/constants';
 import { useLocationStore } from '../../store/locationStore';
@@ -34,7 +34,7 @@ function getPhotos(trainer: Trainer) {
 }
 
 function getPrimaryGym(trainer: Trainer) {
-  return MOCK_GYMS.find(g => trainer.partnerGymIds.includes(g.id))?.name ?? null;
+  return useGymStore.getState().gyms.find(g => trainer.partnerGymIds.includes(g.id))?.name ?? null;
 }
 
 function getTrialPrice(price: number) {
@@ -86,14 +86,15 @@ export default function TrainerListScreen() {
   }, [photoViewer, width]);
 
   const allTrainers = useTrainerStore((s) => s.trainers);
+  const allGyms = useGymStore((s) => s.gyms);
   const trainerDistances = useMemo(() => {
     const map: Record<string, number> = {};
     for (const t of allTrainers) {
-      const gyms = MOCK_GYMS.filter(g => t.partnerGymIds.includes(g.id));
+      const gyms = allGyms.filter(g => t.partnerGymIds.includes(g.id));
       map[t.id] = gyms.length === 0 ? Infinity : Math.min(...gyms.map(g => calculateDistance(currentLocation, g.coordinate)));
     }
     return map;
-  }, [currentLocation, allTrainers]);
+  }, [currentLocation, allTrainers, allGyms]);
 
   const filtered = useMemo(() => {
     let r = allTrainers;

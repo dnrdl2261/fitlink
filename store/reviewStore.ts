@@ -1,5 +1,40 @@
 import { create } from 'zustand';
 import { TrainerReview, GymReview } from '../types/review';
+import { supabase, isSupabaseConfigured } from '../config/supabase';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isRealUser = (id?: string) => isSupabaseConfigured && !!id && UUID_RE.test(id);
+
+function trainerReviewToRow(r: TrainerReview) {
+  return {
+    id: r.id, trainer_id: r.trainerId, trainer_name: r.trainerName,
+    booking_id: r.bookingId ?? null, member_id: r.memberId, member_name: r.memberName,
+    member_avatar: r.memberAvatar ?? null, rating: r.rating, comment: r.comment,
+    media: r.media ?? [], created_at: r.createdAt,
+  };
+}
+function trainerReviewFromRow(r: any): TrainerReview {
+  return {
+    id: r.id, trainerId: r.trainer_id, trainerName: r.trainer_name ?? '',
+    bookingId: r.booking_id ?? '', memberId: r.member_id, memberName: r.member_name ?? '',
+    memberAvatar: r.member_avatar ?? undefined, rating: r.rating ?? 5, comment: r.comment ?? '',
+    media: r.media ?? [], createdAt: r.created_at ?? '',
+  };
+}
+function gymReviewToRow(r: GymReview) {
+  return {
+    id: r.id, gym_id: r.gymId, gym_name: r.gymName,
+    member_id: r.memberId, member_name: r.memberName, member_avatar: r.memberAvatar ?? null,
+    rating: r.rating, comment: r.comment, created_at: r.createdAt,
+  };
+}
+function gymReviewFromRow(r: any): GymReview {
+  return {
+    id: r.id, gymId: r.gym_id, gymName: r.gym_name ?? '',
+    memberId: r.member_id, memberName: r.member_name ?? '', memberAvatar: r.member_avatar ?? undefined,
+    rating: r.rating ?? 5, comment: r.comment ?? '', createdAt: r.created_at ?? '',
+  };
+}
 
 // 시연용 더미 후기 (김민준 트레이너 = trainer_001)
 const MOCK_TRAINER_REVIEWS: TrainerReview[] = [
@@ -38,6 +73,7 @@ interface ReviewState {
   getGymReviews: (gymId: string) => GymReview[];
   hasReviewed: (bookingId: string) => boolean;
   hasReviewedGym: (gymId: string, memberId: string) => boolean;
+  loadFromSupabase: () => Promise<void>;
 }
 
 export const useReviewStore = create<ReviewState>((set, get) => ({
@@ -52,6 +88,9 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
       createdAt: new Date().toISOString().split('T')[0],
     };
     set((state) => ({ reviews: [...state.reviews, review] }));
+    if (isRealUser(review.memberId)) {
+      supabase.from('trainer_reviews').insert(trainerReviewToRow(review)).then(() => {}, () => {});
+    }
     return id;
   },
 
@@ -63,6 +102,9 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
       createdAt: new Date().toISOString().split('T')[0],
     };
     set((state) => ({ gymReviews: [...state.gymReviews, review] }));
+    if (isRealUser(review.memberId)) {
+      supabase.from('gym_reviews').insert(gymReviewToRow(review)).then(() => {}, () => {});
+    }
     return id;
   },
 
@@ -77,4 +119,27 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
 
   hasReviewedGym: (gymId, memberId) =>
     get().gymReviews.some((r) => r.gymId === gymId && r.memberId === memberId),
+
+  // 공개 후기를 Supabase에서 로드(병합). mock 시드 유지. 미설정은 no-op.
+  loadFromSupabase: async () => {
+    if (!isSupabaseConfigured) return;
+    const [tr, gr] = await Promise.all([
+      supabase.from('trainer_reviews').select('*'),
+      supabase.from('gym_reviews').select('*'),
+    ]);
+    set((state) => {
+      const next: Partial<ReviewState> = {};
+      if (!tr.error && tr.data) {
+        const rows = tr.data.map(trainerReviewFromRow);
+        const ids = new Set(rows.map((r) => r.id));
+        next.reviews = [...rows, ...state.reviews.filter((r) => !ids.has(r.id))];
+      }
+      if (!gr.error && gr.data) {
+        const rows = gr.data.map(gymReviewFromRow);
+        const ids = new Set(rows.map((r) => r.id));
+        next.gymReviews = [...rows, ...state.gymReviews.filter((r) => !ids.has(r.id))];
+      }
+      return next as ReviewState;
+    });
+  },
 }));

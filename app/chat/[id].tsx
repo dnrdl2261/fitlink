@@ -13,7 +13,7 @@ export default function ChatRoomScreen() {
   const { id: conversationId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { role, member, trainer, gymAdmin } = useAuthStore();
-  const { getMessages, sendMessage, markRead, conversations } = useChatStore();
+  const { getMessages, sendMessage, markRead, conversations, loadConversation } = useChatStore();
   useChatStore((s) => s.messages);
 
   const [text, setText] = useState('');
@@ -46,11 +46,15 @@ export default function ChatRoomScreen() {
     other?.role === 'trainer'   ? '트레이너' : '헬스장 관리자';
 
   useEffect(() => {
-    if (conversationId && myId) markRead(conversationId, myId);
+    if (!conversationId) return;
+    loadConversation(conversationId); // 진입 시 최신 메시지 1회 동기화
+    if (myId) markRead(conversationId, myId);
   }, [conversationId, myId]);
 
+  // 신규 메시지(인박스 실시간 수신 포함) 도착 시 스크롤 + 읽음 처리(열린 방 unread 0 유지)
   useEffect(() => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 80);
+    if (myId && conversationId) markRead(conversationId, myId);
   }, [messages.length]);
 
   const handleSend = () => {

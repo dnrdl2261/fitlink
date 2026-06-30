@@ -1,7 +1,11 @@
 import { create } from 'zustand';
 import { loadPersisted, persistOnChange } from '../utils/persist';
+import { supabase, isSupabaseConfigured } from '../config/supabase';
 
 const PERSIST_KEY = 'flowin-partner';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isRealUser = (id?: string) => isSupabaseConfigured && !!id && UUID_RE.test(id);
 
 export interface PartnerRequest {
   id: string;
@@ -32,6 +36,41 @@ interface PartnerState {
   getTrainerRequests: (trainerId: string) => PartnerRequest[];
   hasActiveRequest: (gymId: string, trainerId: string) => boolean;
   isPartner: (gymId: string, trainerId: string, staticIds: string[]) => boolean;
+  loadForTrainer: (trainerId: string) => Promise<void>;
+  loadForGym: (gymId: string) => Promise<void>;
+}
+
+const isRealReq = (r: PartnerRequest) => isRealUser(r.trainerId) || isRealUser(r.gymId);
+
+function reqToRow(r: PartnerRequest) {
+  return {
+    id: r.id, gym_id: r.gymId, gym_name: r.gymName,
+    trainer_id: r.trainerId, trainer_name: r.trainerName,
+    trainer_tagline: r.trainerTagline ?? null,
+    trainer_specializations: r.trainerSpecializations ?? [],
+    type: r.type, status: r.status, created_at: r.createdAt,
+  };
+}
+function reqFromRow(r: any): PartnerRequest {
+  return {
+    id: r.id, gymId: r.gym_id, gymName: r.gym_name ?? '',
+    trainerId: r.trainer_id, trainerName: r.trainer_name ?? '',
+    trainerTagline: r.trainer_tagline ?? undefined,
+    trainerSpecializations: r.trainer_specializations ?? undefined,
+    type: r.type, status: r.status, createdAt: r.created_at ?? '',
+  };
+}
+function mirrorReq(id: string) {
+  if (!isSupabaseConfigured) return;
+  const r = usePartnerStore.getState().requests.find((x) => x.id === id);
+  if (!r || !isRealReq(r)) return;
+  supabase.from('partner_requests').upsert(reqToRow(r)).then(() => {}, () => {});
+}
+function mergeReqs(rows: PartnerRequest[]) {
+  usePartnerStore.setState((s) => {
+    const ids = new Set(rows.map((r) => r.id));
+    return { requests: [...rows, ...s.requests.filter((r) => !ids.has(r.id))] };
+  });
 }
 
 const TODAY = '2026-04-28';
@@ -111,6 +150,7 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
       createdAt: TODAY,
     };
     set(s => ({ requests: [...s.requests, req] }));
+    mirrorReq(req.id);
   },
 
   inviteTrainer: ({ gymId, gymName, trainerId, trainerName, trainerTagline, trainerSpecializations }) => {
@@ -126,25 +166,33 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
       createdAt: TODAY,
     };
     set(s => ({ requests: [...s.requests, req] }));
+    mirrorReq(req.id);
   },
 
   approve: (requestId) => {
     set(s => ({
       requests: s.requests.map(r => r.id === requestId ? { ...r, status: 'approved' } : r),
     }));
+    mirrorReq(requestId);
   },
 
   reject: (requestId) => {
     set(s => ({
       requests: s.requests.map(r => r.id === requestId ? { ...r, status: 'rejected' } : r),
     }));
+    mirrorReq(requestId);
   },
 
   cancelRequest: (requestId) => {
+    const r = get().requests.find(x => x.id === requestId);
     set(s => ({ requests: s.requests.filter(r => r.id !== requestId) }));
+    if (r && isRealReq(r)) supabase.from('partner_requests').delete().eq('id', requestId).then(() => {}, () => {});
   },
 
   removePartner: (gymId, trainerId) => {
+    const toRemove = get().requests.filter(
+      r => r.gymId === gymId && r.trainerId === trainerId && r.status === 'approved'
+    );
     set(s => ({
       removedPartnerIds: {
         ...s.removedPartnerIds,
@@ -155,6 +203,9 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
         r => !(r.gymId === gymId && r.trainerId === trainerId && r.status === 'approved')
       ),
     }));
+    toRemove.forEach((r) => {
+      if (isRealReq(r)) supabase.from('partner_requests').delete().eq('id', r.id).then(() => {}, () => {});
+    });
   },
 
   getGymPartnerIds: (gymId, staticIds) => {
@@ -178,6 +229,22 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
 
   isPartner: (gymId, trainerId, staticIds) =>
     get().getGymPartnerIds(gymId, staticIds).includes(trainerId),
+
+  // 실 트레이너(uuid)의 파트너 신청을 로드. 데모/미설정은 no-op.
+  loadForTrainer: async (trainerId) => {
+    if (!isRealUser(trainerId)) return;
+    const { data, error } = await supabase.from('partner_requests').select('*').eq('trainer_id', trainerId);
+    if (error || !data) return;
+    mergeReqs(data.map(reqFromRow));
+  },
+
+  // 실 헬스장(uuid)에 들어온 파트너 신청을 로드(관리자용). 데모/미설정은 no-op.
+  loadForGym: async (gymId) => {
+    if (!isRealUser(gymId)) return;
+    const { data, error } = await supabase.from('partner_requests').select('*').eq('gym_id', gymId);
+    if (error || !data) return;
+    mergeReqs(data.map(reqFromRow));
+  },
 }));
 
 persistOnChange(usePartnerStore, PERSIST_KEY, (s) => ({

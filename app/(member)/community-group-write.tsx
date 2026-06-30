@@ -36,7 +36,7 @@ export default function CommunityGroupWriteScreen() {
       }
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsMultipleSelection: false,
       quality: 0.8,
       aspect: [16, 9],

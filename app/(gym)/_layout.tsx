@@ -6,7 +6,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useChatStore } from '../../store/chatStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import NotificationToast from '../../components/NotificationToast';
-import { MOCK_GYMS } from '../../data/gyms';
+import { useGymStore } from '../../store/gymStore';
 
 const PRETENDARD = "'Pretendard Variable', 'Pretendard', -apple-system, sans-serif";
 
@@ -70,7 +70,7 @@ function GymBellBtn({ userId, color }: { userId: string; color: string }) {
 export default function GymLayout() {
   const { isLoggedIn, role, gymAdmin } = useAuthStore();
   const unread = useChatStore((s) => s.getUnreadTotal(gymAdmin?.id ?? ''));
-  const gym = MOCK_GYMS.find((g) => g.id === gymAdmin?.gymId);
+  const gym = useGymStore((s) => s.gyms.find((g) => g.id === gymAdmin?.gymId));
 
   if (!isLoggedIn) return null;
   // 역할 가드: 다른 역할이 직접 진입(딥링크) 시 본인 역할 그룹으로 리다이렉트
