@@ -14,9 +14,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.flowin.app"
     },
     "android": {
+      "package": "com.flowin.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -32,7 +34,20 @@
       "expo-router",
       "expo-font",
       "expo-web-browser",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "프로필·후기 사진을 첨부하기 위해 사진 접근 권한이 필요합니다.",
+          "cameraPermission": "사진을 촬영하기 위해 카메라 권한이 필요합니다."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "내 주변 트레이너·헬스장을 추천하기 위해 위치 권한이 필요합니다."
+        }
+      ]
     ]
   }
 }
