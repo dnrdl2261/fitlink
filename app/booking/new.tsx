@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, SafeAreaView,
+  TouchableOpacity, SafeAreaView, Platform, Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import { useNotificationStore } from '../../store/notificationStore';
 import { useOfferStore } from '../../store/offerStore';
 import { formatTime, formatPrice } from '../../utils/formatters';
 import { PAY_METHODS } from '../../utils/constants';
+import { requestPayment } from '../../config/payment';
 
 const D = {
   bg:          '#EEF2F9',
@@ -141,7 +142,7 @@ export default function NewBookingScreen() {
   const storeTrainers = useTrainerStore((s) => s.trainers);
   const trainerFromStore = storeTrainers.find((t) => t.id === trainerId);
   const trainer = myTrainer?.id === trainerId ? myTrainer : trainerFromStore;
-  const { addBooking } = useBookingStore();
+  const { addBooking, recordPayment } = useBookingStore();
 
   // 트레이너 맞춤 재등록 제안으로 진입 시 횟수·1회가격 고정
   const offerCountN = Number(offerCount) || 0;
@@ -178,8 +179,21 @@ export default function NewBookingScreen() {
     setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: false }), 0);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!trainer) return;
+    // 결제 요청(미설정 시 데모 즉시성공, 포트원 설정 시 실 결제창). 성공해야 예약 생성.
+    const orderId = `pt_${Date.now()}`;
+    const pay = await requestPayment({
+      orderId,
+      orderName: `${trainer.name} 트레이너 ${sessionCount}회 PT`,
+      amount: finalPrice,
+      customerName: member?.name,
+    });
+    if (!pay.success) {
+      const msg = pay.message ?? '결제에 실패했습니다. 다시 시도해주세요.';
+      if (Platform.OS === 'web') window.alert(msg); else Alert.alert('결제 실패', msg);
+      return;
+    }
     const sortedDays = [...preferredDays].sort();
     const startDate = nextDateForDays(sortedDays);
     const bookingId = addBooking({
@@ -193,6 +207,7 @@ export default function NewBookingScreen() {
       startDate,
       notes: `${classType} · ${classPurpose}`,
     });
+    recordPayment({ orderId, bookingId, memberId: member?.id ?? '', amount: finalPrice, paymentId: pay.paymentId });
     addNotification({
       type: 'payment_done', targetRole: 'member', userId: member?.id ?? '',
       title: '결제가 완료되었습니다',

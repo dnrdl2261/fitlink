@@ -142,6 +142,7 @@ interface ConsultationParams {
 interface BookingState {
   bookings: Booking[];
   addBooking: (params: NewBookingParams) => string;
+  recordPayment: (info: { orderId: string; bookingId: string; memberId: string; amount: number; paymentId?: string }) => void;
   addConsultation: (params: ConsultationParams) => string;
   cancelBooking: (bookingId: string) => void;
   refundBooking: (bookingId: string) => number; // 잔여분 전액 환불 → 환불액 반환
@@ -187,6 +188,20 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     set((s) => ({ bookings: [newBooking, ...s.bookings] }));
     mirror(id);
     return id;
+  },
+
+  // 결제 기록. 실 회원만 payments 테이블에 기록(데모/미설정은 스킵). booking과 별개 감사 기록.
+  recordPayment: (info) => {
+    if (!isRealUser(info.memberId)) return;
+    supabase.from('payments').insert({
+      id: info.orderId,
+      booking_id: info.bookingId,
+      member_id: info.memberId,
+      amount: info.amount,
+      status: 'paid',
+      pg_payment_id: info.paymentId ?? null,
+      created_at: new Date().toISOString().slice(0, 10),
+    }).then(() => {}, () => {});
   },
 
   addConsultation: (params) => {
@@ -258,6 +273,10 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       }),
     }));
     mirror(bookingId);
+    // 결제 기록도 환불 상태로(실 회원만)
+    if (isRealUser(b.memberId)) {
+      supabase.from('payments').update({ status: 'refunded' }).eq('booking_id', bookingId).then(() => {}, () => {});
+    }
     return refundedAmount;
   },
 
@@ -302,6 +321,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   },
 
   completeSession: (bookingId, sessionId) => {
+    const b = get().bookings.find((x) => x.id === bookingId);
     set((s) => ({
       bookings: s.bookings.map((b) => {
         if (b.id !== bookingId) return b;
@@ -315,6 +335,23 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       }),
     }));
     mirror(bookingId);
+    // 정산: 세션 완료 확인 시 에스크로 해제 → 트레이너 90% 입금 + 플랫폼 10% 기록. 실 회원만.
+    if (b && isRealUser(b.memberId)) {
+      const gross = b.pricePerSession;
+      const trainerAmount = Math.round(gross * 0.9);
+      supabase.from('settlements').insert({
+        id: `settle_${sessionId}`,
+        booking_id: bookingId,
+        session_id: sessionId,
+        trainer_id: b.trainerId,
+        member_id: b.memberId,
+        gross_amount: gross,
+        trainer_amount: trainerAmount,
+        platform_fee: gross - trainerAmount,
+        status: 'settled',
+        created_at: new Date().toISOString().slice(0, 10),
+      }).then(() => {}, () => {});
+    }
   },
 
   getMyBookings: (memberId) => get().bookings.filter((b) => b.memberId === memberId),

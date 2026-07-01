@@ -752,3 +752,49 @@ create policy "gym_applications insert public" on public.gym_applications for in
 );
 create unique index if not exists uq_gym_app_pending_biz
   on public.gym_applications (business_number) where status = '대기';
+
+-- ============================================================
+-- Phase G: 결제(payments) — 포트원 v2 연동 골격
+--   회원이 PT 결제 시 결제 기록 생성. 에스크로/정산은 booking status + settlements(Phase 정산)로.
+--   ⚠️ 보안: 지금은 클라가 직접 insert(금액 위조 가능)이나, 실 결제는 Edge Function(verify-payment)이
+--      포트원 API로 결제 금액·상태를 검증한 뒤 기록하도록 강화 예정 — 아래 insert 정책은 골격용.
+-- ============================================================
+create table if not exists public.payments (
+  id            text primary key,     -- orderId (pt_타임스탬프)
+  booking_id    text not null,
+  member_id     text not null,
+  amount        int  not null default 0,
+  status        text not null default 'paid' check (status in ('paid','refunded','failed')),
+  pg_payment_id text,                 -- 포트원 결제 고유 id
+  created_at    text not null default ''
+);
+create index if not exists idx_payments_booking on public.payments(booking_id);
+create index if not exists idx_payments_member  on public.payments(member_id);
+alter table public.payments enable row level security;
+create policy "payments select own" on public.payments for select using (member_id = auth.uid()::text);
+create policy "payments insert own" on public.payments for insert with check (member_id = auth.uid()::text);
+create policy "payments update own" on public.payments for update using (member_id = auth.uid()::text) with check (member_id = auth.uid()::text);
+
+-- ============================================================
+-- Phase H: 정산(settlements) — 세션 완료 시 트레이너 90% / 플랫폼 10%
+--   회원이 세션완료 확인 시 해당 세션분 에스크로 해제 → 트레이너 입금 기록.
+--   ⚠️ 골격: 금액을 클라가 계산해 insert(위조 가능). 실 운영은 트리거/Edge Function으로
+--      booking.price_per_session 기준 서버 계산 권장.
+-- ============================================================
+create table if not exists public.settlements (
+  id             text primary key,
+  booking_id     text not null,
+  session_id     text not null,
+  trainer_id     text not null,
+  member_id      text not null,
+  gross_amount   int not null default 0,
+  trainer_amount int not null default 0,
+  platform_fee   int not null default 0,
+  status         text not null default 'settled' check (status in ('settled','reversed')),
+  created_at     text not null default ''
+);
+create index if not exists idx_settlements_trainer on public.settlements(trainer_id);
+create index if not exists idx_settlements_booking on public.settlements(booking_id);
+alter table public.settlements enable row level security;
+create policy "settlements select" on public.settlements for select using (trainer_id = auth.uid()::text or member_id = auth.uid()::text);
+create policy "settlements insert member" on public.settlements for insert with check (member_id = auth.uid()::text);
