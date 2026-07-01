@@ -170,7 +170,10 @@ export default function BookingsScreen() {
       if (window.confirm(`[세션 완료 확인]\n\n${msg}`)) apply();
       return;
     }
-    confirmDialog({ title: '세션 완료 확인', message: msg, onConfirm: apply });
+    Alert.alert('세션 완료 확인', msg, [
+      { text: '취소', style: 'cancel' },
+      { text: '확인', onPress: apply },
+    ]);
   };
 
   const disputeComplete = (p: PendingItem) => {
@@ -190,7 +193,10 @@ export default function BookingsScreen() {
       if (window.confirm(`[이의 제기]\n\n${msg}`)) apply();
       return;
     }
-    confirmDialog({ title: '이의 제기', message: msg, confirmText: '이의 제기', destructive: true, onConfirm: apply });
+    Alert.alert('이의 제기', msg, [
+      { text: '취소', style: 'cancel' },
+      { text: '이의 제기', style: 'destructive', onPress: apply },
+    ]);
   };
 
   return (
