@@ -10,14 +10,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../../utils/constants';
 import { GroupCat, GROUP_CATS, GROUP_CAT_COLOR } from '../../data/community';
 import { useCommunityStore } from '../../store/communityStore';
-import { useAuthStore } from '../../store/authStore';
 
 const WRITE_CATS = GROUP_CATS.filter((c) => c !== '전체') as Exclude<GroupCat, '전체'>[];
 
 export default function CommunityGroupWriteScreen() {
   const router = useRouter();
   const { t, from } = useLocalSearchParams<{ t: string; from?: string }>();
-  const { trainer } = useAuthStore();
   const { addGroup } = useCommunityStore();
 
   const [category, setCategory] = useState<Exclude<GroupCat, '전체'> | null>(null);

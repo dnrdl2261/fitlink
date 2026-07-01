@@ -37,14 +37,6 @@ export default function GymEarningsScreen() {
   const [period, setPeriod]           = useState<PeriodKey>('3m');
   const [highlightIdx, setHighlightIdx] = useState<number | null>(null);
 
-  const confirmedSlots = useMemo(
-    () => slotBookings.filter(s => s.gymId === GYM_ID && s.status === 'confirmed'),
-    [slotBookings, GYM_ID]
-  );
-  const slotRevenue = useMemo(
-    () => confirmedSlots.reduce((sum, s) => sum + s.facilityFee, 0),
-    [confirmedSlots]
-  );
 
   // 실제 확정 슬롯(시설 이용료)에서 월별 수익 산출
   const months = useMemo(() => gymMonthlyRevenue(slotBookings, GYM_ID, 12), [slotBookings, GYM_ID]);

@@ -25,7 +25,7 @@ export default function GymTrainersScreen() {
   const GYM_NAME = gym?.name ?? '';
   const staticPartnerIds = gym?.partnerTrainerIds ?? [];
 
-  const { isBlacklisted, blacklistTrainer, unblacklistTrainer, getBlacklist } = useGymSlotStore();
+  const { isBlacklisted, blacklistTrainer, unblacklistTrainer } = useGymSlotStore();
   useGymSlotStore(s => s.blacklists);
 
   const allRequests = usePartnerStore(s => s.requests);

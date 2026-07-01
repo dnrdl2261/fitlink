@@ -6,10 +6,9 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useGymSlotStore } from '../../store/gymSlotStore';
-import { COLORS, DAY_LABELS } from '../../utils/constants';
+import { DAY_LABELS } from '../../utils/constants';
 
 const GYM   = '#4F63F5';
-const DARK  = '#0F172A';
 const SLATE = '#64748B';
 const BG    = '#F1F5F9';
 const CARD  = '#FFFFFF';

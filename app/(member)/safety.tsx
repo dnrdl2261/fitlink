@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
   TouchableOpacity, SafeAreaView, Modal,
-  TouchableWithoutFeedback, Platform, Alert,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';

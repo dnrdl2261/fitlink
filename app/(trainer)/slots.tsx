@@ -242,8 +242,6 @@ export default function TrainerSlotsScreen() {
   const pendingDates = useMemo(() => new Set(pendingSlots.map(p => p.date)), [pendingSlots]);
   const totalFee = singleFee * pendingSlots.length;
 
-  const isSlotPending = (date: string, startTime: string) =>
-    pendingSlots.some(p => p.date === date && p.slot.startTime === startTime);
 
   const handleGoToReview = () => {
     if (pendingSlots.length === 0) return;

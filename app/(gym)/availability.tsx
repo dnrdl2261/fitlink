@@ -17,14 +17,11 @@ import { useGymSlotStore } from '../../store/gymSlotStore';
 import { useGymProfileStore } from '../../store/gymProfileStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, DAY_LABELS } from '../../utils/constants';
 import { FacilityTag } from '../../types';
 
 const GYM  = '#4F63F5';
 const BG   = '#F1F5F9';
-const CARD = '#FFFFFF';
-const BD   = '#E2E8F0';
 
 // 분 선택 목록 (5분 단위)
 const MINUTE_OPTIONS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];

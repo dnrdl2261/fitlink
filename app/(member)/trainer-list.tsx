@@ -72,10 +72,6 @@ export default function TrainerListScreen() {
   const [pvIdx, setPvIdx] = useState(0);
   const pvScrollRef = useRef<ScrollView>(null);
 
-  const openViewer = (photos: string[], index: number) => {
-    setPvIdx(index);
-    setPhotoViewer({ photos, index });
-  };
 
   useEffect(() => {
     if (!photoViewer) return;

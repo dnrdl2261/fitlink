@@ -35,7 +35,6 @@ function notify(title: string, msg?: string) {
 }
 
 const BLUE   = COLORS.primary;
-const BLUE_L = COLORS.primaryPale;
 const TEXT   = COLORS.text;
 const TEXT_S = COLORS.textSecondary;
 const BORDER = COLORS.border;

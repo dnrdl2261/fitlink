@@ -43,7 +43,6 @@ export default function ReceiptScreen() {
     );
   }
 
-  const discountRate = booking.pricePerSession < (booking.totalAmount / booking.totalSessions) ? 0 : 0;
   const originalTotal = booking.pricePerSession * booking.totalSessions;
   const discount = originalTotal - booking.totalAmount;
   const earnedPoints = Math.round(booking.totalAmount * 0.01);

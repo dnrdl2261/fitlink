@@ -4,7 +4,6 @@ import * as Sentry from '@sentry/react';
 // 웹 에러 모니터링. DSN 미설정 시 완전 비활성(흰화면/노이즈 방지) — Supabase 분기와 동일 패턴.
 // 활성화: .env 에 EXPO_PUBLIC_SENTRY_DSN=https://...ingest.sentry.io/... 추가 후 재배포.
 const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN ?? '';
-export const isSentryConfigured = !!dsn;
 
 export function initSentry(): void {
   if (!dsn) return;

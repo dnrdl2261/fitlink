@@ -15,7 +15,6 @@ import { useAuthStore } from '../../store/authStore';
 import { MOCK_TRAINERS } from '../../data/trainers';
 import { COLORS } from '../../utils/constants';
 
-const GYM  = '#4F63F5';
 const DARK = '#0F172A';
 const SLATE = '#64748B';
 

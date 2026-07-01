@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, Image, StyleSheet, TouchableOpacity,
   SafeAreaView, Modal, Dimensions, TouchableWithoutFeedback,
-  Platform, Alert, FlatList, StatusBar,
+  Platform, StatusBar,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';

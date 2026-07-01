@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  SafeAreaView, Dimensions, Modal, TextInput,
+  SafeAreaView, Modal, TextInput,
   KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,7 +9,7 @@ import { useScrollToTop } from '@react-navigation/native';
 import { useBookingStore } from '../../store/bookingStore';
 import { useGymSlotStore } from '../../store/gymSlotStore';
 import { useAuthStore } from '../../store/authStore';
-import { useManualSessionStore, ManualSession } from '../../store/manualSessionStore';
+import { useManualSessionStore } from '../../store/manualSessionStore';
 import { formatTime, formatDate } from '../../utils/formatters';
 
 /* ─── 라이트 팔레트 ─── */
@@ -34,7 +34,6 @@ const HOUR_END   = 22;
 const HOUR_COUNT = HOUR_END - HOUR_START;
 const ROW_H      = 56;
 const TIME_W     = 48;
-const W          = Math.min(Dimensions.get('window').width, 430);
 
 const TIME_SLOTS: string[] = [];
 for (let h = 6; h <= 22; h++) {
@@ -170,11 +169,6 @@ export default function TrainerScheduleScreen() {
 
   const allDS = useMemo(()=>[...bookingDS,...manualDS,...slotDS],[bookingDS,manualDS,slotDS]);
 
-  const busyDates = useMemo(()=>{
-    const set=new Set<string>();
-    allDS.forEach(x=>{ if(x.status==='scheduled') set.add(x.date); });
-    return set;
-  },[allDS]);
 
   const dayS = useMemo(()=>
     allDS.filter(x=>x.date===sel).sort((a,b)=>a.startTime.localeCompare(b.startTime)),

@@ -711,9 +711,12 @@ create policy "profiles update self" on public.profiles for update
   using (auth.uid() = id) with check (auth.uid() = id);
 
 -- ── C2. profiles 개인정보 노출 차단 ──
---   read 정책(using true)은 name/avatar 공개 위해 유지하되, phone/email 컬럼만 select 권한 회수.
+--   read 정책(using true)은 name/avatar 공개 위해 유지하되, phone/email은 컬럼 권한으로 가린다.
+--   ⚠️ Postgres는 테이블 레벨 GRANT SELECT가 있으면 컬럼 레벨 REVOKE를 무시한다(Supabase 기본 부여).
+--      → 테이블 SELECT를 회수하고 안전한 컬럼만 명시적으로 GRANT 해야 phone/email이 실제로 가려진다.
 --   (클라이언트는 profiles에서 role/name만 읽으므로 앱 영향 없음. 본인 정보 표시 필요 시 별도 경로로.)
-revoke select (phone, email) on public.profiles from anon, authenticated;
+revoke select on public.profiles from anon, authenticated;
+grant select (id, role, name, avatar_url, created_at, updated_at) on public.profiles to anon, authenticated;
 
 -- ── M1. 채팅 발신자 위조 차단 ──
 --   같은 대화 참여자라도 sender_id는 본인이어야 insert 가능.

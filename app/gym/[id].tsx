@@ -6,7 +6,6 @@ import {
   Image,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
   SafeAreaView,
   Modal,
 } from 'react-native';

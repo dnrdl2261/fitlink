@@ -9,7 +9,7 @@ import { useTrainerStore } from '../../store/trainerStore';
 import { useBookingStore, calcEndTime } from '../../store/bookingStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
-import { formatDate, formatTime } from '../../utils/formatters';
+import { formatDate } from '../../utils/formatters';
 
 const D = {
   bg:       '#EEF2F9',
