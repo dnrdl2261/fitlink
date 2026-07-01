@@ -798,3 +798,21 @@ create index if not exists idx_settlements_booking on public.settlements(booking
 alter table public.settlements enable row level security;
 create policy "settlements select" on public.settlements for select using (trainer_id = auth.uid()::text or member_id = auth.uid()::text);
 create policy "settlements insert member" on public.settlements for insert with check (member_id = auth.uid()::text);
+
+-- ============================================================
+-- Phase I: 푸시 토큰(push_tokens) — 네이티브 푸시 알림
+--   기기별 Expo push token 저장. 발송(send-push Edge Function)이 수신자 토큰을 조회해 사용.
+-- ============================================================
+create table if not exists public.push_tokens (
+  user_id    text not null,
+  token      text not null,
+  platform   text not null default '',
+  updated_at timestamptz not null default now(),
+  primary key (user_id, token)
+);
+create index if not exists idx_push_tokens_user on public.push_tokens(user_id);
+alter table public.push_tokens enable row level security;
+create policy "push_tokens select own" on public.push_tokens for select using (user_id = auth.uid()::text);
+create policy "push_tokens upsert own" on public.push_tokens for insert with check (user_id = auth.uid()::text);
+create policy "push_tokens update own" on public.push_tokens for update using (user_id = auth.uid()::text) with check (user_id = auth.uid()::text);
+create policy "push_tokens delete own" on public.push_tokens for delete using (user_id = auth.uid()::text);

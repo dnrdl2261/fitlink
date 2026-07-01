@@ -87,6 +87,7 @@ export default function RootLayout() {
       const uid = s.member?.id ?? s.trainer?.id ?? s.gymAdmin?.id;
       if (!uid || uid === loadedFor) return;
       loadedFor = uid;
+      useNotificationStore.getState().savePushToken(uid); // 기기 푸시 토큰 등록(네이티브만 실동작, 웹 no-op)
       useCommunityStore.getState().loadUserState(uid); // 커뮤니티 반응/가입(전 역할 공통)
       inboxUnsub?.();                                  // 이전 사용자 인박스 해제 후 재구독
       inboxUnsub = useChatStore.getState().subscribeInbox(uid);
