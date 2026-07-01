@@ -34,6 +34,24 @@ const ROLES: { role: UserRole; label: string; emoji: string; desc: string; color
   { role: 'gym_admin', label: '헬스장 관리자', emoji: '🏋️', desc: '시설 관리 & 예약 승인',  color: COLORS.gym },
 ];
 
+function AgreeRow({ checked, onToggle, label, onView }: { checked: boolean; onToggle: () => void; label: string; onView?: () => void }) {
+  return (
+    <View style={styles.agreeRow}>
+      <TouchableOpacity style={styles.agreeRowLeft} onPress={onToggle} activeOpacity={0.7}>
+        <View style={[styles.checkboxSm, checked && styles.checkboxOn]}>
+          {checked && <Text style={styles.checkMarkSm}>✓</Text>}
+        </View>
+        <Text style={styles.agreeLabel}>{label}</Text>
+      </TouchableOpacity>
+      {onView && (
+        <TouchableOpacity onPress={onView} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={styles.agreeView}>보기</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
 export default function SignupScreen() {
   const router = useRouter();
   const { signup, isLoggedIn, role: authRole } = useAuthStore();
@@ -45,6 +63,18 @@ export default function SignupScreen() {
   const [role, setRole]             = useState<UserRole>('member');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading]       = useState(false);
+
+  const [agreeAge, setAgreeAge]             = useState(false);
+  const [agreeTerms, setAgreeTerms]         = useState(false);
+  const [agreePrivacy, setAgreePrivacy]     = useState(false);
+  const [agreeRefund, setAgreeRefund]       = useState(false);
+  const [agreeMarketing, setAgreeMarketing] = useState(false);
+  const allRequired = agreeAge && agreeTerms && agreePrivacy && agreeRefund;
+  const allChecked = allRequired && agreeMarketing;
+  const toggleAll = () => {
+    const next = !allChecked;
+    setAgreeAge(next); setAgreeTerms(next); setAgreePrivacy(next); setAgreeRefund(next); setAgreeMarketing(next);
+  };
 
   const [addrCity, setAddrCity]         = useState('');
   const [addrDistrict, setAddrDistrict] = useState('');
@@ -79,6 +109,10 @@ export default function SignupScreen() {
     }
     if (role === 'member' && (!addrCity || !addrDistrict || !addrDong)) {
       notify('주소 미입력', '활동 지역(시/구/동)을 모두 선택해주세요.');
+      return;
+    }
+    if (!allRequired) {
+      notify('약관 동의 필요', '필수 약관에 모두 동의해주세요.');
       return;
     }
     setLoading(true);
@@ -251,6 +285,23 @@ export default function SignupScreen() {
             </View>
           )}
 
+          {/* 약관 동의 */}
+          <View style={styles.card}>
+            <Text style={styles.sectionLabel}>약관 동의</Text>
+            <TouchableOpacity style={styles.agreeAllRow} onPress={toggleAll} activeOpacity={0.7}>
+              <View style={[styles.checkbox, allChecked && styles.checkboxOn]}>
+                {allChecked && <Text style={styles.checkMark}>✓</Text>}
+              </View>
+              <Text style={styles.agreeAllText}>전체 동의 (선택 정보 포함)</Text>
+            </TouchableOpacity>
+            <View style={styles.agreeDivider} />
+            <AgreeRow checked={agreeAge}       onToggle={() => setAgreeAge(!agreeAge)}           label="[필수] 만 14세 이상입니다" />
+            <AgreeRow checked={agreeTerms}     onToggle={() => setAgreeTerms(!agreeTerms)}       label="[필수] 이용약관 동의"           onView={() => router.push('/legal/terms' as any)} />
+            <AgreeRow checked={agreePrivacy}   onToggle={() => setAgreePrivacy(!agreePrivacy)}   label="[필수] 개인정보 수집·이용 동의" onView={() => router.push('/legal/privacy' as any)} />
+            <AgreeRow checked={agreeRefund}    onToggle={() => setAgreeRefund(!agreeRefund)}     label="[필수] 환불정책 확인"           onView={() => router.push('/legal/refund' as any)} />
+            <AgreeRow checked={agreeMarketing} onToggle={() => setAgreeMarketing(!agreeMarketing)} label="[선택] 마케팅 정보 수신 동의" />
+          </View>
+
           {/* 가입 버튼 */}
           <TouchableOpacity
             style={[
@@ -383,6 +434,19 @@ const styles = StyleSheet.create({
   loginLink: { alignItems: 'center', paddingVertical: 8 },
   loginLinkText: { fontSize: 14, color: COLORS.textSecondary },
   loginLinkHighlight: { color: COLORS.primary, fontWeight: '700' },
+
+  agreeAllRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 2 },
+  agreeAllText: { fontSize: 15, fontWeight: '800', color: COLORS.text },
+  agreeDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 2 },
+  agreeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  agreeRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  agreeLabel: { fontSize: 13.5, color: COLORS.textSecondary, flex: 1 },
+  agreeView: { fontSize: 12, color: COLORS.textSecondary, textDecorationLine: 'underline' },
+  checkbox: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  checkboxSm: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  checkboxOn: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  checkMark: { color: '#fff', fontSize: 14, fontWeight: '900' },
+  checkMarkSm: { color: '#fff', fontSize: 12, fontWeight: '900' },
 
   addrHint: { fontSize: 12, color: COLORS.textSecondary, marginTop: -6 },
   addrRow: {

@@ -157,6 +157,7 @@ export default function RootLayout() {
           <Stack.Screen name="location-picker" options={{ headerShown: false }} />
           <Stack.Screen name="operator"  options={{ headerShown: false }} />
           <Stack.Screen name="gym-apply" options={{ headerShown: false }} />
+          <Stack.Screen name="legal/[doc]" options={{ headerShown: false }} />
         </Stack>
       </PaperProvider>
       </WebFrame>
