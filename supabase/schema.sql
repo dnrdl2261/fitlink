@@ -877,3 +877,20 @@ begin
   on conflict (id) do nothing;
   return new;
 end; $$;
+
+-- ============================================================
+-- Phase L: 세션 리마인더 스케줄 (pg_cron) — 배포 후 실행 (아래는 주석/안내)
+--   session-reminder Edge Function을 매시간 호출해 임박(24h 내) 세션 리마인더를 발송한다.
+--   ⚠️ 선행: ① supabase functions deploy session-reminder
+--            ② 대시보드 Database > Extensions 에서 pg_cron, pg_net 활성화
+--   아래에서 <PROJECT_REF>·<SERVICE_ROLE_KEY>를 실제 값으로 치환 후 SQL Editor에서 실행:
+--
+--   select cron.schedule(
+--     'session-reminder-hourly', '0 * * * *',
+--     $$ select net.http_post(
+--       url := 'https://<PROJECT_REF>.supabase.co/functions/v1/session-reminder',
+--       headers := jsonb_build_object('Authorization','Bearer <SERVICE_ROLE_KEY>','Content-Type','application/json')
+--     ); $$
+--   );
+--   해제: select cron.unschedule('session-reminder-hourly');
+-- ============================================================
