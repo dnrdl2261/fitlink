@@ -816,3 +816,41 @@ create policy "push_tokens select own" on public.push_tokens for select using (u
 create policy "push_tokens upsert own" on public.push_tokens for insert with check (user_id = auth.uid()::text);
 create policy "push_tokens update own" on public.push_tokens for update using (user_id = auth.uid()::text) with check (user_id = auth.uid()::text);
 create policy "push_tokens delete own" on public.push_tokens for delete using (user_id = auth.uid()::text);
+
+-- ============================================================
+-- Phase J: 결제/정산 금액 서버 강제 (위변조 방지) — 보안 후속
+--   클라가 보낸 금액을 신뢰하지 않고, booking을 기준으로 서버(트리거)가 재계산해 덮어쓴다.
+--   → 회원이 amount/trainer_amount 등을 조작해 insert해도 실제 저장값은 booking 기준으로 강제됨.
+--   (실 PG 결제 검증은 verify-payment Edge Function이 병행 — 이중 방어.)
+-- ============================================================
+
+-- payments: 저장 금액을 booking.total_amount로 강제
+create or replace function public.enforce_payment_amount()
+returns trigger language plpgsql security definer as $$
+declare v_total int;
+begin
+  select total_amount into v_total from public.bookings where id = new.booking_id;
+  if v_total is null then raise exception 'invalid booking_id'; end if;
+  new.amount := v_total;
+  return new;
+end; $$;
+drop trigger if exists trg_enforce_payment_amount on public.payments;
+create trigger trg_enforce_payment_amount before insert on public.payments
+  for each row execute function public.enforce_payment_amount();
+
+-- settlements: 금액(90/10)·트레이너를 booking 기준으로 강제
+create or replace function public.enforce_settlement_amount()
+returns trigger language plpgsql security definer as $$
+declare v_pps int; v_trainer text;
+begin
+  select price_per_session, trainer_id into v_pps, v_trainer from public.bookings where id = new.booking_id;
+  if v_pps is null then raise exception 'invalid booking_id'; end if;
+  new.gross_amount := v_pps;
+  new.trainer_amount := round(v_pps * 0.9);
+  new.platform_fee := v_pps - round(v_pps * 0.9);
+  new.trainer_id := v_trainer;
+  return new;
+end; $$;
+drop trigger if exists trg_enforce_settlement_amount on public.settlements;
+create trigger trg_enforce_settlement_amount before insert on public.settlements
+  for each row execute function public.enforce_settlement_amount();
