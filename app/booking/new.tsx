@@ -124,7 +124,7 @@ function StepIndicator({ step }: { step: number }) {
 function ScreenHeader({ onBack }: { onBack: () => void }) {
   return (
     <View style={s.screenHeader}>
-      <TouchableOpacity style={s.headerBackBtn} onPress={onBack} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+      <TouchableOpacity style={s.headerBackBtn} onPress={onBack} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="뒤로 가기">
         <MaterialCommunityIcons name="chevron-left" size={26} color={D.primary} />
       </TouchableOpacity>
       <Text style={s.screenHeaderTitle}>PT 예약</Text>

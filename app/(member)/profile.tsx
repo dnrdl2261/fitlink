@@ -46,10 +46,13 @@ export default function MemberProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* 프로필 헤더 */}
         <View style={styles.profileHeader}>
-          <Image
-            source={{ uri: member?.profileImageUrl ?? 'https://picsum.photos/seed/default/200/200' }}
-            style={styles.avatar}
-          />
+          {member?.profileImageUrl ? (
+            <Image source={{ uri: member.profileImageUrl }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, { alignItems: 'center', justifyContent: 'center' }]}>
+              <MaterialCommunityIcons name="account" size={48} color={COLORS.textSecondary} />
+            </View>
+          )}
           <Text style={styles.name}>{member?.name}</Text>
           <Text style={styles.email}>{member?.email}</Text>
           {member?.phone ? <Text style={styles.phone}>{member.phone}</Text> : null}

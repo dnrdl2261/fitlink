@@ -201,12 +201,12 @@ export default function TrainerDetailScreen() {
 
           {/* 상단 버튼 */}
           <SafeAreaView style={st.heroTop}>
-            <TouchableOpacity style={st.heroIconBtn} onPress={() => router.back()}>
+            <TouchableOpacity style={st.heroIconBtn} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="뒤로 가기">
               <MaterialCommunityIcons name="chevron-left" size={26} color="#fff" />
             </TouchableOpacity>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {role === 'member' && (
-                <TouchableOpacity style={st.heroIconBtn} onPress={() => setReportModal(true)}>
+                <TouchableOpacity style={st.heroIconBtn} onPress={() => setReportModal(true)} accessibilityRole="button" accessibilityLabel="트레이너 신고하기">
                   <MaterialCommunityIcons name="flag-outline" size={20} color="#fff" />
                 </TouchableOpacity>
               )}

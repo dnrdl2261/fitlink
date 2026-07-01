@@ -46,6 +46,8 @@ function GymBellBtn({ userId, color }: { userId: string; color: string }) {
     <TouchableOpacity
       onPress={() => router.push('/(gym)/notifications' as any)}
       style={{ paddingRight: 16, paddingLeft: 8 }}
+      accessibilityRole="button"
+      accessibilityLabel={unread > 0 ? `알림, 읽지 않음 ${unread}건` : '알림'}
     >
       <View style={{ position: 'relative' }}>
         <MaterialCommunityIcons name="bell-outline" size={24} color={color} />

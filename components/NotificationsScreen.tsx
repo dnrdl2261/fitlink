@@ -162,6 +162,8 @@ export default function NotificationsScreen() {
           style={styles.backBtn}
           onPress={() => router.navigate(backRoute as any)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="뒤로 가기"
         >
           <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.text} />
         </TouchableOpacity>

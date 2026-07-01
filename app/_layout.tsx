@@ -50,7 +50,7 @@ function WebFrame({ children }: PropsWithChildren) {
 function BackBtn() {
   const router = useRouter();
   return (
-    <TouchableOpacity onPress={() => router.back()} style={{ paddingLeft: 20, paddingRight: 8 }}>
+    <TouchableOpacity onPress={() => router.back()} style={{ paddingLeft: 20, paddingRight: 8 }} accessibilityRole="button" accessibilityLabel="뒤로 가기">
       <Text style={{ fontSize: 34, fontWeight: '300', color: COLORS.text }}>‹</Text>
     </TouchableOpacity>
   );

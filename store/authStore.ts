@@ -29,7 +29,7 @@ interface AuthState {
 
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   loginWithSocial: (provider: 'google' | 'kakao' | 'naver', name: string, email: string) => void;
-  signup: (name: string, email: string, password: string, role: UserRole, address?: { city: string; district: string; dong: string }) => Promise<{ success: boolean; message?: string }>;
+  signup: (name: string, email: string, password: string, role: UserRole, address?: { city: string; district: string; dong: string }, marketingConsent?: boolean) => Promise<{ success: boolean; message?: string }>;
   selectRole: (role: UserRole) => void;
   updateMember: (data: Partial<Member>) => void;
   updateTrainer: (data: Partial<Trainer>) => void;
@@ -147,7 +147,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     return { success: true };
   },
 
-  signup: async (name, email, password, role, address) => {
+  signup: async (name, email, password, role, address, marketingConsent = false) => {
     if (!name.trim() || !email.trim() || !password) {
       return { success: false, message: '모든 항목을 입력해주세요.' };
     }
@@ -162,7 +162,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const { data, error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
-        options: { data: { name: name.trim(), role }, emailRedirectTo: emailRedirectUrl() },
+        options: { data: { name: name.trim(), role, marketing_consent: marketingConsent }, emailRedirectTo: emailRedirectUrl() },
       });
       if (error) return { success: false, message: error.message };
       if (!data.session) {

@@ -117,7 +117,7 @@ export default function SignupScreen() {
     }
     setLoading(true);
     const address = role === 'member' ? { city: addrCity, district: addrDistrict, dong: addrDong } : undefined;
-    const result = await signup(name, email, password, role, address);
+    const result = await signup(name, email, password, role, address, agreeMarketing);
     setLoading(false);
 
     if (result.success) {

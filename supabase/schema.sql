@@ -854,3 +854,26 @@ end; $$;
 drop trigger if exists trg_enforce_settlement_amount on public.settlements;
 create trigger trg_enforce_settlement_amount before insert on public.settlements
   for each row execute function public.enforce_settlement_amount();
+
+-- ============================================================
+-- Phase K: 마케팅 수신 동의(profiles.marketing_consent)
+--   가입 시 [선택] 마케팅 동의값을 저장(가입 metadata → handle_new_user 트리거).
+--   ※ 이 블록은 Phase F의 handle_new_user를 marketing_consent 포함 버전으로 덮어쓴다(최신).
+-- ============================================================
+alter table public.profiles add column if not exists marketing_consent boolean not null default false;
+
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer as $$
+begin
+  insert into public.profiles (id, role, name, email, marketing_consent)
+  values (
+    new.id,
+    case when new.raw_user_meta_data->>'role' in ('member','trainer','gym_admin')
+         then new.raw_user_meta_data->>'role' else 'member' end,
+    coalesce(new.raw_user_meta_data->>'name', ''),
+    new.email,
+    coalesce((new.raw_user_meta_data->>'marketing_consent')::boolean, false)
+  )
+  on conflict (id) do nothing;
+  return new;
+end; $$;
