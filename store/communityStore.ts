@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onDbError } from '../utils/db';
 import {
   Post, Comment, Group,
   INITIAL_POSTS, INITIAL_COMMENTS, INITIAL_GROUPS,
@@ -75,7 +76,7 @@ function groupFromRow(x: any): Group {
 }
 
 // fire-and-forget 헬퍼
-const fire = (q: any) => { try { q.then(() => {}, () => {}); } catch { /* noop */ } };
+const fire = (q: any) => { try { q.then(() => {}, onDbError); } catch { /* noop */ } };
 
 interface CommunityState {
   posts: Post[];

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onDbError } from '../utils/db';
 import { loadPersisted, persistOnChange } from '../utils/persist';
 import { supabase, isSupabaseConfigured } from '../config/supabase';
 
@@ -78,21 +79,21 @@ export const useMemberRecordStore = create<MemberRecordState>((set, get) => ({
     set((s) => ({ records: [rec, ...s.records] }));
     // 실 트레이너가 작성한 기록만 DB 미러.
     if (isRealUser(rec.trainerId)) {
-      supabase.from('member_records').insert(recToRow(rec)).then(() => {}, () => {});
+      supabase.from('member_records').insert(recToRow(rec)).then(() => {}, onDbError);
     }
   },
   removeRecord: (id) => {
     const rec = get().records.find((x) => x.id === id);
     set((s) => ({ records: s.records.filter((x) => x.id !== id) }));
     if (rec && isRealUser(rec.trainerId)) {
-      supabase.from('member_records').delete().eq('id', id).then(() => {}, () => {});
+      supabase.from('member_records').delete().eq('id', id).then(() => {}, onDbError);
     }
   },
   toggleShared: (id) => {
     set((s) => ({ records: s.records.map((x) => (x.id === id ? { ...x, shared: !x.shared } : x)) }));
     const rec = get().records.find((x) => x.id === id);
     if (rec && isRealUser(rec.trainerId)) {
-      supabase.from('member_records').update({ shared: rec.shared }).eq('id', id).then(() => {}, () => {});
+      supabase.from('member_records').update({ shared: rec.shared }).eq('id', id).then(() => {}, onDbError);
     }
   },
   getRecords: (trainerId, memberId) =>

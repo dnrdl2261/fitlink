@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onDbError } from '../utils/db';
 import { Gym, GymTimeSlot } from '../types';
 import { MOCK_GYMS } from '../data/gyms';
 import { supabase, isSupabaseConfigured } from '../config/supabase';
@@ -103,7 +104,7 @@ export const useGymStore = create<GymState>((set, get) => ({
       return { gyms: exists ? s.gyms.map((g) => (g.id === gym.id ? gym : g)) : [gym, ...s.gyms] };
     });
     if (isRealGym(gym.id)) {
-      supabase.from('gyms').upsert(toRow(gym)).then(() => {}, () => {});
+      supabase.from('gyms').upsert(toRow(gym)).then(() => {}, onDbError);
     }
   },
 

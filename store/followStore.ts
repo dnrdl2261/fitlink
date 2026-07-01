@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onDbError } from '../utils/db';
 import { supabase, isSupabaseConfigured } from '../config/supabase';
 
 export interface FollowLink {
@@ -47,7 +48,7 @@ export const useFollowStore = create<FollowState>((set, get) => ({
     if (already) return;
     set(s => ({ links: [...s.links, { followerId, followeeId }] }));
     if (isRealUser(followerId)) {
-      supabase.from('follows').upsert({ follower_id: followerId, followee_id: followeeId }).then(() => {}, () => {});
+      supabase.from('follows').upsert({ follower_id: followerId, followee_id: followeeId }).then(() => {}, onDbError);
     }
   },
 
@@ -58,7 +59,7 @@ export const useFollowStore = create<FollowState>((set, get) => ({
       ),
     }));
     if (isRealUser(followerId)) {
-      supabase.from('follows').delete().eq('follower_id', followerId).eq('followee_id', followeeId).then(() => {}, () => {});
+      supabase.from('follows').delete().eq('follower_id', followerId).eq('followee_id', followeeId).then(() => {}, onDbError);
     }
   },
 

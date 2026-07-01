@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onDbError } from '../utils/db';
 import { loadPersisted, persistOnChange } from '../utils/persist';
 import { supabase, isSupabaseConfigured } from '../config/supabase';
 
@@ -61,7 +62,7 @@ function mirrorOffer(id: string) {
   if (!isSupabaseConfigured) return;
   const o = useOfferStore.getState().offers.find((x) => x.id === id);
   if (!o || !isRealOffer(o)) return;
-  supabase.from('offers').upsert(offerToRow(o)).then(() => {}, () => {});
+  supabase.from('offers').upsert(offerToRow(o)).then(() => {}, onDbError);
 }
 function mergeOffers(rows: ReRegOffer[]) {
   useOfferStore.setState((s) => {

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onDbError } from '../utils/db';
 import { SlotBooking, SlotInfo } from '../types';
 import { loadPersisted, persistOnChange } from '../utils/persist';
 import { useGymProfileStore } from './gymProfileStore';
@@ -38,7 +39,7 @@ function mirrorSlot(id: string) {
   if (!isSupabaseConfigured) return;
   const b = useGymSlotStore.getState().slotBookings.find((x) => x.id === id);
   if (!b || !isRealSlot(b)) return;
-  supabase.from('slot_bookings').upsert(slotToRow(b)).then(() => {}, () => {});
+  supabase.from('slot_bookings').upsert(slotToRow(b)).then(() => {}, onDbError);
 }
 
 function mergeSlots(rows: SlotBooking[]) {
@@ -55,7 +56,7 @@ function mirrorGymSettings(gymId: string) {
   supabase.from('gyms').update({
     capacity_overrides: s.capacityOverrides[gymId] ?? {},
     blacklist: s.blacklists[gymId] ?? [],
-  }).eq('id', gymId).then(() => {}, () => {});
+  }).eq('id', gymId).then(() => {}, onDbError);
 }
 
 const PERSIST_KEY = 'flowin-gym-slots';

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onDbError } from '../utils/db';
 import { loadPersisted, persistOnChange } from '../utils/persist';
 import { supabase, isSupabaseConfigured } from '../config/supabase';
 
@@ -71,7 +72,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
     const report: Report = { ...r, id, status: '접수', createdAt: new Date().toISOString() };
     set((s) => ({ reports: [report, ...s.reports] }));
     if (isRealUser(report.reporterId)) {
-      supabase.from('reports').insert(reportToRow(report)).then(() => {}, () => {});
+      supabase.from('reports').insert(reportToRow(report)).then(() => {}, onDbError);
     }
     return id;
   },
@@ -83,7 +84,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
 
   setStatus: (id, status) => {
     set((s) => ({ reports: s.reports.map((x) => (x.id === id ? { ...x, status } : x)) }));
-    if (isSupabaseConfigured) supabase.from('reports').update({ status }).eq('id', id).then(() => {}, () => {});
+    if (isSupabaseConfigured) supabase.from('reports').update({ status }).eq('id', id).then(() => {}, onDbError);
   },
 
   // 운영자 전체 조회(RLS: 운영자만 전체 행 반환). 미설정/비운영자는 no-op.

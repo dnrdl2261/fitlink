@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onDbError } from '../utils/db';
 import { supabase, isSupabaseConfigured } from '../config/supabase';
 
 export interface ChatMessage {
@@ -52,7 +53,7 @@ function mirrorConv(id: string) {
   if (!isSupabaseConfigured) return;
   const c = useChatStore.getState().conversations.find((x) => x.id === id);
   if (!c || !isRealConv(c)) return;
-  supabase.from('conversations').upsert(convToRow(c)).then(() => {}, () => {});
+  supabase.from('conversations').upsert(convToRow(c)).then(() => {}, onDbError);
 }
 
 interface ChatState {
@@ -144,7 +145,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // 실 대화면 메시지 insert + 대화 unread 갱신 미러
     const conv = get().conversations.find((c) => c.id === conversationId);
     if (conv && isRealConv(conv)) {
-      supabase.from('chat_messages').insert(msgToRow(msg)).then(() => {}, () => {});
+      supabase.from('chat_messages').insert(msgToRow(msg)).then(() => {}, onDbError);
       mirrorConv(conversationId);
     }
   },

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onDbError } from '../utils/db';
 import { Platform } from 'react-native';
 import { supabase, isSupabaseConfigured } from '../config/supabase';
 import { registerForPushNotificationsAsync } from '../config/push';
@@ -158,7 +159,7 @@ export const useNotificationStore = create<NotifState>((set, get) => ({
     }));
     const n = get().notifications.find((x) => x.id === id);
     if (n && isRealUser(n.userId)) {
-      supabase.from('notifications').update({ is_read: true }).eq('id', id).then(() => {}, () => {});
+      supabase.from('notifications').update({ is_read: true }).eq('id', id).then(() => {}, onDbError);
     }
   },
 
@@ -169,7 +170,7 @@ export const useNotificationStore = create<NotifState>((set, get) => ({
       ),
     }));
     if (isRealUser(userId)) {
-      supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).then(() => {}, () => {});
+      supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).then(() => {}, onDbError);
     }
   },
 
@@ -183,11 +184,11 @@ export const useNotificationStore = create<NotifState>((set, get) => ({
     set((s) => ({ notifications: [n, ...s.notifications] }));
     // 실 수신자 알림만 DB에 미러(작성자=다른 사용자라도 RLS insert는 인증 사용자 누구나 허용).
     if (isRealUser(n.userId)) {
-      supabase.from('notifications').insert(notifToRow(n)).then(() => {}, () => {});
+      supabase.from('notifications').insert(notifToRow(n)).then(() => {}, onDbError);
       // 네이티브 푸시 발송(Edge Function). 미배포/토큰없음이면 조용히 무시 — 인앱 알림은 정상 동작.
       supabase.functions.invoke('send-push', {
         body: { userId: n.userId, title: n.title, body: n.body, data: n.meta ?? {} },
-      }).then(() => {}, () => {});
+      }).then(() => {}, () => {}); // Edge Function 미배포/토큰없음은 정상 → 조용히 무시
     }
   },
 
@@ -217,6 +218,6 @@ export const useNotificationStore = create<NotifState>((set, get) => ({
       token,
       platform: Platform.OS,
       updated_at: new Date().toISOString(),
-    }).then(() => {}, () => {});
+    }).then(() => {}, onDbError);
   },
 }));

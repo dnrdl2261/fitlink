@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onDbError } from '../utils/db';
 import { loadPersisted, persistOnChange } from '../utils/persist';
 import { supabase, isSupabaseConfigured } from '../config/supabase';
 
@@ -62,12 +63,12 @@ export const useGymApplicationStore = create<GymApplicationState>((set) => ({
     const id = `gymapp_${Date.now()}`;
     const app: GymApplication = { ...a, id, status: '대기', createdAt: new Date().toISOString().slice(0, 10) };
     set((s) => ({ applications: [app, ...s.applications] }));
-    if (isSupabaseConfigured) supabase.from('gym_applications').insert(appToRow(app)).then(() => {}, () => {});
+    if (isSupabaseConfigured) supabase.from('gym_applications').insert(appToRow(app)).then(() => {}, onDbError);
     return id;
   },
   setStatus: (id, status) => {
     set((s) => ({ applications: s.applications.map((x) => (x.id === id ? { ...x, status } : x)) }));
-    if (isSupabaseConfigured) supabase.from('gym_applications').update({ status }).eq('id', id).then(() => {}, () => {});
+    if (isSupabaseConfigured) supabase.from('gym_applications').update({ status }).eq('id', id).then(() => {}, onDbError);
   },
   // 운영자 전체 조회(RLS: 운영자만). 미설정/비운영자는 no-op.
   loadAll: async () => {

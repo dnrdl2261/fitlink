@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onDbError } from '../utils/db';
 import { TrainerReview, GymReview } from '../types/review';
 import { supabase, isSupabaseConfigured } from '../config/supabase';
 
@@ -89,7 +90,7 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
     };
     set((state) => ({ reviews: [...state.reviews, review] }));
     if (isRealUser(review.memberId)) {
-      supabase.from('trainer_reviews').insert(trainerReviewToRow(review)).then(() => {}, () => {});
+      supabase.from('trainer_reviews').insert(trainerReviewToRow(review)).then(() => {}, onDbError);
     }
     return id;
   },
@@ -103,7 +104,7 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
     };
     set((state) => ({ gymReviews: [...state.gymReviews, review] }));
     if (isRealUser(review.memberId)) {
-      supabase.from('gym_reviews').insert(gymReviewToRow(review)).then(() => {}, () => {});
+      supabase.from('gym_reviews').insert(gymReviewToRow(review)).then(() => {}, onDbError);
     }
     return id;
   },

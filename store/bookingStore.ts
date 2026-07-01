@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onDbError } from '../utils/db';
 import { Booking, BookingStatus, PTSession, SessionStatus, WeeklySchedule } from '../types';
 import { MOCK_BOOKINGS } from '../data/bookings';
 import { useAuthStore } from './authStore';
@@ -73,7 +74,7 @@ function mirror(bookingId: string) {
   if (!isSupabaseConfigured) return;
   const b = useBookingStore.getState().bookings.find((x) => x.id === bookingId);
   if (!b || !isRealUser(b.memberId)) return;
-  supabase.from('bookings').upsert(toRow(b)).then(() => {}, () => {});
+  supabase.from('bookings').upsert(toRow(b)).then(() => {}, onDbError);
 }
 
 // DB에서 읽은 예약을 로컬 상태에 병합(id 기준 DB 우선).
@@ -201,7 +202,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       status: 'paid',
       pg_payment_id: info.paymentId ?? null,
       created_at: new Date().toISOString().slice(0, 10),
-    }).then(() => {}, () => {});
+    }).then(() => {}, onDbError);
   },
 
   addConsultation: (params) => {
@@ -275,7 +276,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     mirror(bookingId);
     // 결제 기록도 환불 상태로(실 회원만)
     if (isRealUser(b.memberId)) {
-      supabase.from('payments').update({ status: 'refunded' }).eq('booking_id', bookingId).then(() => {}, () => {});
+      supabase.from('payments').update({ status: 'refunded' }).eq('booking_id', bookingId).then(() => {}, onDbError);
     }
     return refundedAmount;
   },
@@ -350,7 +351,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         platform_fee: gross - trainerAmount,
         status: 'settled',
         created_at: new Date().toISOString().slice(0, 10),
-      }).then(() => {}, () => {});
+      }).then(() => {}, onDbError);
     }
   },
 

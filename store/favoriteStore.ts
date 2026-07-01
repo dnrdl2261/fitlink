@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onDbError } from '../utils/db';
 import { loadPersisted, persistOnChange } from '../utils/persist';
 import { supabase, isSupabaseConfigured } from '../config/supabase';
 import { useAuthStore } from './authStore';
@@ -29,9 +30,9 @@ export const useFavoriteStore = create<FavoriteState>((set, get) => ({
     const uid = currentMemberId();
     if (isRealUser(uid)) {
       if (willFavorite) {
-        supabase.from('favorites').upsert({ user_id: uid, trainer_id: id }).then(() => {}, () => {});
+        supabase.from('favorites').upsert({ user_id: uid, trainer_id: id }).then(() => {}, onDbError);
       } else {
-        supabase.from('favorites').delete().eq('user_id', uid).eq('trainer_id', id).then(() => {}, () => {});
+        supabase.from('favorites').delete().eq('user_id', uid).eq('trainer_id', id).then(() => {}, onDbError);
       }
     }
   },

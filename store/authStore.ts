@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onDbError } from '../utils/db';
 import { UserRole, Member, GymAdmin, Trainer } from '../types';
 import { MOCK_MEMBER, MOCK_TRAINER_USER, MOCK_GYM_ADMINS } from '../data/users';
 import { useTrainerStore } from './trainerStore';
@@ -114,7 +115,7 @@ function syncProfileToSupabase(userId: string | undefined, data: any) {
   if (typeof data?.name === 'string') fields.name = data.name;
   if (typeof data?.phone === 'string') fields.phone = data.phone;
   if (Object.keys(fields).length === 0) return;
-  supabase.from('profiles').update(fields).eq('id', userId).then(() => {}, () => {});
+  supabase.from('profiles').update(fields).eq('id', userId).then(() => {}, onDbError);
 }
 
 export const useAuthStore = create<AuthState>((set) => ({

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onDbError } from '../utils/db';
 import { loadPersisted, persistOnChange } from '../utils/persist';
 import { supabase, isSupabaseConfigured } from '../config/supabase';
 
@@ -64,7 +65,7 @@ function mirrorReq(id: string) {
   if (!isSupabaseConfigured) return;
   const r = usePartnerStore.getState().requests.find((x) => x.id === id);
   if (!r || !isRealReq(r)) return;
-  supabase.from('partner_requests').upsert(reqToRow(r)).then(() => {}, () => {});
+  supabase.from('partner_requests').upsert(reqToRow(r)).then(() => {}, onDbError);
 }
 function mergeReqs(rows: PartnerRequest[]) {
   usePartnerStore.setState((s) => {
@@ -186,7 +187,7 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
   cancelRequest: (requestId) => {
     const r = get().requests.find(x => x.id === requestId);
     set(s => ({ requests: s.requests.filter(r => r.id !== requestId) }));
-    if (r && isRealReq(r)) supabase.from('partner_requests').delete().eq('id', requestId).then(() => {}, () => {});
+    if (r && isRealReq(r)) supabase.from('partner_requests').delete().eq('id', requestId).then(() => {}, onDbError);
   },
 
   removePartner: (gymId, trainerId) => {
@@ -204,7 +205,7 @@ export const usePartnerStore = create<PartnerState>((set, get) => ({
       ),
     }));
     toRemove.forEach((r) => {
-      if (isRealReq(r)) supabase.from('partner_requests').delete().eq('id', r.id).then(() => {}, () => {});
+      if (isRealReq(r)) supabase.from('partner_requests').delete().eq('id', r.id).then(() => {}, onDbError);
     });
   },
 

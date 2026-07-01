@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onDbError } from '../utils/db';
 import { loadPersisted, persistOnChange } from '../utils/persist';
 import { supabase, isSupabaseConfigured } from '../config/supabase';
 import { useAuthStore } from './authStore';
@@ -51,22 +52,22 @@ export const useManualSessionStore = create<ManualSessionState>((set) => ({
   addManual: (s) => {
     set((st) => ({ manualSessions: [...st.manualSessions, s] }));
     const tid = currentTrainerId();
-    if (isRealUser(tid)) supabase.from('manual_sessions').insert(manualToRow(s, tid!)).then(() => {}, () => {});
+    if (isRealUser(tid)) supabase.from('manual_sessions').insert(manualToRow(s, tid!)).then(() => {}, onDbError);
   },
   completeManual: (id) => {
     set((st) => ({
       manualSessions: st.manualSessions.map((m) => (m.id === id ? { ...m, status: 'completed' } : m)),
     }));
-    if (isRealUser(currentTrainerId())) supabase.from('manual_sessions').update({ status: 'completed' }).eq('id', id).then(() => {}, () => {});
+    if (isRealUser(currentTrainerId())) supabase.from('manual_sessions').update({ status: 'completed' }).eq('id', id).then(() => {}, onDbError);
   },
   removeManual: (id) => {
     set((st) => ({ manualSessions: st.manualSessions.filter((m) => m.id !== id) }));
-    if (isRealUser(currentTrainerId())) supabase.from('manual_sessions').delete().eq('id', id).then(() => {}, () => {});
+    if (isRealUser(currentTrainerId())) supabase.from('manual_sessions').delete().eq('id', id).then(() => {}, onDbError);
   },
   hideSession: (id) => {
     set((st) => (st.hiddenIds.includes(id) ? st : { hiddenIds: [...st.hiddenIds, id] }));
     const tid = currentTrainerId();
-    if (isRealUser(tid)) supabase.from('hidden_sessions').upsert({ trainer_id: tid, session_id: id }).then(() => {}, () => {});
+    if (isRealUser(tid)) supabase.from('hidden_sessions').upsert({ trainer_id: tid, session_id: id }).then(() => {}, onDbError);
   },
 
   // 로그인 트레이너의 수동일정 + 숨긴세션을 DB에서 로드(다기기 동기화). 데모/미설정은 no-op.

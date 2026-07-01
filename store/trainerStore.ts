@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onDbError } from '../utils/db';
 import { Trainer } from '../types';
 import { MOCK_TRAINERS } from '../data/trainers';
 import { supabase, isSupabaseConfigured } from '../config/supabase';
@@ -96,7 +97,7 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
       };
     });
     if (isRealTrainer(trainer.id)) {
-      supabase.from('trainers').upsert(toRow(trainer)).then(() => {}, () => {});
+      supabase.from('trainers').upsert(toRow(trainer)).then(() => {}, onDbError);
     }
   },
 
