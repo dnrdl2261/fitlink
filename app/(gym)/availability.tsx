@@ -19,6 +19,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { COLORS, DAY_LABELS } from '../../utils/constants';
 import { FacilityTag } from '../../types';
+import { confirmDialog } from '../../utils/alert';
 
 const GYM  = '#4F63F5';
 const BG   = '#F1F5F9';
@@ -184,18 +185,15 @@ export default function AvailabilityScreen() {
   };
 
   const handleRemoveFacility = (f: string) => {
-    Alert.alert('시설 삭제', `'${f}'을(를) 삭제하시겠습니까?`, [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '삭제',
-        style: 'destructive',
-        onPress: () => {
-          const next = facilitiesOverride.filter((item) => item !== f);
-          setFacilitiesOverride(next);
-          updateProfile(GYM_ID, { facilities: next as FacilityTag[] });
-        },
+    confirmDialog({
+      title: '시설 삭제', message: `'${f}'을(를) 삭제하시겠습니까?`,
+      confirmText: '삭제', destructive: true,
+      onConfirm: () => {
+        const next = facilitiesOverride.filter((item) => item !== f);
+        setFacilitiesOverride(next);
+        updateProfile(GYM_ID, { facilities: next as FacilityTag[] });
       },
-    ]);
+    });
   };
 
   return (

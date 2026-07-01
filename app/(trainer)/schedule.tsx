@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   SafeAreaView, Modal, TextInput,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useScrollToTop } from '@react-navigation/native';
@@ -11,6 +11,7 @@ import { useGymSlotStore } from '../../store/gymSlotStore';
 import { useAuthStore } from '../../store/authStore';
 import { useManualSessionStore } from '../../store/manualSessionStore';
 import { formatTime, formatDate } from '../../utils/formatters';
+import { confirmDialog, notify } from '../../utils/alert';
 
 /* ─── 라이트 팔레트 ─── */
 const D = {
@@ -194,8 +195,8 @@ export default function TrainerScheduleScreen() {
 
   /* 추가 */
   const handleAdd = () => {
-    if (!addMember.trim()) { Alert.alert('입력 오류','회원 이름을 입력해주세요.'); return; }
-    if (addStart >= addEnd) { Alert.alert('입력 오류','종료 시간은 시작 시간 이후여야 합니다.'); return; }
+    if (!addMember.trim()) { notify('입력 오류','회원 이름을 입력해주세요.'); return; }
+    if (addStart >= addEnd) { notify('입력 오류','종료 시간은 시작 시간 이후여야 합니다.'); return; }
     addManual({
       id:uid(), date:sel, startTime:addStart, endTime:addEnd,
       memberName:addMember.trim(), memo:addMemo, status:'scheduled', color:addColor,
@@ -210,13 +211,14 @@ export default function TrainerScheduleScreen() {
   };
 
   const handleDelete = (sess: DisplaySession) => {
-    Alert.alert('일정 삭제',`${sess.memberName} 회원의 ${formatTime(sess.startTime)} 일정을 삭제하시겠습니까?`,[
-      { text:'취소', style:'cancel' },
-      { text:'삭제', style:'destructive', onPress:()=>{
+    confirmDialog({
+      title:'일정 삭제', message:`${sess.memberName} 회원의 ${formatTime(sess.startTime)} 일정을 삭제하시겠습니까?`,
+      confirmText:'삭제', destructive:true,
+      onConfirm:()=>{
         if (sess.isManual) removeManual(sess.id);
         else hideSession(sess.id);
-      }},
-    ]);
+      },
+    });
   };
 
   const totalSched = allDS.filter(x=>x.status==='scheduled').length;

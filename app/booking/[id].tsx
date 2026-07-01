@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, SafeAreaView, Alert,
+  TouchableOpacity, SafeAreaView,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -11,6 +11,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { formatDate, formatTime, formatPrice } from '../../utils/formatters';
 import { BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS, DAY_LABELS } from '../../utils/constants';
+import { confirmDialog } from '../../utils/alert';
 
 const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 월→일 순서 (예약 폼과 통일)
 
@@ -61,27 +62,21 @@ export default function BookingDetailScreen() {
   const completedSessions = booking.sessions.filter((s) => s.status === 'completed');
 
   const handleCancel = () => {
-    Alert.alert(
-      '예약 취소',
-      '패키지 예약을 취소하시겠습니까?\n취소된 예약은 복구할 수 없습니다.',
-      [
-        { text: '아니오', style: 'cancel' },
-        {
-          text: '취소하기',
-          style: 'destructive',
-          onPress: () => {
-            cancelBooking(booking.id);
-            addNotification({
-              type: 'booking_cancelled', targetRole: 'member', userId: member?.id ?? '',
-              title: '예약이 취소되었습니다',
-              body: `${booking.trainerName} 트레이너와의 PT 예약이 취소되었습니다.`,
-              meta: { bookingId: booking.id },
-            });
-            router.back();
-          },
-        },
-      ]
-    );
+    confirmDialog({
+      title: '예약 취소',
+      message: '패키지 예약을 취소하시겠습니까?\n취소된 예약은 복구할 수 없습니다.',
+      confirmText: '취소하기', cancelText: '아니오', destructive: true,
+      onConfirm: () => {
+        cancelBooking(booking.id);
+        addNotification({
+          type: 'booking_cancelled', targetRole: 'member', userId: member?.id ?? '',
+          title: '예약이 취소되었습니다',
+          body: `${booking.trainerName} 트레이너와의 PT 예약이 취소되었습니다.`,
+          meta: { bookingId: booking.id },
+        });
+        router.back();
+      },
+    });
   };
 
   const durationLabel =

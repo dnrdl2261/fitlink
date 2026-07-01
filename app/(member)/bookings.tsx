@@ -13,6 +13,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '../../utils/constants';
 import { BookingStatus, Booking } from '../../types';
 import { formatDate, formatTime, formatPrice } from '../../utils/formatters';
+import { confirmDialog } from '../../utils/alert';
 
 type TabKey = BookingStatus | 'consultation';
 
@@ -110,10 +111,12 @@ export default function BookingsScreen() {
       : ptBookings.filter((b) => matchTab(b, tab)).length;
 
   const handleCancel = (bookingId: string) => {
-    Alert.alert('예약 취소', '예약을 취소하시겠습니까?\n취소된 예약은 복구할 수 없습니다.', [
-      { text: '아니오', style: 'cancel' },
-      { text: '취소하기', style: 'destructive', onPress: () => cancelBooking(bookingId) },
-    ]);
+    confirmDialog({
+      title: '예약 취소',
+      message: '예약을 취소하시겠습니까?\n취소된 예약은 복구할 수 없습니다.',
+      confirmText: '취소하기', cancelText: '아니오', destructive: true,
+      onConfirm: () => cancelBooking(bookingId),
+    });
   };
 
   // 에스크로: 앱이 보관 중인(환불 가능한) 잔여 결제액
@@ -167,10 +170,7 @@ export default function BookingsScreen() {
       if (window.confirm(`[세션 완료 확인]\n\n${msg}`)) apply();
       return;
     }
-    Alert.alert('세션 완료 확인', msg, [
-      { text: '취소', style: 'cancel' },
-      { text: '확인', onPress: apply },
-    ]);
+    confirmDialog({ title: '세션 완료 확인', message: msg, onConfirm: apply });
   };
 
   const disputeComplete = (p: PendingItem) => {
@@ -190,10 +190,7 @@ export default function BookingsScreen() {
       if (window.confirm(`[이의 제기]\n\n${msg}`)) apply();
       return;
     }
-    Alert.alert('이의 제기', msg, [
-      { text: '취소', style: 'cancel' },
-      { text: '이의 제기', style: 'destructive', onPress: apply },
-    ]);
+    confirmDialog({ title: '이의 제기', message: msg, confirmText: '이의 제기', destructive: true, onConfirm: apply });
   };
 
   return (

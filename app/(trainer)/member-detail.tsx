@@ -12,6 +12,7 @@ import { useNotificationStore } from '../../store/notificationStore';
 import { useOfferStore } from '../../store/offerStore';
 import { useChatStore } from '../../store/chatStore';
 import { formatPrice, formatDate } from '../../utils/formatters';
+import { confirmDialog } from '../../utils/alert';
 
 const D = {
   bg: '#EEF2F9', surface: '#FFFFFF', primary: '#4F63F5',
@@ -74,10 +75,7 @@ export default function MemberDetailScreen() {
       if (window.confirm('이 기록을 삭제할까요?')) apply();
       return;
     }
-    Alert.alert('기록 삭제', '이 기록을 삭제할까요?', [
-      { text: '취소', style: 'cancel' },
-      { text: '삭제', style: 'destructive', onPress: apply },
-    ]);
+    confirmDialog({ title: '기록 삭제', message: '이 기록을 삭제할까요?', confirmText: '삭제', destructive: true, onConfirm: apply });
   };
 
   const handleProposal = () => {
