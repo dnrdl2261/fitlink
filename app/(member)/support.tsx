@@ -88,7 +88,7 @@ export default function SupportScreen() {
 
       {/* 헤더 */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.navigate('/(member)/more' as any)} style={s.backBtn}>
+        <TouchableOpacity onPress={() => router.navigate('/(member)/more' as any)} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로 가기">
           <MaterialCommunityIcons name="chevron-left" size={26} color={D.primary} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>고객지원</Text>

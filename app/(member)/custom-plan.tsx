@@ -164,7 +164,7 @@ export default function CustomPlanScreen() {
       <SafeAreaView style={s.root}>
         {/* 헤더 */}
         <View style={s.header}>
-          <TouchableOpacity onPress={handleBack} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity onPress={handleBack} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="뒤로 가기">
             <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.text} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>추천 트레이너</Text>

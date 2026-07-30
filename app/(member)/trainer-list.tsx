@@ -203,7 +203,7 @@ export default function TrainerListScreen() {
 
       {/* 헤더 */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.navigate('/(member)/trainers' as any)} style={s.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity onPress={() => router.navigate('/(member)/trainers' as any)} style={s.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="뒤로 가기">
           <MaterialCommunityIcons name="chevron-left" size={26} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>트레이너 찾기</Text>
@@ -224,7 +224,7 @@ export default function TrainerListScreen() {
               📍 {activeCity !== '전체' ? [activeCity, activeDistrict !== '전체' ? activeDistrict : ''].filter(Boolean).join(' ') : '지역'}
             </Text>
             {activeCity !== '전체' && (
-              <TouchableOpacity onPress={e => { e.stopPropagation(); clearRegion(); }} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
+              <TouchableOpacity onPress={e => { e.stopPropagation(); clearRegion(); }} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} accessibilityRole="button" accessibilityLabel="지역 필터 해제">
                 <MaterialCommunityIcons name="close" size={11} color="#fff" style={{ marginLeft: 2 }} />
               </TouchableOpacity>
             )}
@@ -309,7 +309,7 @@ export default function TrainerListScreen() {
       >
         <View style={s.pvOverlay}>
           {/* 닫기 */}
-          <TouchableOpacity style={s.pvCloseBtn} onPress={() => setPhotoViewer(null)}>
+          <TouchableOpacity style={s.pvCloseBtn} onPress={() => setPhotoViewer(null)} accessibilityRole="button" accessibilityLabel="닫기">
             <MaterialCommunityIcons name="close" size={26} color="#fff" />
           </TouchableOpacity>
 

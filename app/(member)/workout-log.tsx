@@ -26,7 +26,7 @@ export default function WorkoutLogScreen() {
   return (
     <SafeAreaView style={s.c}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.navigate('/(member)/more' as any)} style={s.back}>
+        <TouchableOpacity onPress={() => router.navigate('/(member)/more' as any)} style={s.back} accessibilityRole="button" accessibilityLabel="뒤로 가기">
           <MaterialCommunityIcons name="chevron-left" size={26} color={COLORS.primary} />
         </TouchableOpacity>
         <Text style={s.title}>내 운동 기록</Text>

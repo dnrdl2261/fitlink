@@ -94,7 +94,7 @@ export default function MemberEditProfileScreen() {
 
         {/* 프로필 사진 */}
         <View style={styles.photoSection}>
-          <TouchableOpacity style={styles.photoWrapper} onPress={handlePickImage} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.photoWrapper} onPress={handlePickImage} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="프로필 사진 변경">
             <Image source={{ uri: profileImageUrl }} style={styles.profilePhoto} />
             <View style={styles.photoEditBadge}>
               <MaterialCommunityIcons name="camera" size={16} color="#fff" />
@@ -179,6 +179,8 @@ export default function MemberEditProfileScreen() {
             <TouchableOpacity
               onPress={() => removeLocation(idx)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="선호 지역 삭제"
             >
               <MaterialCommunityIcons name="close" size={18} color={COLORS.textSecondary} />
             </TouchableOpacity>

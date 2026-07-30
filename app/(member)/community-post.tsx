@@ -140,7 +140,7 @@ export default function CommunityPostScreen() {
               <View style={[styles.imageWrap, { height: 220 }]}>
                 <VideoPlayer uri={post.videoUrl} isPlaying={videoPlaying} />
                 {!videoPlaying && (
-                  <TouchableOpacity style={styles.playOverlay} onPress={() => setVideoPlaying(true)} activeOpacity={0.8}>
+                  <TouchableOpacity style={styles.playOverlay} onPress={() => setVideoPlaying(true)} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="동영상 재생">
                     {post.imageUrl && <Image source={{ uri: post.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />}
                     <MaterialCommunityIcons name="play-circle" size={56} color="rgba(255,255,255,0.9)" />
                   </TouchableOpacity>
@@ -148,6 +148,8 @@ export default function CommunityPostScreen() {
                 {videoPlaying && (
                   <TouchableOpacity
                     style={styles.fullscreenBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="전체화면"
                     onPress={() => {
                       const v = (document as any).querySelector('video');
                       if (!v) return;
@@ -169,7 +171,7 @@ export default function CommunityPostScreen() {
             <Text style={styles.postContent}>{post.content}</Text>
 
             <View style={styles.actionBar}>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => toggleLikePost(post.id)}>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => toggleLikePost(post.id)} accessibilityRole="button" accessibilityLabel={isLiked ? '좋아요 취소' : '좋아요'}>
                 <MaterialCommunityIcons
                   name={isLiked ? 'heart' : 'heart-outline'}
                   size={22}
@@ -179,7 +181,7 @@ export default function CommunityPostScreen() {
                   {post.likes}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => inputRef.current?.focus()}>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => inputRef.current?.focus()} accessibilityRole="button" accessibilityLabel="댓글 달기">
                 <MaterialCommunityIcons name="comment-outline" size={22} color={COLORS.textSecondary} />
                 <Text style={styles.actionText}>{post.comments}</Text>
               </TouchableOpacity>

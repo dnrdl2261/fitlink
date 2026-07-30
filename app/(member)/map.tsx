@@ -128,7 +128,7 @@ export default function MapScreen() {
         <View style={styles.regionChip}>
           <MaterialCommunityIcons name="map-marker" size={13} color={COLORS.primary} />
           <Text style={styles.regionChipText}>{gymRegion.district ? `${gymRegion.city} ${gymRegion.district}` : gymRegion.city}</Text>
-          <TouchableOpacity onPress={() => setGymRegion(null)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+          <TouchableOpacity onPress={() => setGymRegion(null)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityRole="button" accessibilityLabel="지역 선택 해제">
             <MaterialCommunityIcons name="close" size={14} color={COLORS.textSecondary} />
           </TouchableOpacity>
         </View>
@@ -150,7 +150,7 @@ export default function MapScreen() {
             placeholderTextColor={COLORS.textMuted}
           />
           {gymQuery.length > 0 && (
-            <TouchableOpacity onPress={() => { setGymQuery(''); setGymSuggestOpen(false); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={() => { setGymQuery(''); setGymSuggestOpen(false); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="검색어 지우기">
               <MaterialCommunityIcons name="close-circle" size={16} color={COLORS.textMuted} />
             </TouchableOpacity>
           )}
@@ -382,7 +382,7 @@ export default function MapScreen() {
                   placeholderTextColor={COLORS.textMuted}
                 />
                 {gymQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => { setGymQuery(''); setGymSuggestOpen(false); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <TouchableOpacity onPress={() => { setGymQuery(''); setGymSuggestOpen(false); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="검색어 지우기">
                     <MaterialCommunityIcons name="close-circle" size={15} color={COLORS.textMuted} />
                   </TouchableOpacity>
                 )}

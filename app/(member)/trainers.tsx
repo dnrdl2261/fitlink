@@ -280,7 +280,7 @@ export default function MemberHomeScreen() {
           placeholderTextColor={D.textMuted}
         />
         {query.length > 0 && (
-          <TouchableOpacity onPress={() => setQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity onPress={() => setQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="검색어 지우기">
             <MaterialCommunityIcons name="close-circle" size={16} color={D.textMuted} />
           </TouchableOpacity>
         )}
@@ -383,6 +383,8 @@ export default function MemberHomeScreen() {
                 onPress={() => toggleFavorite(item.id)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={fav ? `${item.name} 찜 해제` : `${item.name} 찜하기`}
               >
                 <MaterialCommunityIcons
                   name={fav ? 'heart' : 'heart-outline'}
@@ -469,6 +471,8 @@ export default function MemberHomeScreen() {
                 onPress={() => setSpecModal(false)}
                 style={styles.specClose}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel="닫기"
               >
                 <MaterialCommunityIcons name="close" size={20} color={D.textSec} />
               </TouchableOpacity>
