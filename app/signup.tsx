@@ -18,6 +18,7 @@ import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../utils/constants';
 import { UserRole } from '../types';
 import { CITIES, getDistricts, getDongs } from '../data/regions';
+import { LEGAL_DOCS } from '../data/legal';
 
 // RN-Web은 Alert.alert가 화면에 표시되지 않으므로 웹에선 window.alert 사용
 function notify(title: string, msg?: string) {
@@ -64,16 +65,30 @@ export default function SignupScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading]       = useState(false);
 
-  const [agreeAge, setAgreeAge]             = useState(false);
-  const [agreeTerms, setAgreeTerms]         = useState(false);
-  const [agreePrivacy, setAgreePrivacy]     = useState(false);
-  const [agreeRefund, setAgreeRefund]       = useState(false);
-  const [agreeMarketing, setAgreeMarketing] = useState(false);
-  const allRequired = agreeAge && agreeTerms && agreePrivacy && agreeRefund;
+  const [agreeAge, setAgreeAge]                 = useState(false);
+  const [agreeTerms, setAgreeTerms]             = useState(false);
+  const [agreePrivacy, setAgreePrivacy]         = useState(false);
+  const [agreeRefund, setAgreeRefund]           = useState(false);
+  const [agreeHealth, setAgreeHealth]           = useState(false);
+  const [agreeTrainerTerms, setAgreeTrainerTerms] = useState(false);
+  const [agreeGymTerms, setAgreeGymTerms]       = useState(false);
+  const [agreeLocation, setAgreeLocation]       = useState(false);
+  const [agreeMarketing, setAgreeMarketing]     = useState(false);
+  const isMember = role === 'member';
+  const isTrainer = role === 'trainer';
+  const isGym = role === 'gym_admin';
+  const allRequired =
+    agreeAge && agreeTerms && agreePrivacy && agreeLocation &&
+    (isMember ? agreeRefund && agreeHealth : true) &&
+    (isTrainer ? agreeTrainerTerms : true) &&
+    (isGym ? agreeGymTerms : true);
   const allChecked = allRequired && agreeMarketing;
   const toggleAll = () => {
     const next = !allChecked;
-    setAgreeAge(next); setAgreeTerms(next); setAgreePrivacy(next); setAgreeRefund(next); setAgreeMarketing(next);
+    setAgreeAge(next); setAgreeTerms(next); setAgreePrivacy(next); setAgreeLocation(next); setAgreeMarketing(next);
+    if (isMember) { setAgreeRefund(next); setAgreeHealth(next); }
+    if (isTrainer) { setAgreeTrainerTerms(next); }
+    if (isGym) { setAgreeGymTerms(next); }
   };
 
   const [addrCity, setAddrCity]         = useState('');
@@ -117,7 +132,23 @@ export default function SignupScreen() {
     }
     setLoading(true);
     const address = role === 'member' ? { city: addrCity, district: addrDistrict, dong: addrDong } : undefined;
-    const result = await signup(name, email, password, role, address, agreeMarketing);
+    const consent = {
+      role,
+      age: agreeAge, terms: agreeTerms, privacy: agreePrivacy, refund: agreeRefund,
+      health: agreeHealth, trainerTerms: agreeTrainerTerms, gymTerms: agreeGymTerms,
+      location: agreeLocation, marketing: agreeMarketing,
+      versions: {
+        terms: LEGAL_DOCS.terms.updatedAt,
+        privacy: LEGAL_DOCS.privacy.updatedAt,
+        refund: LEGAL_DOCS.refund.updatedAt,
+        health: LEGAL_DOCS.health.updatedAt,
+        location: LEGAL_DOCS.location.updatedAt,
+        trainerTerms: LEGAL_DOCS['trainer-terms'].updatedAt,
+        gymTerms: LEGAL_DOCS['gym-terms'].updatedAt,
+      },
+      at: new Date().toISOString(),
+    };
+    const result = await signup(name, email, password, role, address, agreeMarketing, consent);
     setLoading(false);
 
     if (result.success) {
@@ -298,7 +329,19 @@ export default function SignupScreen() {
             <AgreeRow checked={agreeAge}       onToggle={() => setAgreeAge(!agreeAge)}           label="[필수] 만 14세 이상입니다" />
             <AgreeRow checked={agreeTerms}     onToggle={() => setAgreeTerms(!agreeTerms)}       label="[필수] 이용약관 동의"           onView={() => router.push('/legal/terms' as any)} />
             <AgreeRow checked={agreePrivacy}   onToggle={() => setAgreePrivacy(!agreePrivacy)}   label="[필수] 개인정보 수집·이용 동의" onView={() => router.push('/legal/privacy' as any)} />
-            <AgreeRow checked={agreeRefund}    onToggle={() => setAgreeRefund(!agreeRefund)}     label="[필수] 환불정책 확인"           onView={() => router.push('/legal/refund' as any)} />
+            {isTrainer && (
+              <AgreeRow checked={agreeTrainerTerms} onToggle={() => setAgreeTrainerTerms(!agreeTrainerTerms)} label="[필수] 트레이너 파트너 약관 동의" onView={() => router.push('/legal/trainer-terms' as any)} />
+            )}
+            {isGym && (
+              <AgreeRow checked={agreeGymTerms} onToggle={() => setAgreeGymTerms(!agreeGymTerms)} label="[필수] 헬스장 파트너 약관 동의" onView={() => router.push('/legal/gym-terms' as any)} />
+            )}
+            {isMember && (
+              <AgreeRow checked={agreeRefund}  onToggle={() => setAgreeRefund(!agreeRefund)}     label="[필수] 환불정책 확인"           onView={() => router.push('/legal/refund' as any)} />
+            )}
+            {isMember && (
+              <AgreeRow checked={agreeHealth}  onToggle={() => setAgreeHealth(!agreeHealth)}     label="[필수] 건강 확인·운동 상해 면책 동의" onView={() => router.push('/legal/health' as any)} />
+            )}
+            <AgreeRow checked={agreeLocation}  onToggle={() => setAgreeLocation(!agreeLocation)} label="[필수] 위치기반서비스 이용약관 동의" onView={() => router.push('/legal/location' as any)} />
             <AgreeRow checked={agreeMarketing} onToggle={() => setAgreeMarketing(!agreeMarketing)} label="[선택] 마케팅 정보 수신 동의" />
           </View>
 

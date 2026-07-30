@@ -2,6 +2,7 @@
   "expo": {
     "name": "FLOWIN",
     "slug": "flowin",
+    "owner": "flowin",
     "scheme": "flowin",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -15,7 +16,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.flowin.app"
+      "bundleIdentifier": "com.flowin.app",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.flowin.app",
@@ -48,6 +52,12 @@
           "locationWhenInUsePermission": "내 주변 트레이너·헬스장을 추천하기 위해 위치 권한이 필요합니다."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "96225175-9cce-424d-9ca1-163e125d5a1e"
+      }
+    }
   }
 }

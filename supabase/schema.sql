@@ -894,3 +894,46 @@ end; $$;
 --   );
 --   해제: select cron.unschedule('session-reminder-hourly');
 -- ============================================================
+
+-- ============================================================
+-- Phase M: 동의 이력 저장(consent_records) — 약관 동의 증거력 강화
+--   가입 시 동의한 항목·문서버전·시각을 스냅샷으로 저장(분쟁 대비).
+--   가입 metadata의 consent(jsonb)를 handle_new_user 트리거가 기록한다.
+--   ※ 이 블록은 Phase K의 handle_new_user를 consent 기록 포함 버전으로 덮어쓴다(최신).
+-- ============================================================
+create table if not exists public.consent_records (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  consented_at timestamptz not null default now(),
+  agreements jsonb not null default '{}'
+);
+create index if not exists idx_consent_user on public.consent_records(user_id);
+alter table public.consent_records enable row level security;
+
+-- 조회: 본인 또는 운영자만(증거 확인용). 삽입은 트리거(security definer)가 수행하므로 클라 insert 정책 없음.
+drop policy if exists "consent select own or operator" on public.consent_records;
+create policy "consent select own or operator" on public.consent_records for select using (auth.uid() = user_id or public.is_operator());
+
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer as $$
+begin
+  insert into public.profiles (id, role, name, email, marketing_consent)
+  values (
+    new.id,
+    case when new.raw_user_meta_data->>'role' in ('member','trainer','gym_admin')
+         then new.raw_user_meta_data->>'role' else 'member' end,
+    coalesce(new.raw_user_meta_data->>'name', ''),
+    new.email,
+    coalesce((new.raw_user_meta_data->>'marketing_consent')::boolean, false)
+  )
+  on conflict (id) do nothing;
+
+  -- 동의 이력 스냅샷(가입 metadata의 consent) 기록
+  if new.raw_user_meta_data ? 'consent' then
+    insert into public.consent_records (user_id, agreements)
+    values (new.id, new.raw_user_meta_data->'consent');
+  end if;
+
+  return new;
+end; $$;
+-- ============================================================
