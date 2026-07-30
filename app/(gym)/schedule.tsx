@@ -191,6 +191,8 @@ export default function GymScheduleScreen() {
             style={s.monthArrow}
             onPress={() => setWeekOffset((o) => o - 1)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="이전 주"
           >
             <MaterialCommunityIcons name="chevron-left" size={20} color={SLATE} />
           </TouchableOpacity>
@@ -199,6 +201,8 @@ export default function GymScheduleScreen() {
             style={s.monthArrow}
             onPress={() => setWeekOffset((o) => o + 1)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="다음 주"
           >
             <MaterialCommunityIcons name="chevron-right" size={20} color={SLATE} />
           </TouchableOpacity>

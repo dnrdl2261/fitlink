@@ -235,7 +235,7 @@ export default function CommunityWriteScreen() {
                   {images.map((uri, idx) => (
                     <View key={uri + idx} style={styles.thumbWrap}>
                       <Image source={{ uri }} style={styles.thumb} resizeMode="cover" />
-                      <TouchableOpacity style={styles.removeBtn} onPress={() => removeImage(idx)}>
+                      <TouchableOpacity style={styles.removeBtn} onPress={() => removeImage(idx)} accessibilityRole="button" accessibilityLabel="사진 삭제">
                         <MaterialCommunityIcons name="close-circle" size={20} color="#fff" />
                       </TouchableOpacity>
                     </View>
@@ -259,7 +259,7 @@ export default function CommunityWriteScreen() {
                       <MaterialCommunityIcons name="video-check" size={30} color={'#2DD4BF'} />
                       <Text style={[styles.videoThumbText, { color: '#2DD4BF' }]}>동영상 선택됨</Text>
                     </View>
-                    <TouchableOpacity style={styles.removeBtn} onPress={() => setVideoUri(null)}>
+                    <TouchableOpacity style={styles.removeBtn} onPress={() => setVideoUri(null)} accessibilityRole="button" accessibilityLabel="동영상 삭제">
                       <MaterialCommunityIcons name="close-circle" size={20} color="#fff" />
                     </TouchableOpacity>
                   </View>

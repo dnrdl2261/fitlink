@@ -590,7 +590,7 @@ export default function GymTrainersScreen() {
           <View style={styles.modalNavBar}>
             <View style={{ width: 36 }} />
             <Text style={styles.modalTitle}>트레이너 초대</Text>
-            <TouchableOpacity onPress={() => setInviteModal(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={() => setInviteModal(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="닫기">
               <MaterialCommunityIcons name="close" size={22} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>

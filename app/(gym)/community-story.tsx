@@ -87,7 +87,7 @@ function StoryItem({
           <Text style={styles.actionLabel}>저장</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionBtn} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.actionBtn} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="더보기">
           <MaterialCommunityIcons name="dots-vertical" size={30} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -247,14 +247,14 @@ export default function GymCommunityStoryScreen() {
       />
 
       <View style={styles.header} pointerEvents="box-none">
-        <TouchableOpacity onPress={goBack} style={styles.headerBtn}>
+        <TouchableOpacity onPress={goBack} style={styles.headerBtn} accessibilityRole="button" accessibilityLabel="뒤로 가기">
           <MaterialCommunityIcons name="chevron-left" size={34} color="#fff" />
         </TouchableOpacity>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerBtn}>
+          <TouchableOpacity style={styles.headerBtn} accessibilityRole="button" accessibilityLabel="검색">
             <MaterialCommunityIcons name="magnify" size={24} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerBtn}>
+          <TouchableOpacity style={styles.headerBtn} accessibilityRole="button" accessibilityLabel="내 프로필">
             <MaterialCommunityIcons name="account-circle-outline" size={24} color="#fff" />
           </TouchableOpacity>
         </View>

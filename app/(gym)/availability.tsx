@@ -422,6 +422,8 @@ export default function AvailabilityScreen() {
                 key={f}
                 style={styles.facilityTagEditable}
                 onPress={() => handleRemoveFacility(f)}
+                accessibilityRole="button"
+                accessibilityLabel={`${f} 태그 삭제`}
               >
                 <Text style={styles.facilityText}>{f}</Text>
                 <Text style={styles.facilityRemove}>✕</Text>

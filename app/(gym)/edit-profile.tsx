@@ -159,7 +159,7 @@ export default function GymEditProfileScreen() {
 
         {/* ── 프로필 사진 ── */}
         <View style={styles.photoSection}>
-          <TouchableOpacity style={styles.photoWrapper} onPress={handlePickImage} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.photoWrapper} onPress={handlePickImage} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="헬스장 사진 변경">
             {profileImageUrl ? (
               <Image source={{ uri: profileImageUrl }} style={styles.profilePhoto} />
             ) : (
@@ -319,6 +319,8 @@ export default function GymEditProfileScreen() {
             <TouchableOpacity
               onPress={() => removeRule(idx)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="이용 규칙 삭제"
             >
               <MaterialCommunityIcons name="close" size={18} color={COLORS.textSecondary} />
             </TouchableOpacity>

@@ -687,7 +687,7 @@ function QRVerifyModal({ booking, onClose }: { booking: SlotBooking | null; onCl
     <Modal visible={!!booking} transparent animationType="slide" onRequestClose={() => { setVerified(false); onClose(); }}>
       <View style={st.qrOverlay}>
         <View style={st.qrModal}>
-          <TouchableOpacity style={st.qrClose} onPress={() => { setVerified(false); onClose(); }}>
+          <TouchableOpacity style={st.qrClose} onPress={() => { setVerified(false); onClose(); }} accessibilityRole="button" accessibilityLabel="닫기">
             <MaterialCommunityIcons name="close" size={16} color={COLORS.textSecondary} />
           </TouchableOpacity>
           <Text style={st.qrModalTitle}>QR 입장 확인</Text>

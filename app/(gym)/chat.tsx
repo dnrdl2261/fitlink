@@ -102,7 +102,7 @@ export default function GymChatScreen() {
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>트레이너 선택</Text>
-              <TouchableOpacity onPress={() => setNewModal(false)}>
+              <TouchableOpacity onPress={() => setNewModal(false)} accessibilityRole="button" accessibilityLabel="닫기">
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
             </View>
