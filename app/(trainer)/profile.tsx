@@ -131,12 +131,12 @@ export default function TrainerProfileScreen() {
           {((trainer.photos && trainer.photos.length > 0) || (trainer.videos && trainer.videos.length > 0)) && (
             <View style={styles.photoGrid}>
               {(trainer.photos ?? []).map((photo) => (
-                <TouchableOpacity key={photo.id} onPress={() => setSelectedUri(photo.uri)} activeOpacity={0.85}>
+                <TouchableOpacity key={photo.id} onPress={() => setSelectedUri(photo.uri)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="사진 크게 보기">
                   <Image source={{ uri: photo.uri }} style={[styles.photoThumb, { width: PHOTO_SIZE, height: PHOTO_SIZE }]} />
                 </TouchableOpacity>
               ))}
               {(trainer.videos ?? []).map((video) => (
-                <TouchableOpacity key={video.id} style={{ position: 'relative' }} onPress={() => setVideoUri(video.uri)} activeOpacity={0.85}>
+                <TouchableOpacity key={video.id} style={{ position: 'relative' }} onPress={() => setVideoUri(video.uri)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="동영상 재생">
                   <Image source={{ uri: video.uri }} style={[styles.photoThumb, { width: PHOTO_SIZE, height: PHOTO_SIZE }]} />
                   <View style={styles.videoOverlay}>
                     <MaterialCommunityIcons name="play-circle" size={22} color="rgba(255,255,255,0.9)" />
@@ -250,7 +250,7 @@ export default function TrainerProfileScreen() {
             <TouchableWithoutFeedback>
               <View>
                 <Image source={{ uri: selectedUri ?? '' }} style={styles.modalImage} resizeMode="contain" />
-                <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setSelectedUri(null)}>
+                <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setSelectedUri(null)} accessibilityRole="button" accessibilityLabel="닫기">
                   <Text style={styles.modalCloseTxt}>✕</Text>
                 </TouchableOpacity>
               </View>
@@ -263,7 +263,7 @@ export default function TrainerProfileScreen() {
       <Modal visible={videoUri !== null} transparent animationType="fade" onRequestClose={() => setVideoUri(null)}>
         <TouchableWithoutFeedback onPress={() => setVideoUri(null)}>
           <View style={styles.modalOverlay}>
-            <TouchableOpacity style={styles.videoCloseFab} onPress={() => setVideoUri(null)}>
+            <TouchableOpacity style={styles.videoCloseFab} onPress={() => setVideoUri(null)} accessibilityRole="button" accessibilityLabel="닫기">
               <MaterialCommunityIcons name="close" size={20} color="#fff" />
             </TouchableOpacity>
             <TouchableWithoutFeedback>

@@ -123,7 +123,7 @@ function QRModal({ booking, onClose }: { booking: SlotBooking | null; onClose: (
     <Modal visible={!!booking} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={styles.qrModal}>
-          <TouchableOpacity style={styles.qrClose} onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity style={styles.qrClose} onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="닫기">
             <Text style={styles.qrCloseText}>✕</Text>
           </TouchableOpacity>
 

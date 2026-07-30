@@ -184,7 +184,7 @@ export default function EditProfileScreen() {
 
         {/* ── 프로필 사진 ── */}
         <View style={styles.photoSection}>
-          <TouchableOpacity style={styles.photoWrapper} onPress={handlePickImage} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.photoWrapper} onPress={handlePickImage} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="프로필 사진 변경">
             {profileImageUrl ? (
               <Image source={{ uri: profileImageUrl }} style={styles.profilePhoto} />
             ) : (
@@ -318,6 +318,8 @@ export default function EditProfileScreen() {
                 style={styles.mediaRemoveBtn}
                 onPress={() => removeMediaItem(item.id)}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                accessibilityRole="button"
+                accessibilityLabel="미디어 삭제"
               >
                 <MaterialCommunityIcons name="close-circle" size={20} color="#fff" />
               </TouchableOpacity>
@@ -371,7 +373,7 @@ export default function EditProfileScreen() {
             <View style={styles.itemHeader}>
               <MaterialCommunityIcons name="certificate-outline" size={15} color={COLORS.primary} />
               <Text style={styles.itemNum}>자격증 {idx + 1}</Text>
-              <TouchableOpacity onPress={() => removeCert(idx)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <TouchableOpacity onPress={() => removeCert(idx)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="자격증 삭제">
                 <MaterialCommunityIcons name="close" size={18} color={COLORS.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -420,7 +422,7 @@ export default function EditProfileScreen() {
             <View style={styles.itemHeader}>
               <MaterialCommunityIcons name="briefcase-outline" size={15} color={COLORS.secondary} />
               <Text style={[styles.itemNum, { color: COLORS.secondary }]}>경력 {idx + 1}</Text>
-              <TouchableOpacity onPress={() => removeWork(idx)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <TouchableOpacity onPress={() => removeWork(idx)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="경력 삭제">
                 <MaterialCommunityIcons name="close" size={18} color={COLORS.textSecondary} />
               </TouchableOpacity>
             </View>

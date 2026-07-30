@@ -510,11 +510,11 @@ export default function TrainerScheduleScreen() {
                 </View>
                 <View style={s.rowActions}>
                   {sess.status==='scheduled'&&(
-                    <TouchableOpacity style={s.actBtn} onPress={()=>handleComplete(sess)} activeOpacity={0.7}>
+                    <TouchableOpacity style={s.actBtn} onPress={()=>handleComplete(sess)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="세션 완료 처리">
                       <MaterialCommunityIcons name="check-circle-outline" size={22} color={D.success}/>
                     </TouchableOpacity>
                   )}
-                  <TouchableOpacity style={s.actBtn} onPress={()=>handleDelete(sess)} activeOpacity={0.7}>
+                  <TouchableOpacity style={s.actBtn} onPress={()=>handleDelete(sess)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="일정 삭제">
                     <MaterialCommunityIcons name="trash-can-outline" size={22} color={D.error}/>
                   </TouchableOpacity>
                 </View>
@@ -527,7 +527,7 @@ export default function TrainerScheduleScreen() {
       </ScrollView>
 
       {/* FAB */}
-      <TouchableOpacity style={s.fab} onPress={()=>setShowAdd(true)} activeOpacity={0.85}>
+      <TouchableOpacity style={s.fab} onPress={()=>setShowAdd(true)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="일정 추가">
         <MaterialCommunityIcons name="plus" size={28} color="#fff"/>
       </TouchableOpacity>
 
@@ -541,7 +541,7 @@ export default function TrainerScheduleScreen() {
 
               <View style={s.sheetHead}>
                 <Text style={s.sheetTitle}>일정 추가</Text>
-                <TouchableOpacity onPress={()=>setShowAdd(false)} style={{padding:4}}>
+                <TouchableOpacity onPress={()=>setShowAdd(false)} style={{padding:4}} accessibilityRole="button" accessibilityLabel="닫기">
                   <MaterialCommunityIcons name="close" size={22} color={D.textSec}/>
                 </TouchableOpacity>
               </View>

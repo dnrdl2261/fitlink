@@ -272,7 +272,7 @@ export default function TrainerMapScreen() {
               )}
             </View>
             <Text style={styles.selArrow}>›</Text>
-            <TouchableOpacity style={styles.selClose} onPress={(e) => { e.stopPropagation(); setSelectedGymId(null); }}>
+            <TouchableOpacity style={styles.selClose} onPress={(e) => { e.stopPropagation(); setSelectedGymId(null); }} accessibilityRole="button" accessibilityLabel="닫기">
               <Text style={styles.selCloseText}>✕</Text>
             </TouchableOpacity>
           </TouchableOpacity>

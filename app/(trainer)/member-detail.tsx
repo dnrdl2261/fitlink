@@ -237,6 +237,8 @@ export default function MemberDetailScreen() {
               onPress={handleAdd}
               disabled={!draft.trim()}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="기록 추가"
             >
               <MaterialCommunityIcons name="plus" size={18} color="#fff" />
             </TouchableOpacity>
@@ -262,7 +264,7 @@ export default function MemberDetailScreen() {
                     </View>
                     <Text style={styles.recContent}>{r.content}</Text>
                   </View>
-                  <TouchableOpacity onPress={() => handleDelete(r.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <TouchableOpacity onPress={() => handleDelete(r.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="기록 삭제">
                     <MaterialCommunityIcons name="trash-can-outline" size={18} color={D.textMuted} />
                   </TouchableOpacity>
                 </View>

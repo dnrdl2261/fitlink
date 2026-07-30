@@ -170,7 +170,7 @@ export default function GymListScreen() {
           <Text style={s.regionChipText}>
             {regionFilter.district ? `${regionFilter.city} ${regionFilter.district}` : regionFilter.city}
           </Text>
-          <TouchableOpacity onPress={() => setRegionFilter(null)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+          <TouchableOpacity onPress={() => setRegionFilter(null)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityRole="button" accessibilityLabel="지역 선택 해제">
             <MaterialCommunityIcons name="close" size={14} color={D.textSec} />
           </TouchableOpacity>
         </View>
@@ -192,7 +192,7 @@ export default function GymListScreen() {
             placeholderTextColor={D.textMuted}
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={() => { setQuery(''); setSuggestOpen(false); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={() => { setQuery(''); setSuggestOpen(false); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="검색어 지우기">
               <MaterialCommunityIcons name="close-circle" size={16} color={D.textMuted} />
             </TouchableOpacity>
           )}
@@ -233,12 +233,14 @@ export default function GymListScreen() {
             <TouchableOpacity
               style={[s.toggleBtn, s.toggleBtnActive]}
               onPress={() => setViewMode('list')} activeOpacity={0.7}
+              accessibilityRole="button" accessibilityLabel="목록 보기"
             >
               <MaterialCommunityIcons name="format-list-bulleted" size={16} color={'#fff'} />
             </TouchableOpacity>
             <TouchableOpacity
               style={s.toggleBtn}
               onPress={() => setViewMode('map')} activeOpacity={0.7}
+              accessibilityRole="button" accessibilityLabel="지도 보기"
             >
               <MaterialCommunityIcons name="map-outline" size={16} color={D.textSec} />
             </TouchableOpacity>
@@ -278,7 +280,7 @@ export default function GymListScreen() {
                     placeholderTextColor={D.textMuted}
                   />
                   {query.length > 0 && (
-                    <TouchableOpacity onPress={() => { setQuery(''); setSuggestOpen(false); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <TouchableOpacity onPress={() => { setQuery(''); setSuggestOpen(false); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="검색어 지우기">
                       <MaterialCommunityIcons name="close-circle" size={15} color={D.textMuted} />
                     </TouchableOpacity>
                   )}

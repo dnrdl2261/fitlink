@@ -358,7 +358,7 @@ export default function TrainerSlotsScreen() {
               onChangeText={setSearch}
             />
             {search.length > 0 && (
-              <TouchableOpacity onPress={() => setSearch('')}>
+              <TouchableOpacity onPress={() => setSearch('')} accessibilityRole="button" accessibilityLabel="검색어 지우기">
                 <Text style={ds.searchClear}>✕</Text>
               </TouchableOpacity>
             )}
@@ -511,6 +511,8 @@ export default function TrainerSlotsScreen() {
                       onPress={() => toggleSlot(p.date, p.slot)}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       style={ls.reviewRemoveBtn}
+                      accessibilityRole="button"
+                      accessibilityLabel="슬롯 선택 해제"
                     >
                       <Text style={ls.reviewRemoveText}>✕</Text>
                     </TouchableOpacity>

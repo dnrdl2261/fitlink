@@ -211,6 +211,8 @@ export default function PartnerGymsScreen() {
         <TouchableOpacity
           onPress={() => router.navigate('/(trainer)/more' as any)}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel="뒤로 가기"
         >
           <MaterialCommunityIcons name="chevron-left" size={28} color={ACCENT} />
         </TouchableOpacity>
@@ -495,7 +497,7 @@ export default function PartnerGymsScreen() {
               <Text style={st.modalTitle}>헬스장 신청</Text>
               <Text style={st.modalSubtitle}>입점할 헬스장을 선택하세요</Text>
             </View>
-            <TouchableOpacity onPress={() => setApplyModal(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={() => setApplyModal(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="닫기">
               <MaterialCommunityIcons name="close" size={22} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -512,7 +514,7 @@ export default function PartnerGymsScreen() {
                 autoFocus
               />
               {applySearch.length > 0 && (
-                <TouchableOpacity onPress={() => { setApplySearch(''); setSuggestOpen(false); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <TouchableOpacity onPress={() => { setApplySearch(''); setSuggestOpen(false); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="검색어 지우기">
                   <MaterialCommunityIcons name="close-circle" size={16} color={COLORS.textSecondary} />
                 </TouchableOpacity>
               )}
@@ -555,7 +557,7 @@ export default function PartnerGymsScreen() {
                 <Text style={st.regionChipText}>
                   {regionFilter.district ? `${regionFilter.city} ${regionFilter.district}` : regionFilter.city}
                 </Text>
-                <TouchableOpacity onPress={() => setRegionFilter(null)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                <TouchableOpacity onPress={() => setRegionFilter(null)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityRole="button" accessibilityLabel="지역 선택 해제">
                   <MaterialCommunityIcons name="close" size={14} color={COLORS.textSecondary} />
                 </TouchableOpacity>
               </View>

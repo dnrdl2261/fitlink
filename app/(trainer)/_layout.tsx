@@ -26,6 +26,8 @@ function BackToMoreBtn() {
       onPress={() => router.navigate(target as any)}
       style={{ paddingLeft: 16, paddingRight: 8 }}
       hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      accessibilityRole="button"
+      accessibilityLabel="뒤로 가기"
     >
       <MaterialCommunityIcons name="chevron-left" size={28} color={PRIMARY} />
     </TouchableOpacity>
