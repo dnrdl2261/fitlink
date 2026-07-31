@@ -106,9 +106,9 @@ export default function GymScheduleView({ gymId }: { gymId: string }) {
 
       {/* 네비 */}
       <View style={st.nav}>
-        <TouchableOpacity style={st.navBtn} onPress={prev}><Text style={st.navArr}>‹</Text></TouchableOpacity>
+        <TouchableOpacity style={st.navBtn} onPress={prev} accessibilityRole="button" accessibilityLabel="이전"><Text style={st.navArr}>‹</Text></TouchableOpacity>
         <Text style={st.navTitle}>{navTitle}</Text>
-        <TouchableOpacity style={st.navBtn} onPress={next}><Text style={st.navArr}>›</Text></TouchableOpacity>
+        <TouchableOpacity style={st.navBtn} onPress={next} accessibilityRole="button" accessibilityLabel="다음"><Text style={st.navArr}>›</Text></TouchableOpacity>
       </View>
 
       {/* ── 일간 ── */}

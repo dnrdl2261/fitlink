@@ -130,7 +130,7 @@ function WebMap({ gyms, currentLocation, selectedGymId, onSelectGym, bottomInset
         <View style={styles.overlay}><Text style={styles.errorText}>{error}</Text></View>
       )}
       {ready && (
-        <TouchableOpacity style={[styles.myLocBtn, { bottom: bottomInset }]} onPress={recenter} activeOpacity={0.85}>
+        <TouchableOpacity style={[styles.myLocBtn, { bottom: bottomInset }]} onPress={recenter} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="내 위치로">
           <MaterialCommunityIcons name="crosshairs-gps" size={22} color={COLORS.primary} />
         </TouchableOpacity>
       )}
@@ -170,6 +170,8 @@ function NativeMap({ gyms, currentLocation, selectedGymId, onSelectGym, bottomIn
         style={[styles.myLocBtn, { bottom: bottomInset }]}
         onPress={() => mapRef.current?.animateToRegion({ ...currentLocation, latitudeDelta: 0.04, longitudeDelta: 0.04 }, 600)}
         activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="내 위치로"
       >
         <MaterialCommunityIcons name="crosshairs-gps" size={22} color={COLORS.primary} />
       </TouchableOpacity>

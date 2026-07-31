@@ -139,7 +139,7 @@ function Row({ label, sub, on, onToggle }: { label: string; sub: string; on: boo
         <Text style={s.rowLabel}>{label}</Text>
         <Text style={s.rowSub}>{sub}</Text>
       </View>
-      <TouchableOpacity style={[s.tg, on && s.tgOn]} onPress={onToggle} activeOpacity={0.8}>
+      <TouchableOpacity style={[s.tg, on && s.tgOn]} onPress={onToggle} activeOpacity={0.8} accessibilityRole="switch" accessibilityState={{ checked: on }} accessibilityLabel={label}>
         <View style={[s.tgThumb, on && s.tgThumbOn]} />
       </TouchableOpacity>
     </View>
