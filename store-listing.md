@@ -13,11 +13,11 @@
 | 카테고리 (1순위) | 건강 및 피트니스 (Health & Fitness) |
 | 카테고리 (2순위) | 라이프스타일 |
 | 지원 언어 | 한국어 |
-| 개인정보처리방침 URL | https://dnrdl2261.github.io/fitlink/legal/privacy |
-| 이용약관 URL | https://dnrdl2261.github.io/fitlink/legal/terms |
-| 환불정책 URL | https://dnrdl2261.github.io/fitlink/legal/refund |
+| 개인정보처리방침 URL | https://flowinpt.kr/legal/privacy |
+| 이용약관 URL | https://flowinpt.kr/legal/terms |
+| 환불정책 URL | https://flowinpt.kr/legal/refund |
 | 지원(문의) 이메일 | tnsdnrdl2267@gmail.com *(임시 — 정식 고객센터 이메일 확정 시 교체)* |
-| 마케팅 URL(선택) | https://dnrdl2261.github.io/fitlink/ |
+| 마케팅 URL(선택) | https://flowinpt.kr/ |
 
 ---
 

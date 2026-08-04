@@ -46,4 +46,8 @@ if (!html.includes('dapi.kakao.com')) {
 fs.writeFileSync('dist/index.html', html);
 fs.writeFileSync('dist/404.html', html);
 
+// 커스텀 도메인. gh-pages가 dist를 통째로 덮어쓰므로 매 배포마다 다시 만들어야
+// GitHub Pages의 커스텀 도메인 설정이 풀리지 않는다.
+fs.writeFileSync('dist/CNAME', 'flowinpt.kr\n');
+
 console.log('HTML patched successfully');

@@ -77,10 +77,10 @@ function buildUserState(role: UserRole, name?: string, email?: string, gymId?: s
   };
 }
 
-// 이메일 확인 링크가 돌아올 앱 주소 (웹). 배포 base가 /fitlink 이므로 origin + /fitlink/.
+// 이메일 확인 링크가 돌아올 앱 주소 (웹). 커스텀 도메인 루트 배포이므로 origin + /.
 function emailRedirectUrl(): string | undefined {
   if (typeof window !== 'undefined' && window.location?.origin) {
-    return `${window.location.origin}/fitlink/`;
+    return `${window.location.origin}/`;
   }
   return undefined;
 }
