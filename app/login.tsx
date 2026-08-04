@@ -46,6 +46,11 @@ const KAKAO_DISCOVERY: AuthSession.DiscoveryDocument = {
   tokenEndpoint: 'https://kauth.kakao.com/oauth/token',
 };
 
+// 소셜 로그인은 아직 미연동(config/oauth.ts 가 placeholder, 성공해도 Supabase 계정을
+// 만들지 않고 로컬 목 세션만 생성). 동작하지 않는 버튼은 스토어 심사 반려 사유라
+// 출시 전까지 숨긴다. 실제 연동 후 true 로 바꾸면 UI가 그대로 돌아온다.
+const SOCIAL_LOGIN_ENABLED = false;
+
 const DEMO_ACCOUNTS: { role: UserRole; label: string; emoji: string }[] = [
   { role: 'member',    label: '회원',          emoji: '🏃' },
   { role: 'trainer',   label: '트레이너',      emoji: '💪' },
@@ -233,33 +238,37 @@ export default function LoginScreen() {
             </View>
           )}
 
-          {/* 구분선 */}
-          <View style={s.divRow}>
-            <View style={s.divLine} />
-            <Text style={s.divText}>간편 로그인</Text>
-            <View style={s.divLine} />
-          </View>
+          {SOCIAL_LOGIN_ENABLED && (
+            <>
+              {/* 구분선 */}
+              <View style={s.divRow}>
+                <View style={s.divLine} />
+                <Text style={s.divText}>간편 로그인</Text>
+                <View style={s.divLine} />
+              </View>
 
-          {/* 소셜 아이콘 */}
-          <View style={s.socialRow}>
-            <TouchableOpacity style={s.socialCircle} activeOpacity={0.7}>
-              <MaterialCommunityIcons name="apple" size={22} color={TEXT} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.socialCircle]}
-              onPress={() => promptGoogleAsync()}
-              activeOpacity={0.7}
-            >
-              <Text style={[s.socialTxt, { color: '#EA4335', fontWeight: '900' }]}>G</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.socialCircle, { backgroundColor: '#FEE500', borderColor: '#FEE500' }]}
-              onPress={() => promptKakaoAsync()}
-              activeOpacity={0.7}
-            >
-              <Text style={[s.socialTxt, { color: '#3C1E1E' }]}>K</Text>
-            </TouchableOpacity>
-          </View>
+              {/* 소셜 아이콘 */}
+              <View style={s.socialRow}>
+                <TouchableOpacity style={s.socialCircle} activeOpacity={0.7}>
+                  <MaterialCommunityIcons name="apple" size={22} color={TEXT} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.socialCircle]}
+                  onPress={() => promptGoogleAsync()}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[s.socialTxt, { color: '#EA4335', fontWeight: '900' }]}>G</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.socialCircle, { backgroundColor: '#FEE500', borderColor: '#FEE500' }]}
+                  onPress={() => promptKakaoAsync()}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[s.socialTxt, { color: '#3C1E1E' }]}>K</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
 
           {/* 데모 계정 */}
           <TouchableOpacity style={s.demoToggle} onPress={() => setShowDemo(!showDemo)}>
