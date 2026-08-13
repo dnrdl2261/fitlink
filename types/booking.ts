@@ -41,4 +41,7 @@ export interface Booking {
   type?: 'pt' | 'consultation';
   refundedAmount?: number;
   refundedAt?: string;
+  // 회차권 유효기간 만료 시각(결제일 + SESSION_PASS_VALIDITY_MONTHS). 구매 시점 값을 그대로 보관한다.
+  // 나중에 약관 기간이 바뀌어도 이미 판매된 회차권의 조건은 유지되어야 하므로 계산하지 말고 저장할 것.
+  expiresAt?: string;
 }

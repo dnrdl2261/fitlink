@@ -13,11 +13,12 @@ import { useLocation } from '../../hooks/useLocation';
 import { calculateDistance, formatDistance } from '../../utils/distance';
 import GymMapView from '../../components/GymMapView';
 import { Gym } from '../../types';
+import GymThumb from '../../components/GymThumb';
 
 const D = {
   bg:          '#EEF2F9',
   surface:     '#FFFFFF',
-  primary:     '#4F63F5',
+  primary:     '#0057ff',
   primaryGlow: 'rgba(79,99,245,0.12)',
   secondary:   '#5B5FD6',
   text:        '#0F172A',
@@ -307,7 +308,7 @@ export default function GymListScreen() {
               onPress={() => router.push({ pathname: `/gym/${selectedMapGym.id}` as any, params: { from: 'trainer' } })}
               activeOpacity={0.9}
             >
-              <Image source={{ uri: selectedMapGym.images[0] }} style={s.mapCardImg} />
+              <GymThumb name={selectedMapGym.name} uri={selectedMapGym.images[0]} size={64} radius={12} style={s.mapCardImg} />
               <View style={s.mapCardInfo}>
                 <Text style={s.mapCardName} numberOfLines={1}>{selectedMapGym.name}</Text>
                 <Text style={s.mapCardMeta} numberOfLines={1}>
@@ -331,7 +332,7 @@ export default function GymListScreen() {
               onPress={() => router.push({ pathname: `/gym/${item.id}` as any, params: { from: 'trainer' } })}
               activeOpacity={0.85}
             >
-                <Image source={{ uri: item.images[0] }} style={s.gymPhoto} resizeMode="cover" />
+                <GymThumb name={item.name} uri={item.images[0]} size={64} radius={12} style={s.gymPhoto} />
                 <View style={s.gymInfo}>
                   {/* 이름 + 파트너 배지 */}
                   <View style={s.gymNameRow}>

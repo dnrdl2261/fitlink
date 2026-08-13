@@ -1,13 +1,22 @@
 import { GeoCoordinate } from '../types';
 
-// 서울시청 기본 좌표 (위치 권한 거부 시 폴백)
+// 위치 권한 거부 시 폴백 좌표 = 부산시청.
+// ⚠️ 서비스 데이터(공공데이터 헬스장)가 현재 부산만 적재돼 있어 서울로 두면 지도가 텅 빈 것처럼 보인다.
+//    전국으로 확장하면 사용자 접속 지역 기준으로 다시 검토할 것.
 export const DEFAULT_COORDINATE: GeoCoordinate = {
-  latitude: 37.5665,
-  longitude: 126.978,
+  latitude: 35.1798,
+  longitude: 129.075,
 };
+
+// 지도 화면의 "○○ 중심 기준" 칩 문구. DEFAULT_COORDINATE와 함께 바꿔야 어긋나지 않는다.
+export const DEFAULT_LOCATION_LABEL = '부산';
 
 // 수수료율 10%
 export const PLATFORM_FEE_RATE = 0.1;
+
+// PT 회차권 유효기간(개월). 환불정책 문서·결제 화면 고지·만료 처리가 모두 이 값을 참조한다.
+// ⚠️ 토스페이먼츠에 '서비스 종료까지 기간 12개월'로 신고한 값이므로 바꾸려면 PG 신고 내용도 함께 정정할 것.
+export const SESSION_PASS_VALIDITY_MONTHS = 12;
 
 export const COLORS = {
   primary: '#0057ff',

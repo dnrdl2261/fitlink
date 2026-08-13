@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, FlatList,
-  TouchableOpacity, Image,
+  TouchableOpacity, Image, Share, Platform, TextInput,
 } from 'react-native';
 import { useRouter, useGlobalSearchParams } from 'expo-router';
 import { useScrollToTop } from '@react-navigation/native';
@@ -9,68 +9,252 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../utils/constants';
 import {
   FeedCat, GroupCat, CAT_COLOR, GROUP_CAT_COLOR,
-  FEED_CATS, GROUP_CATS,
+  FEED_CATS, GROUP_CATS, likersOfPost,
 } from '../../data/community';
 import { useCommunityStore } from '../../store/communityStore';
+import { useBlockedIds } from '../../hooks/useBlockedIds';
+import { useAuthStore } from '../../store/authStore';
+import VideoPlayer from '../../components/VideoPlayer';
 import { Post, Group } from '../../data/community';
 
 type Tab = '피드' | '모임' | '스토리';
 
-function PostCard({ post, onPress }: { post: Post; onPress: () => void }) {
+function PostCard({ post, isVisible, onPress, onComment, onLikes }: { post: Post; isVisible: boolean; onPress: () => void; onComment: () => void; onLikes: () => void }) {
   const catColor = CAT_COLOR[post.category] ?? '#888';
+  const likedPosts = useCommunityStore((s) => s.likedPosts);
+  const toggleLikePost = useCommunityStore((s) => s.toggleLikePost);
+  const liked = likedPosts.includes(post.id);
+  const [expanded, setExpanded] = useState(false);
+  // 2줄을 넘길 만한 길이일 때만 '더보기'를 띄운다 (웹에서는 실제 줄 수 측정이 불안정)
+  const needsMore = post.title.length + post.content.length > 45;
+
+  const handleShare = async () => {
+    const url = Platform.OS === 'web' && typeof window !== 'undefined'
+      ? `${window.location.origin}/community-post?postId=${post.id}`
+      : '';
+    try {
+      if (Platform.OS === 'web') {
+        const nav: any = typeof navigator !== 'undefined' ? navigator : null;
+        if (nav?.share) { await nav.share({ title: post.title, url }); return; }
+        if (nav?.clipboard) { await nav.clipboard.writeText(url); window.alert('링크가 복사되었습니다.'); }
+        return;
+      }
+      await Share.share({ message: `${post.title}\n${url}` });
+    } catch {
+      // 사용자가 공유를 취소한 경우
+    }
+  };
 
   return (
-    <TouchableOpacity style={styles.postCard} activeOpacity={0.82} onPress={onPress}>
-      <View style={styles.authorRow}>
-        <View style={styles.authorTouchArea}>
-          <View style={styles.authorAvatar}>
-            {post.authorAvatar
-              ? <Image source={{ uri: post.authorAvatar }} style={styles.authorAvatarImg} />
-              : <Text style={styles.authorAvatarText}>{post.author[0]}</Text>}
-          </View>
-          <Text style={styles.authorName}>{post.author}</Text>
+    <TouchableOpacity style={styles.postCard} activeOpacity={0.95} onPress={onPress}>
+      <View style={styles.cardHeader}>
+        <View style={styles.authorAvatar}>
+          {post.authorAvatar
+            ? <Image source={{ uri: post.authorAvatar }} style={styles.authorAvatarImg} />
+            : <Text style={styles.authorAvatarText}>{post.author[0]}</Text>}
+        </View>
+        <Text style={styles.authorName} numberOfLines={1}>{post.author}</Text>
+        <View style={[styles.catBadge, { backgroundColor: catColor + '18' }]}>
+          <Text style={[styles.catText, { color: catColor }]}>{post.category}</Text>
         </View>
       </View>
-      <View style={styles.postMain}>
-        <View style={styles.postBody}>
-          <View style={styles.postCatRow}>
-            <View style={[styles.catBadge, { backgroundColor: catColor + '18' }]}>
-              <Text style={[styles.catText, { color: catColor }]}>{post.category}</Text>
+
+      {post.imageUrl && (
+        <View style={styles.media}>
+          {post.isVideo && post.videoUrl
+            ? <VideoPlayer uri={post.videoUrl} isPlaying={isVisible} muted />
+            : <Image source={{ uri: post.imageUrl }} style={styles.mediaImg} resizeMode="cover" />}
+          {post.isVideo && (
+            <View style={styles.muteBadge}>
+              <MaterialCommunityIcons name="volume-off" size={14} color="#fff" />
             </View>
-            {post.isVideo && (
-              <View style={styles.videoBadge}>
-                <MaterialCommunityIcons name="play-circle" size={13} color="#FF2D55" />
-                <Text style={styles.videoText}>영상</Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.postTitle} numberOfLines={2}>{post.title}</Text>
-          <Text style={styles.postContent} numberOfLines={2}>{post.content}</Text>
-          <View style={styles.postMeta}>
-            <Text style={styles.metaLocation}>{post.location}</Text>
-            <Text style={styles.metaDot}>·</Text>
-            <Text style={styles.metaTime}>{post.timeAgo}</Text>
-            <Text style={styles.metaDot}>·</Text>
-            <Text style={styles.metaViews}>조회 {post.views.toLocaleString()}</Text>
-            <View style={styles.metaSpacer} />
-            <MaterialCommunityIcons name="heart-outline" size={12} color={COLORS.textSecondary} />
-            <Text style={styles.metaNum}>{post.likes}</Text>
-            <MaterialCommunityIcons name="comment-outline" size={12} color={COLORS.textSecondary} style={{ marginLeft: 8 }} />
-            <Text style={styles.metaNum}>{post.comments}</Text>
-          </View>
+          )}
         </View>
-        {post.imageUrl && (
-          <View style={styles.thumbWrap}>
-            <Image source={{ uri: post.imageUrl }} style={styles.thumb} />
-            {post.isVideo && (
-              <View style={styles.playOverlay}>
-                <MaterialCommunityIcons name="play" size={20} color="#fff" />
-              </View>
-            )}
-          </View>
-        )}
+      )}
+
+      <View style={styles.actionRow}>
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => toggleLikePost(post.id)}
+          accessibilityRole="button"
+          accessibilityLabel={liked ? '좋아요 취소' : '좋아요'}
+        >
+          <MaterialCommunityIcons
+            name={liked ? 'heart' : 'heart-outline'}
+            size={24}
+            color={liked ? '#FF3040' : COLORS.text}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} onPress={onComment} accessibilityRole="button" accessibilityLabel="댓글">
+          <MaterialCommunityIcons name="comment-outline" size={23} color={COLORS.text} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} onPress={handleShare} accessibilityRole="button" accessibilityLabel="공유">
+          <MaterialCommunityIcons name="share-outline" size={24} color={COLORS.text} />
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity
+        onPress={onLikes}
+        accessibilityRole="button"
+        accessibilityLabel={`좋아요 ${post.likes}개, 누른 사람 보기`}
+      >
+        <Text style={styles.likeCount}>좋아요 {post.likes.toLocaleString()}개</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.contentText} numberOfLines={expanded ? undefined : 2}>
+        <Text style={styles.contentAuthor}>{post.author} </Text>
+        {post.title ? `${post.title} · ` : ''}{post.content}
+      </Text>
+      {needsMore && !expanded && (
+        <TouchableOpacity onPress={() => setExpanded(true)} accessibilityRole="button" accessibilityLabel="본문 더보기">
+          <Text style={styles.moreText}>더보기</Text>
+        </TouchableOpacity>
+      )}
+
+      {post.comments > 0 && (
+        <TouchableOpacity onPress={onComment} accessibilityRole="button" accessibilityLabel={`댓글 ${post.comments}개 모두 보기`}>
+          <Text style={styles.commentLink}>댓글 {post.comments}개 모두 보기</Text>
+        </TouchableOpacity>
+      )}
+
+      <View style={styles.metaRow}>
+        <Text style={styles.metaText}>{post.location}</Text>
+        <Text style={styles.metaDot}>·</Text>
+        <Text style={styles.metaText}>{post.timeAgo}</Text>
       </View>
     </TouchableOpacity>
+  );
+}
+
+function LikeSheet({ post, onClose }: { post: Post; onClose: () => void }) {
+  const likedPosts = useCommunityStore((s) => s.likedPosts);
+  const { gymAdmin } = useAuthStore();
+  const iLiked = likedPosts.includes(post.id);
+
+  // 내가 누른 좋아요는 항상 맨 위. 나머지는 목업 명단에서 채운다.
+  const others = likersOfPost(post.id, post.likes - (iLiked ? 1 : 0));
+  const names = iLiked ? [gymAdmin?.name ?? '나', ...others] : others;
+  const rest = Math.max(0, post.likes - names.length);
+
+  return (
+    <View style={styles.sheetBackdrop}>
+      <TouchableOpacity style={styles.sheetDismiss} activeOpacity={1} onPress={onClose} />
+      <View style={styles.sheet}>
+        <View style={styles.sheetHeader}>
+          <Text style={styles.sheetTitle}>좋아요 {post.likes.toLocaleString()}개</Text>
+          <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="좋아요 목록 닫기">
+            <MaterialCommunityIcons name="close" size={22} color={COLORS.text} />
+          </TouchableOpacity>
+        </View>
+
+        <FlatList
+          data={names}
+          keyExtractor={(n, i) => `${n}_${i}`}
+          contentContainerStyle={styles.sheetList}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item: name, index }) => (
+            <View style={styles.likerRow}>
+              <View style={styles.commentAvatar}>
+                <Text style={styles.commentInitial}>{name[0]}</Text>
+              </View>
+              <Text style={styles.likerName} numberOfLines={1}>{name}</Text>
+              {iLiked && index === 0 && <Text style={styles.likerMe}>나</Text>}
+            </View>
+          )}
+          ListFooterComponent={
+            rest > 0
+              ? <Text style={styles.likerMore}>외 {rest.toLocaleString()}명</Text>
+              : null
+          }
+          ListEmptyComponent={
+            <View style={styles.noComment}>
+              <Text style={styles.noCommentText}>아직 좋아요가 없습니다</Text>
+            </View>
+          }
+        />
+      </View>
+    </View>
+  );
+}
+
+function CommentSheet({ postId, onClose }: { postId: string; onClose: () => void }) {
+  const comments = useCommunityStore((s) => s.comments);
+  const addComment = useCommunityStore((s) => s.addComment);
+  const { gymAdmin } = useAuthStore();
+  const [text, setText] = useState('');
+  const blockedIds = useBlockedIds();
+  const list = useMemo(
+    () => comments.filter((c) => c.postId === postId && !(c.authorId && blockedIds.includes(c.authorId))),
+    [comments, postId, blockedIds],
+  );
+
+  const submit = () => {
+    const t = text.trim();
+    if (!t) return;
+    addComment(postId, t, gymAdmin?.name ?? '익명', gymAdmin?.profileImageUrl, gymAdmin?.id);
+    setText('');
+  };
+
+  return (
+    <View style={styles.sheetBackdrop}>
+      <TouchableOpacity style={styles.sheetDismiss} activeOpacity={1} onPress={onClose} />
+      <View style={styles.sheet}>
+        <View style={styles.sheetHeader}>
+          <Text style={styles.sheetTitle}>댓글 {list.length}개</Text>
+          <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="댓글 닫기">
+            <MaterialCommunityIcons name="close" size={22} color={COLORS.text} />
+          </TouchableOpacity>
+        </View>
+
+        <FlatList
+          data={list}
+          keyExtractor={(c) => c.id}
+          contentContainerStyle={styles.sheetList}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item: c }) => (
+            <View style={styles.commentItem}>
+              <View style={styles.commentAvatar}>
+                {c.authorAvatar
+                  ? <Image source={{ uri: c.authorAvatar }} style={styles.commentAvatarImg} />
+                  : <Text style={styles.commentInitial}>{c.author[0]}</Text>}
+              </View>
+              <View style={styles.commentBody}>
+                <View style={styles.commentTop}>
+                  <Text style={styles.commentAuthor}>{c.author}</Text>
+                  <Text style={styles.commentTime}>{c.timeAgo}</Text>
+                </View>
+                <Text style={styles.commentContent}>{c.content}</Text>
+              </View>
+            </View>
+          )}
+          ListEmptyComponent={
+            <View style={styles.noComment}>
+              <Text style={styles.noCommentText}>첫 번째 댓글을 남겨보세요!</Text>
+            </View>
+          }
+        />
+
+        <View style={styles.inputBar}>
+          <TextInput
+            style={styles.commentInput}
+            placeholder="댓글을 입력하세요"
+            placeholderTextColor={COLORS.textSecondary}
+            value={text}
+            onChangeText={setText}
+            multiline
+          />
+          <TouchableOpacity
+            style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]}
+            onPress={submit}
+            disabled={!text.trim()}
+            accessibilityRole="button"
+            accessibilityLabel="댓글 등록"
+          >
+            <Text style={styles.sendText}>등록</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -122,11 +306,25 @@ export default function GymCommunityScreen() {
   const [activeTab, setActiveTab] = useState<Tab>('피드');
   const [feedCat, setFeedCat] = useState<FeedCat>('전체');
   const [groupCat, setGroupCat] = useState<GroupCat>('전체');
+  const [visibleIds, setVisibleIds] = useState<string[]>([]);
+  const [commentPostId, setCommentPostId] = useState<string | null>(null);
+  const [likePost, setLikePost] = useState<Post | null>(null);
+
+  // onViewableItemsChanged는 렌더마다 새 함수를 주면 RN이 오류를 내므로 ref로 고정
+  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+    setVisibleIds(viewableItems.map((v: any) => v.item.id));
+  });
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 });
+
+  const blockedIds = useBlockedIds();
 
   const filteredPosts = useMemo(() => {
-    if (feedCat === '전체') return posts;
-    return posts.filter((p) => p.category === feedCat);
-  }, [posts, feedCat]);
+    const visible = blockedIds.length
+      ? posts.filter((p) => !p.authorId || !blockedIds.includes(p.authorId))
+      : posts;
+    if (feedCat === '전체') return visible;
+    return visible.filter((p) => p.category === feedCat);
+  }, [posts, feedCat, blockedIds]);
 
   const filteredGroups = useMemo(() => {
     if (groupCat === '전체') return groups;
@@ -191,8 +389,16 @@ export default function GymCommunityScreen() {
             data={filteredPosts}
             keyExtractor={(p) => p.id}
             renderItem={({ item }) => (
-              <PostCard post={item} onPress={() => goPost(item.id)} />
+              <PostCard
+                post={item}
+                isVisible={visibleIds.includes(item.id)}
+                onPress={() => goPost(item.id)}
+                onComment={() => setCommentPostId(item.id)}
+                onLikes={() => setLikePost(item)}
+              />
             )}
+            onViewableItemsChanged={onViewableItemsChanged.current}
+            viewabilityConfig={viewabilityConfig.current}
             ItemSeparatorComponent={() => <View style={styles.separator} />}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 100 }}
@@ -248,24 +454,31 @@ export default function GymCommunityScreen() {
           <FlatList
             ref={scrollRef}
             data={videoPosts}
-            numColumns={2}
             keyExtractor={(p) => p.id}
             renderItem={({ item }) => (
               <View style={styles.storyCard}>
                 <TouchableOpacity activeOpacity={0.88} onPress={() => goStory(item.id)}>
                   <View style={styles.storyThumb}>
-                    {item.imageUrl ? (
+                    {item.videoUrl ? (
+                      <VideoPlayer uri={item.videoUrl} isPlaying={visibleIds.includes(item.id)} muted />
+                    ) : item.imageUrl ? (
                       <Image source={{ uri: item.imageUrl }} style={styles.storyThumbImg} resizeMode="cover" />
                     ) : (
                       <View style={styles.storyThumbNoImg}>
-                        <MaterialCommunityIcons name="video" size={34} color="rgba(255,255,255,0.6)" />
+                        <MaterialCommunityIcons name="video" size={56} color="rgba(255,255,255,0.6)" />
                       </View>
                     )}
-                    <View style={styles.storyPlayOverlay}>
-                      <MaterialCommunityIcons name="play-circle" size={38} color="rgba(255,255,255,0.9)" />
-                    </View>
+                    {item.videoUrl ? (
+                      <View style={styles.muteBadge}>
+                        <MaterialCommunityIcons name="volume-off" size={14} color="#fff" />
+                      </View>
+                    ) : (
+                      <View style={styles.storyPlayOverlay}>
+                        <MaterialCommunityIcons name="play-circle" size={64} color="rgba(255,255,255,0.9)" />
+                      </View>
+                    )}
                     <View style={styles.storyViewBadge}>
-                      <MaterialCommunityIcons name="eye-outline" size={10} color="#fff" />
+                      <MaterialCommunityIcons name="eye-outline" size={13} color="#fff" />
                       <Text style={styles.storyViewText}>
                         {item.views >= 1000 ? `${(item.views / 1000).toFixed(1)}k` : item.views}
                       </Text>
@@ -290,9 +503,11 @@ export default function GymCommunityScreen() {
                 </View>
               </View>
             )}
-            columnWrapperStyle={styles.storyRow}
+            onViewableItemsChanged={onViewableItemsChanged.current}
+            viewabilityConfig={viewabilityConfig.current}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 6, paddingTop: 6 }}
+            contentContainerStyle={{ paddingBottom: 100 }}
             ListEmptyComponent={
               <View style={styles.storyEmpty}>
                 <MaterialCommunityIcons name="video-off-outline" size={52} color={COLORS.border} />
@@ -317,6 +532,14 @@ export default function GymCommunityScreen() {
           {activeTab === '모임' ? '모임 만들기' : activeTab === '스토리' ? '영상 올리기' : '글쓰기'}
         </Text>
       </TouchableOpacity>
+
+      {commentPostId && (
+        <CommentSheet postId={commentPostId} onClose={() => setCommentPostId(null)} />
+      )}
+
+      {likePost && (
+        <LikeSheet post={likePost} onClose={() => setLikePost(null)} />
+      )}
     </SafeAreaView>
   );
 }
@@ -354,8 +577,6 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 13, color: '#64748B', fontWeight: '600' },
   chipTextActive: { color: '#fff', fontWeight: '700' },
 
-  authorRow: { marginBottom: 10 },
-  authorTouchArea: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   authorAvatar: {
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: '#2DD4BF' + '22',
@@ -365,36 +586,111 @@ const styles = StyleSheet.create({
   authorAvatarImg: { width: 28, height: 28, borderRadius: 14 },
   authorName: { flex: 1, fontSize: 13, fontWeight: '600', color: COLORS.text },
 
-  postCard: { backgroundColor: COLORS.surface, paddingHorizontal: 16, paddingVertical: 14 },
-  postMain: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  postCard: { backgroundColor: COLORS.surface },
   rank: { fontSize: 22, fontWeight: '900', color: COLORS.border, width: 28, textAlign: 'center', lineHeight: 28, marginTop: 2 },
   rankHot: { color: '#2DD4BF' },
-  postBody: { flex: 1, gap: 4 },
-  postCatRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  cardHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 14, paddingVertical: 10,
+  },
   catBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   catText: { fontSize: 11, fontWeight: '700' },
-  videoBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6,
-    backgroundColor: '#FF2D5518',
-  },
-  videoText: { fontSize: 11, fontWeight: '700', color: '#FF2D55' },
-  postTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text, lineHeight: 21 },
-  postContent: { fontSize: 13, color: COLORS.textSecondary, lineHeight: 19 },
-  postMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  metaLocation: { fontSize: 11, color: COLORS.textSecondary },
-  metaTime: { fontSize: 11, color: COLORS.textSecondary },
-  metaViews: { fontSize: 11, color: COLORS.textSecondary },
-  metaDot: { fontSize: 11, color: COLORS.border },
-  metaSpacer: { flex: 1 },
-  metaNum: { fontSize: 11, color: COLORS.textSecondary, marginLeft: 2 },
-  thumbWrap: { width: 80, height: 80, borderRadius: 10, overflow: 'hidden', position: 'relative' },
-  thumb: { width: '100%', height: '100%' },
-  playOverlay: {
-    position: 'absolute', inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+  media: { width: '100%', aspectRatio: 1, backgroundColor: '#111', position: 'relative' },
+  mediaImg: { width: '100%', height: '100%' },
+  muteBadge: {
+    position: 'absolute', bottom: 10, right: 10,
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center', justifyContent: 'center',
   },
+  actionRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingHorizontal: 12, paddingTop: 10, paddingBottom: 4,
+  },
+  actionBtn: { padding: 2 },
+  likeCount: { fontSize: 13, fontWeight: '700', color: COLORS.text, paddingHorizontal: 14, paddingBottom: 4 },
+  contentText: { fontSize: 13, color: COLORS.text, lineHeight: 19, paddingHorizontal: 14 },
+  contentAuthor: { fontWeight: '700', color: COLORS.text },
+  moreText: { fontSize: 13, color: COLORS.textSecondary, paddingHorizontal: 14, paddingTop: 2 },
+  commentLink: { fontSize: 13, color: COLORS.textSecondary, paddingHorizontal: 14, paddingTop: 5 },
+  metaRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 14, paddingTop: 6, paddingBottom: 12,
+  },
+  metaText: { fontSize: 11, color: COLORS.textSecondary },
+  metaDot: { fontSize: 11, color: COLORS.border },
+
+  // Modal(포털) 대신 화면 안에 덮는 레이어. Modal은 닫힐 때 포커스를 되돌리며
+  // 목록 스크롤을 맨 위로 튀게 만든다.
+  sheetBackdrop: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end',
+    zIndex: 50,
+  },
+  sheetDismiss: { flex: 1 },
+  sheet: {
+    maxHeight: '75%', backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 16, borderTopRightRadius: 16, overflow: 'hidden',
+  },
+  sheetHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
+  sheetTitle: { fontSize: 15, fontWeight: '800', color: COLORS.text },
+  sheetList: { paddingHorizontal: 16, paddingBottom: 8 },
+  noComment: { paddingVertical: 24, alignItems: 'center' },
+  noCommentText: { fontSize: 14, color: COLORS.textSecondary },
+  commentItem: {
+    flexDirection: 'row', gap: 10, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
+  commentAvatar: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: COLORS.primary + '22',
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  commentInitial: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
+  commentAvatarImg: { width: 32, height: 32, borderRadius: 16 },
+  commentBody: { flex: 1, gap: 4 },
+  commentTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  commentAuthor: { fontSize: 13, fontWeight: '700', color: COLORS.text },
+  commentTime: { fontSize: 11, color: COLORS.textSecondary },
+  commentContent: { fontSize: 14, color: COLORS.text, lineHeight: 20 },
+  inputBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 16, paddingVertical: 8,
+    backgroundColor: COLORS.surface,
+    borderTopWidth: 1, borderTopColor: COLORS.border,
+  },
+  commentInput: {
+    flex: 1,
+    minHeight: 36, maxHeight: 60,
+    backgroundColor: COLORS.background,
+    borderRadius: 18, borderWidth: 1, borderColor: COLORS.border,
+    paddingHorizontal: 14, paddingVertical: 7,
+    fontSize: 14, color: COLORS.text,
+  },
+  sendBtn: {
+    paddingHorizontal: 14, height: 36, borderRadius: 18,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  sendBtnDisabled: { backgroundColor: COLORS.border },
+  sendText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+
+  likerRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
+  likerName: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.text },
+  likerMe: {
+    fontSize: 11, fontWeight: '700', color: COLORS.primary,
+    backgroundColor: COLORS.primary + '18',
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
+  },
+  likerMore: { fontSize: 13, color: COLORS.textSecondary, paddingVertical: 14, textAlign: 'center' },
 
   groupCard: {
     backgroundColor: COLORS.surface, flexDirection: 'row',
@@ -415,11 +711,7 @@ const styles = StyleSheet.create({
   },
   joinedText: { fontSize: 11, fontWeight: '700', color: '#2DD4BF' },
 
-  storyRow: { gap: 6 },
-  storyCard: {
-    flex: 1, backgroundColor: COLORS.surface,
-    borderRadius: 12, overflow: 'hidden', margin: 3,
-  },
+  storyCard: { backgroundColor: COLORS.surface },
   storyThumb: { width: '100%', aspectRatio: 3 / 4, backgroundColor: '#111', position: 'relative' },
   storyThumbImg: { width: '100%', height: '100%' },
   storyThumbNoImg: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
@@ -429,24 +721,24 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.2)',
   },
   storyViewBadge: {
-    position: 'absolute', bottom: 6, left: 8,
-    flexDirection: 'row', alignItems: 'center', gap: 3,
+    position: 'absolute', bottom: 10, left: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10,
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12,
   },
-  storyViewText: { fontSize: 10, color: '#fff', fontWeight: '600' },
-  storyInfo: { padding: 8, gap: 4 },
-  storyTitle: { fontSize: 12, fontWeight: '700', color: COLORS.text, lineHeight: 17 },
-  storyAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  storyAuthorTouch: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  storyViewText: { fontSize: 12, color: '#fff', fontWeight: '600' },
+  storyInfo: { paddingHorizontal: 14, paddingVertical: 12, gap: 8 },
+  storyTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text, lineHeight: 21 },
+  storyAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  storyAuthorTouch: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
   storyAvatar: {
-    width: 18, height: 18, borderRadius: 9,
+    width: 28, height: 28, borderRadius: 14,
     backgroundColor: '#2DD4BF' + '22',
     alignItems: 'center', justifyContent: 'center',
   },
-  storyAvatarText: { fontSize: 9, fontWeight: '800', color: '#2DD4BF' },
-  storyAuthorName: { flex: 1, fontSize: 11, color: COLORS.textSecondary },
-  storyLikes: { fontSize: 11, color: COLORS.textSecondary },
+  storyAvatarText: { fontSize: 12, fontWeight: '800', color: '#2DD4BF' },
+  storyAuthorName: { flex: 1, fontSize: 13, fontWeight: '600', color: COLORS.text },
+  storyLikes: { fontSize: 13, color: COLORS.textSecondary },
   storyEmpty: { alignItems: 'center', paddingTop: 80, gap: 12 },
   storyEmptyText: { fontSize: 16, fontWeight: '700', color: COLORS.textSecondary },
   storyEmptySub: {

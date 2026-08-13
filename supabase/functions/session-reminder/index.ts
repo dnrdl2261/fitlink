@@ -35,7 +35,9 @@ serve(async () => {
       for (const s of sessions) {
         if (s?.status !== 'scheduled' || !s?.date || !s?.startTime) continue;
         if (sentIds.has(s.id)) continue;
-        const start = new Date(`${s.date}T${s.startTime}:00`);
+        // ⚠️ 세션 date/startTime은 한국 시간이다. 오프셋을 명시하지 않으면
+        //    Deno 런타임(UTC) 기준으로 해석돼 리마인더가 9시간 어긋난다.
+        const start = new Date(`${s.date}T${s.startTime}:00+09:00`);
         if (isNaN(start.getTime()) || start < now || start > soon) continue;
 
         const notif = {

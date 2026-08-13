@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { useScrollToTop } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTrainerStore } from '../../store/trainerStore';
+import { useBlockedIds } from '../../hooks/useBlockedIds';
 import { useGymStore } from '../../store/gymStore';
 import { Trainer } from '../../types';
 import { useLocation } from '../../hooks/useLocation';
@@ -22,7 +23,7 @@ import { formatPrice, formatTime } from '../../utils/formatters';
 const D = {
   bg:          '#EEF2F9',
   surface:     '#FFFFFF',
-  primary:     '#4F63F5',
+  primary:     '#0057ff',
   primaryGlow: 'rgba(79,99,245,0.12)',
   text:        '#0F172A',
   textSec:     '#64748B',
@@ -137,7 +138,13 @@ export default function MemberHomeScreen() {
     return { nextSession: upcoming[0], pendingCount: pending };
   }, [bookings, memberId]);
 
-  const trainers = useTrainerStore((s) => s.trainers);
+  // 차단한 트레이너는 목록에서 숨긴다(Apple Guideline 1.2)
+  const blockedIds = useBlockedIds();
+  const trainersRaw = useTrainerStore((s) => s.trainers);
+  const trainers = useMemo(
+    () => (blockedIds.length ? trainersRaw.filter((t) => !blockedIds.includes(t.id)) : trainersRaw),
+    [trainersRaw, blockedIds],
+  );
   const allGyms = useGymStore((s) => s.gyms);
 
   // ── 트레이너 거리(위치별) ──

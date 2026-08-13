@@ -39,6 +39,48 @@ interface AuthState {
   logout: () => void;
 }
 
+// 가입 실패 사유를 사용자가 이해할 수 있는 문구로 바꾼다.
+// ⚠️ Supabase 원문은 영어라 그대로 노출하면 무슨 일인지 알 수 없다.
+//    특히 'Error sending confirmation email'은 SMTP가 죽은 상태라 사용자가 재시도해도 소용없으니
+//    문제가 우리 쪽에 있다는 걸 분명히 알려야 한다.
+function signupErrorMessage(error: { message?: string; status?: number }): string {
+  const msg = String(error?.message ?? '');
+  const status = Number(error?.status ?? 0);
+  if (/confirmation email|sending email|smtp/i.test(msg) || status >= 500) {
+    return '가입 인증 메일을 보내지 못했습니다.\n일시적인 문제일 수 있으니 잠시 후 다시 시도해주세요.\n계속 안 되면 고객센터로 알려주시면 빠르게 조치하겠습니다.';
+  }
+  if (status === 429 || /rate limit|too many/i.test(msg)) {
+    return '요청이 너무 잦습니다. 1분 뒤에 다시 시도해주세요.';
+  }
+  if (/already registered|already been registered|user already/i.test(msg)) {
+    return '이미 가입된 이메일입니다. 로그인해 주세요.';
+  }
+  if (/password/i.test(msg)) {
+    return '비밀번호가 조건에 맞지 않습니다. 6자 이상으로 입력해주세요.';
+  }
+  if (/invalid|email/i.test(msg)) {
+    return '이메일 주소를 다시 확인해주세요.';
+  }
+  return '가입에 실패했습니다. 잠시 후 다시 시도해주세요.';
+}
+
+// 로그인 실패 사유. 자격증명 오류는 이메일/비밀번호 중 무엇이 틀렸는지 구분하지 않는다(계정 존재 여부 탐지 방지).
+// 다만 '메일 미인증'과 '서버 오류'는 사용자가 할 일이 다르므로 반드시 구분한다.
+function loginErrorMessage(error: { message?: string; status?: number } | null): string {
+  const msg = String(error?.message ?? '');
+  const status = Number(error?.status ?? 0);
+  if (/email not confirmed|not confirmed/i.test(msg)) {
+    return '이메일 인증이 아직 완료되지 않았습니다.\n가입 시 받은 메일의 인증 링크를 눌러주세요.';
+  }
+  if (status === 429 || /rate limit|too many/i.test(msg)) {
+    return '로그인 시도가 너무 잦습니다. 잠시 후 다시 시도해주세요.';
+  }
+  if (status >= 500) {
+    return '일시적인 서버 문제로 로그인하지 못했습니다.\n잠시 후 다시 시도해주세요.';
+  }
+  return '이메일 또는 비밀번호가 올바르지 않습니다.';
+}
+
 // 실 트레이너의 빈 프로필(데모 데이터 상속 방지). 본인이 edit-profile에서 채운다.
 function emptyTrainerProfile(id: string, name: string, email: string): Trainer {
   return {
@@ -133,7 +175,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (isSupabaseConfigured) {
       const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
       if (error || !data.user) {
-        return { success: false, message: error?.message ?? '이메일 또는 비밀번호가 올바르지 않습니다.' };
+        return { success: false, message: loginErrorMessage(error) };
       }
       set(await buildFromSupabase(data.user.id, data.user.email ?? email));
       return { success: true };
@@ -165,7 +207,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         password,
         options: { data: { name: name.trim(), role, marketing_consent: marketingConsent, ...(consent ? { consent } : {}) }, emailRedirectTo: emailRedirectUrl() },
       });
-      if (error) return { success: false, message: error.message };
+      if (error) return { success: false, message: signupErrorMessage(error) };
       if (!data.session) {
         return { success: false, message: '확인 메일을 보냈어요. 메일의 인증 링크를 누르면 로그인됩니다.\n\n이미 가입된 이메일이라면 메일이 오지 않을 수 있어요. 그땐 로그인해 주세요.' };
       }
@@ -186,6 +228,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   selectRole: (role) => {
+    // 데모 '둘러보기' 전용: mock 헬스장 카탈로그를 이때만 주입한다(실사용자 지도에는 안 나옴).
+    useGymStore.getState().seedDemoGyms();
     set(buildUserState(role));
   },
 

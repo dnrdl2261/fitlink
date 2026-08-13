@@ -50,4 +50,7 @@ export interface Gym {
   adminUserId: string;
   distance?: number;
   usageRules?: string[];
+  // 공공데이터로 들어온 미등록 헬스장은 false. 아직 주인이 입점하지 않아 예약·슬롯을 받을 수 없다.
+  // 값이 없으면(mock·기존 헬스장) 등록된 것으로 본다 → 판별은 항상 `isClaimed === false`로 할 것.
+  isClaimed?: boolean;
 }

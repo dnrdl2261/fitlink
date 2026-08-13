@@ -11,13 +11,13 @@ import { useReportStore, ReportTargetType, ReportStatus } from '../../store/repo
 import SafetyActionModal, { SafetyModalType } from '../../components/SafetyActionModal';
 
 const STATUS_COLOR: Record<ReportStatus, string> = {
-  '접수': '#F59E0B', '검토중': '#4F63F5', '조치완료': '#10B981', '반려': '#94A3B8',
+  '접수': '#F59E0B', '검토중': '#0057ff', '조치완료': '#10B981', '반려': '#94A3B8',
 };
 
 const D = {
   bg:          '#EEF2F9',
   surface:     '#FFFFFF',
-  primary:     '#4F63F5',
+  primary:     '#0057ff',
   primaryGlow: 'rgba(79,99,245,0.12)',
   text:        '#0F172A',
   textSec:     '#64748B',
@@ -38,12 +38,6 @@ const REPORT_REASONS = [
   '기타',
 ];
 
-const SECURITY_LOGS = [
-  { device: 'iPhone 15 Pro', location: '서울 강남구', time: '방금 전', current: true },
-  { device: 'Chrome (Mac)', location: '서울 마포구', time: '어제 14:32', current: false },
-  { device: 'Samsung Galaxy S24', location: '경기 성남시', time: '3일 전 09:15', current: false },
-];
-
 export default function SafetyScreen() {
   const router = useRouter();
   const { member } = useAuthStore();
@@ -54,10 +48,6 @@ export default function SafetyScreen() {
   const [reportDone, setReportDone] = useState(false);
   const [safetyModal, setSafetyModal] = useState<SafetyModalType>(null);
   const [selectedReason, setSelectedReason] = useState('');
-  const [twoFAEnabled, setTwoFAEnabled] = useState(false);
-  const [loginAlert, setLoginAlert] = useState(true);
-  const [locationSetting, setLocationSetting] = useState(true);
-  const [adultFilter, setAdultFilter] = useState(true);
 
   const handleReport = () => {
     if (!selectedReason) return;
@@ -73,10 +63,6 @@ export default function SafetyScreen() {
     setReportDone(true);
   };
   const openReport = (t: ReportTargetType) => { setReportTargetType(t); setReportModal(true); };
-
-  const toggle = (setter: React.Dispatch<React.SetStateAction<boolean>>, val: boolean) => {
-    setter(!val);
-  };
 
   return (
     <SafeAreaView style={s.container}>
@@ -179,26 +165,6 @@ export default function SafetyScreen() {
               sub="정기적으로 변경하면 계정이 안전해요"
               onPress={() => setSafetyModal('password')}
             />
-            <Divider />
-            <ToggleItem
-              icon="two-factor-authentication"
-              iconColor={D.success}
-              iconBg={D.success + '15'}
-              label="2단계 인증"
-              sub="로그인 시 추가 인증 단계 활성화"
-              value={twoFAEnabled}
-              onToggle={() => toggle(setTwoFAEnabled, twoFAEnabled)}
-            />
-            <Divider />
-            <ToggleItem
-              icon="bell-ring-outline"
-              iconColor={D.primary}
-              iconBg={D.primaryGlow}
-              label="로그인 알림"
-              sub="새 기기에서 로그인 시 즉시 알림"
-              value={loginAlert}
-              onToggle={() => toggle(setLoginAlert, loginAlert)}
-            />
           </View>
         </View>
 
@@ -207,95 +173,13 @@ export default function SafetyScreen() {
           <Text style={s.sectionLabel}>개인 보호</Text>
           <View style={s.card}>
             <MenuItem
-              icon="eye-settings-outline"
-              iconColor={D.primary}
-              iconBg={D.primaryGlow}
-              label="개인정보 공개 설정"
-              sub="프로필·연락처 공개 범위 설정"
-              onPress={() => setSafetyModal('privacy')}
-            />
-            <Divider />
-            <ToggleItem
-              icon="map-marker-outline"
-              iconColor={D.success}
-              iconBg={D.success + '15'}
-              label="위치 정보 관리"
-              sub="내 위치를 트레이너에게 공유"
-              value={locationSetting}
-              onToggle={() => toggle(setLocationSetting, locationSetting)}
-            />
-            <Divider />
-            <MenuItem
               icon="database-remove-outline"
               iconColor={D.error}
               iconBg={D.error + '12'}
-              label="개인정보 삭제 요청"
-              sub="계정 및 활동 데이터 삭제 신청"
+              label="계정 삭제"
+              sub="계정과 개인정보를 완전히 삭제합니다"
               onPress={() => setSafetyModal('delete')}
             />
-          </View>
-        </View>
-
-        {/* ── 미성년자 보호 ── */}
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>미성년자 보호</Text>
-          <View style={s.card}>
-            <ToggleItem
-              icon="shield-account-outline"
-              iconColor={D.success}
-              iconBg={D.success + '15'}
-              label="성인 콘텐츠 필터"
-              sub="미성년자 이용에 적합한 콘텐츠만 표시"
-              value={adultFilter}
-              onToggle={() => toggle(setAdultFilter, adultFilter)}
-            />
-            <Divider />
-            <MenuItem
-              icon="account-child-outline"
-              iconColor={D.amber}
-              iconBg={D.amberPale}
-              label="보호자 동의 관리"
-              sub="미성년 자녀 계정의 보호자 동의 현황"
-              onPress={() => setSafetyModal('minor')}
-            />
-          </View>
-          <View style={s.minorNotice}>
-            <MaterialCommunityIcons name="information-outline" size={14} color={D.textMuted} />
-            <Text style={s.minorNoticeText}>
-              만 14세 미만은 보호자 동의 후 서비스 이용이 가능합니다
-            </Text>
-          </View>
-        </View>
-
-        {/* ── 보안 이력 ── */}
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>보안 이력</Text>
-          <View style={s.card}>
-            <Text style={s.subhead}>최근 로그인 기기</Text>
-            {SECURITY_LOGS.map((log, i) => (
-              <View key={i} style={[s.logRow, i < SECURITY_LOGS.length - 1 && s.logRowBorder]}>
-                <View style={[s.logDot, log.current && s.logDotActive]} />
-                <View style={s.logInfo}>
-                  <View style={s.logTitleRow}>
-                    <Text style={s.logDevice}>{log.device}</Text>
-                    {log.current && (
-                      <View style={s.currentBadge}>
-                        <Text style={s.currentBadgeText}>현재 기기</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={s.logMeta}>{log.location} · {log.time}</Text>
-                </View>
-                {!log.current && (
-                  <TouchableOpacity style={s.logSignOut}>
-                    <Text style={s.logSignOutText}>로그아웃</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))}
-            <TouchableOpacity style={s.allSignOutBtn}>
-              <Text style={s.allSignOutText}>다른 모든 기기에서 로그아웃</Text>
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -376,32 +260,6 @@ function MenuItem({
       </View>
       <MaterialCommunityIcons name="chevron-right" size={18} color={D.textMuted} />
     </TouchableOpacity>
-  );
-}
-
-function ToggleItem({
-  icon, iconColor, iconBg, label, sub, value, onToggle,
-}: {
-  icon: string; iconColor: string; iconBg: string;
-  label: string; sub: string; value: boolean; onToggle: () => void;
-}) {
-  return (
-    <View style={s.menuRow}>
-      <View style={[s.menuIconBox, { backgroundColor: iconBg }]}>
-        <MaterialCommunityIcons name={icon as any} size={20} color={iconColor} />
-      </View>
-      <View style={s.menuText}>
-        <Text style={s.menuLabel}>{label}</Text>
-        <Text style={s.menuSub}>{sub}</Text>
-      </View>
-      <TouchableOpacity
-        style={[s.toggle, value && s.toggleOn]}
-        onPress={onToggle}
-        activeOpacity={0.8}
-      >
-        <View style={[s.toggleThumb, value && s.toggleThumbOn]} />
-      </TouchableOpacity>
-    </View>
   );
 }
 

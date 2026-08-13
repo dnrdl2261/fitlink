@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, SafeAreaView, Modal,
@@ -7,12 +7,13 @@ import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useChatStore } from '../../store/chatStore';
+import { useBlockedIds } from '../../hooks/useBlockedIds';
 import { formatChatTime } from '../../utils/formatters';
 import { useGymStore } from '../../store/gymStore';
 import { COLORS } from '../../utils/constants';
 import { Gym } from '../../types';
 
-const TRAINER = '#4F63F5';
+const TRAINER = '#0057ff';
 
 export default function TrainerChatScreen() {
   const router = useRouter();
@@ -24,7 +25,15 @@ export default function TrainerChatScreen() {
   const [newModal, setNewModal] = useState(false);
 
   const myId = trainer?.id ?? '';
-  const conversations = getConversationsForUser(myId);
+  // 차단한 상대와의 대화는 목록에서 숨긴다(Apple Guideline 1.2)
+  const blockedIds = useBlockedIds();
+  const allConversations = getConversationsForUser(myId);
+  const conversations = useMemo(
+    () => (blockedIds.length
+      ? allConversations.filter((c) => !c.participants.some((pt) => pt.id !== myId && blockedIds.includes(pt.id)))
+      : allConversations),
+    [allConversations, blockedIds, myId],
+  );
 
   const openChat = (conversationId: string) => {
     router.push(`/chat/${conversationId}` as any);

@@ -7,6 +7,8 @@ import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../store/authStore';
+import { uploadMedia, isLocalUri, canUpload } from '../../utils/upload';
+import { notify } from '../../utils/alert';
 import { COLORS } from '../../utils/constants';
 
 const FITNESS_GOALS = [
@@ -23,6 +25,7 @@ export default function MemberEditProfileScreen() {
   const { member, updateMember } = useAuthStore();
   if (!member) return null;
 
+  const [saving, setSaving] = useState(false);
   const [profileImageUrl, setProfileImageUrl] = useState(
     member.profileImageUrl ?? 'https://i.pravatar.cc/200?u=member1'
   );
@@ -60,9 +63,22 @@ export default function MemberEditProfileScreen() {
   const removeLocation = (idx: number) =>
     setLocations(prev => prev.filter((_, i) => i !== idx));
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    // 로컬 uri(blob:/file://)는 Storage에 올린 뒤 공개 URL을 저장한다. 그대로 두면 새로고침 시 깨진다.
+    let photoUrl = profileImageUrl;
+    if (isLocalUri(photoUrl) && canUpload(member.id)) {
+      setSaving(true);
+      const uploaded = await uploadMedia(photoUrl, 'avatars', member.id);
+      setSaving(false);
+      if (!uploaded) {
+        notify('사진 업로드 실패', '사진을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+      photoUrl = uploaded;
+      setProfileImageUrl(uploaded);
+    }
     updateMember({
-      profileImageUrl,
+      profileImageUrl: photoUrl,
       name: name.trim() || member.name,
       phone: phone.trim(),
       fitnessGoals,
@@ -85,7 +101,7 @@ export default function MemberEditProfileScreen() {
           <Text style={styles.navCancel}>취소</Text>
         </TouchableOpacity>
         <Text style={styles.navTitle}>프로필 수정</Text>
-        <TouchableOpacity onPress={handleSave} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+        <TouchableOpacity onPress={handleSave} disabled={saving} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           <Text style={styles.navSave}>저장</Text>
         </TouchableOpacity>
       </View>
@@ -101,6 +117,17 @@ export default function MemberEditProfileScreen() {
             </View>
           </TouchableOpacity>
           <Text style={styles.photoHint}>사진을 눌러 변경하세요</Text>
+          {!!profileImageUrl && (
+            <TouchableOpacity
+              onPress={() => setProfileImageUrl('')}
+              style={styles.photoRemoveLink}
+              accessibilityRole="button"
+              accessibilityLabel="프로필 사진 삭제"
+            >
+              <MaterialCommunityIcons name="trash-can-outline" size={14} color={COLORS.error} />
+              <Text style={styles.photoRemoveText}>사진 삭제</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* 기본 정보 */}
@@ -225,6 +252,8 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: COLORS.background,
   },
   photoHint: { marginTop: 8, fontSize: 12, color: COLORS.textSecondary },
+  photoRemoveLink: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, paddingVertical: 6, paddingHorizontal: 10 },
+  photoRemoveText: { fontSize: 12.5, color: COLORS.error, fontWeight: '600' },
 
   groupLabel: {
     fontSize: 13, fontWeight: '700', color: COLORS.textSecondary,

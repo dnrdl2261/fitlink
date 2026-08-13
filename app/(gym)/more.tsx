@@ -1,9 +1,10 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   SafeAreaView, Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import SafetyActionModal, { SafetyModalType } from '../../components/SafetyActionModal';
 import { useScrollToTop } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
@@ -15,7 +16,7 @@ import { COLORS } from '../../utils/constants';
 import { formatPrice } from '../../utils/formatters';
 import { gymConfirmedSlots } from '../../utils/gymRevenue';
 
-const GYM  = '#4F63F5';
+const GYM  = '#0057ff';
 const SLATE = '#64748B';
 const BG   = '#F1F5F9';
 const CARD = '#FFFFFF';
@@ -26,6 +27,7 @@ export default function GymMoreScreen() {
   const scrollRef = useRef<ScrollView>(null);
   useScrollToTop(scrollRef);
   const { gymAdmin } = useAuthStore();
+  const [safetyModal, setSafetyModal] = useState<SafetyModalType>(null);
   const GYM_ID = gymAdmin?.gymId ?? 'gym_001';
   const baseGym = useGymStore((s) => s.gyms.find(g => g.id === GYM_ID));
   const gymEditsRaw = useGymProfileStore(s => s.edits[GYM_ID]);
@@ -118,6 +120,23 @@ export default function GymMoreScreen() {
           sub: '헬스장 정보 및 소개',
           onPress: () => router.push('/(gym)/profile'),
         },
+        {
+          iconName: 'lock-reset',
+          iconColor: '#0057ff',
+          iconBg: 'rgba(79,99,245,0.12)',
+          label: '비밀번호 변경',
+          sub: '정기적으로 변경하면 계정이 안전해요',
+          onPress: () => setSafetyModal('password'),
+        },
+        {
+          // 스토어 정책(Apple 5.1.1(v)·Google Play)상 계정 삭제 경로는 모든 역할에 있어야 한다.
+          iconName: 'database-remove-outline',
+          iconColor: '#EF4444',
+          iconBg: 'rgba(239,68,68,0.12)',
+          label: '계정 삭제',
+          sub: '계정과 개인정보를 완전히 삭제합니다',
+          onPress: () => setSafetyModal('delete'),
+        },
       ],
     },
   ];
@@ -176,6 +195,8 @@ export default function GymMoreScreen() {
 
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      <SafetyActionModal type={safetyModal} role="gym_admin" onClose={() => setSafetyModal(null)} />
     </SafeAreaView>
   );
 }

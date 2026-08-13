@@ -19,7 +19,7 @@ import { SlotBooking } from '../../types';
 import StarRating from '../../components/StarRating';
 import GymScheduleView from '../../components/GymScheduleView';
 
-const GYM   = '#4F63F5';
+const GYM   = '#0057ff';
 const NAVY  = '#0F172A';
 const BG    = '#EEF2F9';
 const CARD  = '#FFFFFF';
@@ -27,7 +27,7 @@ const CARD2 = '#F8F9FA';
 const BD    = '#E2E8F0';
 const TXT   = '#0F172A';
 const SEC   = '#64748B';
-const ORANGE = '#4F63F5'; // 액션 버튼 강조색 (블루로 통일)
+const ORANGE = '#0057ff'; // 액션 버튼 강조색 (블루로 통일)
 const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
 
 function formatHeaderDate(): string {

@@ -13,6 +13,7 @@ import { useLocationStore } from '../../store/locationStore';
 import { formatPrice } from '../../utils/formatters';
 import { DAY_LABELS } from '../../utils/constants';
 import { SlotInfo } from '../../types';
+import GymThumb from '../../components/GymThumb';
 
 // ── 색상 ──────────────────────────────────────────────────────
 const DARK = {
@@ -23,7 +24,7 @@ const DARK = {
   text:     '#111827',
   textSec:  '#6B7280',
   textMuted:'#9CA3AF',
-  primary:  '#4F63F5',
+  primary:  '#0057ff',
   success:  '#22C55E',
   error:    '#EF4444',
   amber:    '#F59E0B',
@@ -411,7 +412,7 @@ export default function TrainerSlotsScreen() {
                 onPress={() => { setSelectedGymId(gym.id); setStep('time'); setSelectedDate(null); setPendingSlots([]); }}
                 activeOpacity={0.8}
               >
-                <Image source={{ uri: gym.images[0] }} style={ds.gymImg} />
+                <GymThumb name={gym.name} uri={gym.images[0]} size={56} radius={10} style={ds.gymImg} />
                 <View style={ds.gymInfo}>
                   <View style={ds.gymNameRow}>
                     <Text style={ds.gymName} numberOfLines={1}>{gym.name}</Text>
@@ -476,7 +477,7 @@ export default function TrainerSlotsScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={ls.scrollContent}>
           {/* 헬스장 정보 */}
           <View style={ls.gymInfoCard}>
-            <Image source={{ uri: selectedGym?.images[0] }} style={ls.gymInfoImg} />
+            <GymThumb name={selectedGym?.name ?? ''} uri={selectedGym?.images[0]} size={56} radius={10} style={ls.gymInfoImg} />
             <View style={ls.gymInfoText}>
               <Text style={ls.gymInfoName}>{selectedGym?.name}</Text>
               <Text style={ls.gymInfoAddr}>{selectedGym?.address}</Text>
@@ -596,7 +597,7 @@ export default function TrainerSlotsScreen() {
           <>
             {/* 헬스장 정보 */}
             <View style={ls.gymInfoCard}>
-              <Image source={{ uri: selectedGym?.images[0] }} style={ls.gymInfoImg} />
+              <GymThumb name={selectedGym?.name ?? ''} uri={selectedGym?.images[0]} size={56} radius={10} style={ls.gymInfoImg} />
               <View style={ls.gymInfoText}>
                 <Text style={ls.gymInfoName}>{selectedGym?.name}</Text>
                 <Text style={ls.gymInfoAddr}>{selectedGym?.address}</Text>

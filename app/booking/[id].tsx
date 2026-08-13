@@ -18,7 +18,7 @@ const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 월→일 순서 (예약 폼과 
 const D = {
   bg:          '#EEF2F9',
   surface:     '#FFFFFF',
-  primary:     '#4F63F5',
+  primary:     '#0057ff',
   primaryGlow: 'rgba(79,99,245,0.12)',
   text:        '#0F172A',
   textSec:     '#64748B',

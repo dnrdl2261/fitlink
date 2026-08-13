@@ -13,7 +13,6 @@ const TAB_BAR = {
   backgroundColor: '#ffffff',
   borderTopWidth: 1,
   borderTopColor: '#e5e7eb',
-  height: 90,
 };
 
 function BackBtn({ color }: { color: string }) {
@@ -83,10 +82,10 @@ export default function GymLayout() {
     <Tabs
       initialRouteName="bookings"
       screenOptions={{
-        tabBarActiveTintColor: '#4F63F5',
-        tabBarInactiveTintColor: '#64748B',
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: '#c7c7cc',
         tabBarStyle: TAB_BAR,
-        tabBarItemStyle: { justifyContent: 'flex-start', paddingTop: 9 },
+        tabBarShowLabel: false,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2, fontFamily: PRETENDARD },
         headerStyle: { backgroundColor: '#ffffff' },
         headerTintColor: '#0F172A',
@@ -98,6 +97,7 @@ export default function GymLayout() {
         name="bookings"
         options={{
           tabBarLabel: '홈',
+          tabBarAccessibilityLabel: '홈',
           tabBarIcon: ({ color }) => <TabIcon name="home" color={color} />,
           headerTitle: 'FLOWIN 관리자',
           headerRight: () => (
@@ -112,22 +112,25 @@ export default function GymLayout() {
         name="map"
         options={{
           tabBarLabel: '헬스장',
+          tabBarAccessibilityLabel: '헬스장',
           tabBarIcon: ({ color }) => <TabIcon name="map-marker" color={color} />,
           headerTitle: '주변 헬스장',
         }}
       />
       <Tabs.Screen
-        name="dashboard"
+        name="community"
         options={{
-          tabBarLabel: '운영현황',
-          tabBarIcon: ({ color }) => <TabIcon name="chart-box-outline" color={color} />,
-          headerTitle: '운영 현황',
+          tabBarLabel: '커뮤니티',
+          tabBarAccessibilityLabel: '커뮤니티',
+          tabBarIcon: ({ color }) => <TabIcon name="account-group" color={color} />,
+          headerTitle: '커뮤니티',
         }}
       />
       <Tabs.Screen
         name="chat"
         options={{
           tabBarLabel: '채팅',
+          tabBarAccessibilityLabel: '채팅',
           tabBarIcon: ({ color }) => <TabIconBadge name="message" color={color} badge={unread} />,
           headerTitle: '채팅',
         }}
@@ -136,6 +139,7 @@ export default function GymLayout() {
         name="more"
         options={{
           tabBarLabel: '내정보',
+          tabBarAccessibilityLabel: '내정보',
           tabBarIcon: ({ color }) => <TabIcon name="account" color={color} />,
           headerTitle: '내 정보',
         }}
@@ -145,10 +149,10 @@ export default function GymLayout() {
         options={{ href: null }}
       />
       <Tabs.Screen
-        name="community"
+        name="dashboard"
         options={{
           href: null,
-          headerTitle: '커뮤니티',
+          headerTitle: '운영 현황',
           headerLeft: () => <BackBtn color={COLORS.gym} />,
         }}
       />

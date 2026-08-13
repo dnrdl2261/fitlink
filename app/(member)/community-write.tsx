@@ -11,6 +11,8 @@ import { COLORS } from '../../utils/constants';
 import { FeedCat, FEED_CATS, CAT_COLOR } from '../../data/community';
 import { useCommunityStore } from '../../store/communityStore';
 import { useAuthStore } from '../../store/authStore';
+import { uploadMedia, isLocalUri, canUpload } from '../../utils/upload';
+import { notify } from '../../utils/alert';
 
 const WRITE_CATS = FEED_CATS.filter((c) => c !== '전체') as Exclude<FeedCat, '전체'>[];
 const MAX_IMAGES = 5;
@@ -78,12 +80,29 @@ export default function CommunityWriteScreen() {
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) return;
     if (mediaType === 'video' && !videoUri) {
       if (Platform.OS === 'web') { alert('동영상을 추가해주세요.'); }
       else { Alert.alert('알림', '동영상을 추가해주세요.'); }
       return;
+    }
+    // 첨부 사진을 Storage에 올린다(로컬 uri를 그대로 저장하면 남에게 안 보인다).
+    let imgUrl = images[0];
+    if (isLocalUri(imgUrl) && canUpload(member?.id)) {
+      const up = await uploadMedia(imgUrl, 'posts', member!.id);
+      if (!up) { notify('사진 업로드 실패', '사진을 저장하지 못했습니다.'); return; }
+      imgUrl = up;
+    }
+
+    // 동영상도 Storage에 올린다. 예전엔 videoUri를 버리고 picsum 랜덤 사진으로 대체해서,
+    // 사용자가 올린 영상이 사라지고 엉뚱한 이미지가 표시됐다.
+    let vidUrl: string | undefined;
+    if (mediaType === 'video' && videoUri) {
+      if (!canUpload(member?.id)) { notify('동영상 업로드 불가', '로그인 후 이용해주세요.'); return; }
+      const upv = await uploadMedia(videoUri, 'posts', member!.id);
+      if (!upv) { notify('동영상 업로드 실패', '동영상을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
+      vidUrl = upv;
     }
     addPost({
       category: category!,
@@ -93,10 +112,9 @@ export default function CommunityWriteScreen() {
       authorId: member?.id,
       authorAvatar: member?.profileImageUrl,
       location: member?.address?.district ?? '알 수 없음',
-      imageUrl: mediaType === 'video'
-        ? `https://picsum.photos/seed/vid${Date.now()}/400/225`
-        : images[0],
+      imageUrl: mediaType === 'video' ? undefined : imgUrl,
       isVideo: mediaType === 'video',
+      videoUrl: vidUrl,
     });
 
     if (Platform.OS === 'web') {

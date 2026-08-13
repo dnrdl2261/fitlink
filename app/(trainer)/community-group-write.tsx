@@ -10,6 +10,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../../utils/constants';
 import { GroupCat, GROUP_CATS, GROUP_CAT_COLOR } from '../../data/community';
 import { useCommunityStore } from '../../store/communityStore';
+import { useAuthStore } from '../../store/authStore';
+import { uploadMedia, isLocalUri, canUpload } from '../../utils/upload';
+import { notify } from '../../utils/alert';
 
 const WRITE_CATS = GROUP_CATS.filter((c) => c !== '전체') as Exclude<GroupCat, '전체'>[];
 
@@ -17,6 +20,7 @@ export default function CommunityGroupWriteScreen() {
   const router = useRouter();
   const { t, from } = useLocalSearchParams<{ t: string; from?: string }>();
   const { addGroup } = useCommunityStore();
+  const { trainer } = useAuthStore();
 
   const [category, setCategory] = useState<Exclude<GroupCat, '전체'> | null>(null);
   const [name, setName] = useState('');
@@ -47,16 +51,23 @@ export default function CommunityGroupWriteScreen() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) return;
     const max = parseInt(maxMembersStr) || 20;
+    // 커버 이미지를 Storage에 올린다.
+    let cover = coverImage ?? undefined;
+    if (isLocalUri(cover) && canUpload(trainer?.id)) {
+      const up = await uploadMedia(cover!, 'posts', trainer!.id);
+      if (!up) { notify('사진 업로드 실패', '커버 이미지를 저장하지 못했습니다.'); return; }
+      cover = up;
+    }
     addGroup({
       category: category!,
       name: name.trim(),
       description: description.trim(),
       location: location.trim(),
       maxMembers: max,
-      imageUrl: coverImage ?? undefined,
+      imageUrl: cover,
     });
 
     if (Platform.OS === 'web') {

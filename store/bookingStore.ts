@@ -4,6 +4,7 @@ import { Booking, BookingStatus, PTSession, SessionStatus, WeeklySchedule } from
 import { MOCK_BOOKINGS } from '../data/bookings';
 import { useAuthStore } from './authStore';
 import { supabase, isSupabaseConfigured } from '../config/supabase';
+import { passExpiryFrom } from '../utils/pass';
 
 // 로그인한 회원 식별 (없으면 데모 기본값)
 const currentMember = () => {
@@ -38,6 +39,7 @@ function toRow(b: Booking) {
     type: b.type ?? 'pt',
     refunded_amount: b.refundedAmount ?? null,
     refunded_at: b.refundedAt ?? null,
+    expires_at: b.expiresAt ?? null,
     created_at: b.createdAt,
     updated_at: b.updatedAt,
   };
@@ -66,15 +68,38 @@ function fromRow(r: any): Booking {
     type: r.type === 'consultation' ? 'consultation' : undefined,
     refundedAmount: r.refunded_amount ?? undefined,
     refundedAt: r.refunded_at ?? undefined,
+    expiresAt: r.expires_at ?? undefined,
   };
 }
 
 // 변경된 booking을 fire-and-forget으로 DB에 미러 (실 사용자 예약만). authStore.syncProfileToSupabase 패턴.
-function mirror(bookingId: string) {
+// 진행 중인 예약 저장(upsert)을 bookingId로 추적한다.
+// payments/settlements 는 bookings 를 참조하는 트리거(schema Phase J)가 있어,
+// 예약 행이 아직 없을 때 넣으면 'invalid booking_id'로 거부된다. 따라서 저장 완료를 기다려야 한다.
+const pendingMirrors = new Map<string, Promise<unknown>>();
+
+export function awaitBookingSaved(bookingId: string): Promise<unknown> {
+  return pendingMirrors.get(bookingId) ?? Promise.resolve();
+}
+
+// ⚠️ isNew=false(기본)면 update, true면 insert 한다. upsert를 쓰면 안 된다 —
+//    upsert는 INSERT 권한을 요구하는데 bookings insert 정책은 회원(member_id=auth.uid())만 허용한다.
+//    그래서 트레이너가 예약을 확정할 때 42501(RLS 위반)로 조용히 거부됐다.
+//    트레이너에겐 update 정책("bookings update trainer")이 따로 있으므로 update로 가야 통과한다.
+function mirror(bookingId: string, isNew = false) {
   if (!isSupabaseConfigured) return;
   const b = useBookingStore.getState().bookings.find((x) => x.id === bookingId);
   if (!b || !isRealUser(b.memberId)) return;
-  supabase.from('bookings').upsert(toRow(b)).then(() => {}, onDbError);
+  const row = toRow(b);
+  const q = isNew
+    ? supabase.from('bookings').insert(row)
+    : supabase.from('bookings').update(row).eq('id', bookingId);
+  // Supabase 쿼리는 thenable이라 Promise로 감싼다.
+  const p = Promise.resolve(q).then(
+    (res) => { pendingMirrors.delete(bookingId); return res; },
+    (err) => { pendingMirrors.delete(bookingId); onDbError(err); },
+  );
+  pendingMirrors.set(bookingId, p);
 }
 
 // DB에서 읽은 예약을 로컬 상태에 병합(id 기준 DB 우선).
@@ -185,24 +210,29 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       notes: params.notes,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      expiresAt: passExpiryFrom(new Date()),
     };
     set((s) => ({ bookings: [newBooking, ...s.bookings] }));
-    mirror(id);
+    mirror(id, true); // 신규 생성 → insert
     return id;
   },
 
   // 결제 기록. 실 회원만 payments 테이블에 기록(데모/미설정은 스킵). booking과 별개 감사 기록.
+  // ⚠️ 예약 행 저장이 끝난 뒤에 넣어야 한다. 곧바로 넣으면 Phase J 트리거가 예약을 못 찾아
+  //    'invalid booking_id'(400)로 거부하고, 화면엔 성공으로 보이는데 결제 기록만 사라진다.
   recordPayment: (info) => {
     if (!isRealUser(info.memberId)) return;
-    supabase.from('payments').insert({
-      id: info.orderId,
-      booking_id: info.bookingId,
-      member_id: info.memberId,
-      amount: info.amount,
-      status: 'paid',
-      pg_payment_id: info.paymentId ?? null,
-      created_at: new Date().toISOString().slice(0, 10),
-    }).then(() => {}, onDbError);
+    awaitBookingSaved(info.bookingId).then(() => {
+      supabase.from('payments').insert({
+        id: info.orderId,
+        booking_id: info.bookingId,
+        member_id: info.memberId,
+        amount: info.amount,
+        status: 'paid',
+        pg_payment_id: info.paymentId ?? null,
+        created_at: new Date().toISOString().slice(0, 10),
+      }).then(() => {}, onDbError);
+    });
   },
 
   addConsultation: (params) => {
@@ -238,7 +268,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       type: 'consultation',
     };
     set((s) => ({ bookings: [newBooking, ...s.bookings] }));
-    mirror(id);
+    mirror(id, true); // 신규 생성 → insert
     return id;
   },
 
@@ -337,21 +367,24 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     }));
     mirror(bookingId);
     // 정산: 세션 완료 확인 시 에스크로 해제 → 트레이너 90% 입금 + 플랫폼 10% 기록. 실 회원만.
+    // 예약 갱신이 반영된 뒤에 넣는다(정산 트리거가 booking을 다시 읽어 금액을 재계산하므로).
     if (b && isRealUser(b.memberId)) {
       const gross = b.pricePerSession;
       const trainerAmount = Math.round(gross * 0.9);
-      supabase.from('settlements').insert({
-        id: `settle_${sessionId}`,
-        booking_id: bookingId,
-        session_id: sessionId,
-        trainer_id: b.trainerId,
-        member_id: b.memberId,
-        gross_amount: gross,
-        trainer_amount: trainerAmount,
-        platform_fee: gross - trainerAmount,
-        status: 'settled',
-        created_at: new Date().toISOString().slice(0, 10),
-      }).then(() => {}, onDbError);
+      awaitBookingSaved(bookingId).then(() => {
+        supabase.from('settlements').insert({
+          id: `settle_${sessionId}`,
+          booking_id: bookingId,
+          session_id: sessionId,
+          trainer_id: b.trainerId,
+          member_id: b.memberId,
+          gross_amount: gross,
+          trainer_amount: trainerAmount,
+          platform_fee: gross - trainerAmount,
+          status: 'settled',
+          created_at: new Date().toISOString().slice(0, 10),
+        }).then(() => {}, onDbError);
+      });
     }
   },
 

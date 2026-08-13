@@ -8,6 +8,7 @@ import { useAuthStore } from '../store/authStore';
 import { useBookingStore } from '../store/bookingStore';
 import { useTrainerStore } from '../store/trainerStore';
 import { useGymStore } from '../store/gymStore';
+import { useLocationStore } from '../store/locationStore';
 import { useGymSlotStore } from '../store/gymSlotStore';
 import { useNotificationStore } from '../store/notificationStore';
 import { useChatStore } from '../store/chatStore';
@@ -18,6 +19,7 @@ import { useFollowStore } from '../store/followStore';
 import { useReportStore } from '../store/reportStore';
 import { useGymApplicationStore } from '../store/gymApplicationStore';
 import { useFavoriteStore } from '../store/favoriteStore';
+import { useBlockStore } from '../store/blockStore';
 import { useMemberRecordStore } from '../store/memberRecordStore';
 import { useManualSessionStore } from '../store/manualSessionStore';
 import { useCommunityStore } from '../store/communityStore';
@@ -89,6 +91,7 @@ export default function RootLayout() {
       loadedFor = uid;
       useNotificationStore.getState().savePushToken(uid); // 기기 푸시 토큰 등록(네이티브만 실동작, 웹 no-op)
       useCommunityStore.getState().loadUserState(uid); // 커뮤니티 반응/가입(전 역할 공통)
+      useBlockStore.getState().loadForUser(uid);       // 차단 목록(전 역할 공통, 본인 것만)
       inboxUnsub?.();                                  // 이전 사용자 인박스 해제 후 재구독
       inboxUnsub = useChatStore.getState().subscribeInbox(uid);
       const bs = useBookingStore.getState();
@@ -122,7 +125,10 @@ export default function RootLayout() {
     };
     // 실 트레이너/헬스장 카탈로그 + 공개 후기를 병합(회원·비로그인도 조회). 미설정 시 no-op.
     useTrainerStore.getState().loadFromSupabase();
+    // 입점 헬스장은 전량(수가 적음). 공공데이터 미등록 헬스장은 전국 1만6천 곳이라
+    // 전량 로드하지 않고 '내 주변'만 받는다(지도는 화면 범위별로 추가 로드).
     useGymStore.getState().loadFromSupabase();
+    useGymStore.getState().loadNearby(useLocationStore.getState().currentLocation);
     useReviewStore.getState().loadFromSupabase();
     useFollowStore.getState().loadFromSupabase();
     useCommunityStore.getState().loadContent(); // 커뮤니티 공개 콘텐츠(비로그인 포함)

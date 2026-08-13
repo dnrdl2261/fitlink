@@ -15,7 +15,7 @@ import { formatPrice, formatDate } from '../../utils/formatters';
 import { confirmDialog } from '../../utils/alert';
 
 const D = {
-  bg: '#EEF2F9', surface: '#FFFFFF', primary: '#4F63F5',
+  bg: '#EEF2F9', surface: '#FFFFFF', primary: '#0057ff',
   primaryGlow: 'rgba(79,99,245,0.12)', text: '#0F172A',
   textSec: '#64748B', textMuted: '#94A3B8', border: '#E2E8F0',
   success: '#10B981', error: '#EF4444',

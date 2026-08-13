@@ -19,7 +19,7 @@ import { formatPrice } from '../../utils/formatters';
 import { COLORS } from '../../utils/constants';
 import { gymConfirmedSlots } from '../../utils/gymRevenue';
 
-const GYM  = '#4F63F5';
+const GYM  = '#0057ff';
 const DARK = '#0F172A';
 const SLATE = '#64748B';
 

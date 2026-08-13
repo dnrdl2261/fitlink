@@ -11,13 +11,13 @@ import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { useOfferStore } from '../../store/offerStore';
 import { formatTime, formatPrice } from '../../utils/formatters';
-import { PAY_METHODS } from '../../utils/constants';
+import { PAY_METHODS, SESSION_PASS_VALIDITY_MONTHS } from '../../utils/constants';
 import { requestPayment } from '../../config/payment';
 
 const D = {
   bg:          '#EEF2F9',
   surface:     '#FFFFFF',
-  primary:     '#4F63F5',
+  primary:     '#0057ff',
   primaryGlow: 'rgba(79,99,245,0.12)',
   primarySoft: 'rgba(79,99,245,0.06)',
   text:        '#0F172A',
@@ -532,6 +532,15 @@ export default function NewBookingScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
+            </View>
+
+            {/* 회차권 유효기간 고지 (환불정책 제5조) — 중요사항이므로 결제 전에 노출한다 */}
+            <View style={s.demoNotice}>
+              <MaterialCommunityIcons name="calendar-clock" size={15} color={D.amber} />
+              <Text style={s.demoNoticeText}>
+                회차권 유효기간은 결제일로부터 {SESSION_PASS_VALIDITY_MONTHS}개월입니다.
+                기간이 지나도 남은 회차는 사라지지 않고 환불해 드립니다.
+              </Text>
             </View>
 
             {/* 데모 결제 안내 */}

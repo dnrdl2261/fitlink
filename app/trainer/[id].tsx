@@ -10,6 +10,8 @@ import { useAuthStore } from '../../store/authStore';
 import { useChatStore } from '../../store/chatStore';
 import { useGymSlotStore } from '../../store/gymSlotStore';
 import { useFollowStore } from '../../store/followStore';
+import { useBlockStore } from '../../store/blockStore';
+import { confirmDialog } from '../../utils/alert';
 import { useReviewStore } from '../../store/reviewStore';
 import { useReportStore } from '../../store/reportStore';
 import { MOCK_TRAINERS } from '../../data/trainers';
@@ -83,7 +85,10 @@ export default function TrainerDetailScreen() {
 
   const allLinks = useFollowStore(s => s.links);
   const { follow, unfollow } = useFollowStore();
+  const { block, unblock } = useBlockStore();
+  const allBlocks = useBlockStore(s2 => s2.blocks);
   const myId = role === 'member' ? (member?.id ?? '') : role === 'trainer' ? (myTrainer?.id ?? '') : '';
+  const blocked = !!myId && !!trainer && allBlocks.some(b => b.blockerId === myId && b.blockedId === trainer.id);
   const isFollowing = useMemo(
     () => !!myId && !!trainer && allLinks.some(l => l.followerId === myId && l.followeeId === trainer.id),
     [allLinks, myId, trainer]
@@ -208,6 +213,30 @@ export default function TrainerDetailScreen() {
               {role === 'member' && (
                 <TouchableOpacity style={st.heroIconBtn} onPress={() => setReportModal(true)} accessibilityRole="button" accessibilityLabel="트레이너 신고하기">
                   <MaterialCommunityIcons name="flag-outline" size={20} color="#fff" />
+                </TouchableOpacity>
+              )}
+              {/* 차단 — Apple Guideline 1.2는 신고와 함께 차단 수단을 요구한다 */}
+              {role === 'member' && myId !== trainer.id && (
+                <TouchableOpacity
+                  style={st.heroIconBtn}
+                  onPress={() => {
+                    if (blocked) { unblock(myId, trainer.id); return; }
+                    confirmDialog({
+                      title: `${trainer.name} 트레이너를 차단할까요?`,
+                      message: '차단하면 이 트레이너의 게시글·채팅이 보이지 않습니다. 언제든 안전 및 보안에서 해제할 수 있어요.',
+                      confirmText: '차단',
+                      destructive: true,
+                      onConfirm: () => block(myId, trainer.id, trainer.name),
+                    });
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={blocked ? '트레이너 차단 해제' : '트레이너 차단하기'}
+                >
+                  <MaterialCommunityIcons
+                    name={blocked ? 'account-cancel' : 'account-cancel-outline'}
+                    size={20}
+                    color="#fff"
+                  />
                 </TouchableOpacity>
               )}
               {canFollow && (

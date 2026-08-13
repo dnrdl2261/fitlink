@@ -937,3 +937,111 @@ begin
   return new;
 end; $$;
 -- ============================================================
+
+-- ============================================================
+-- Phase N: 회차권 유효기간(bookings.expires_at) — 환불정책 제5조
+--   결제일 + 12개월. 만료 시 잔여 회차는 소멸이 아니라 자동 환불(expire-bookings Edge Function).
+--   ※ 이미 판매된 회차권의 조건은 유지되어야 하므로 계산이 아니라 저장값을 쓴다.
+-- ============================================================
+alter table public.bookings add column if not exists expires_at timestamptz;
+comment on column public.bookings.expires_at is '회차권 유효기간 만료 시각(결제일+12개월). 만료 시 잔여 회차 자동 환불';
+
+-- 만료 스캔용(아직 환불/완료되지 않은 건만 대상)
+create index if not exists idx_bookings_expires_at on public.bookings(expires_at)
+  where status in ('pending','active');
+
+-- ── 만료 자동 환불 스케줄 (pg_cron) — Edge Function 배포 후 실행 ──────────
+--   1) supabase functions deploy expire-bookings
+--   2) 대시보드 Database > Extensions 에서 pg_cron, pg_net 활성화
+--   3) 아래를 PROJECT_REF / SERVICE_ROLE_KEY 치환해 실행 (하루 1회면 충분)
+--
+-- select cron.schedule('expire-bookings-daily', '0 3 * * *', $$
+--   select net.http_post(
+--     url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/expire-bookings',
+--     headers := '{"Content-Type":"application/json","Authorization":"Bearer <SERVICE_ROLE_KEY>"}'::jsonb
+--   );
+-- $$);
+-- ============================================================
+
+-- ============================================================
+-- Phase O: 계정 삭제(탈퇴) 지원
+--   Apple Guideline 5.1.1(v) · Google Play 정책상 인앱 계정 삭제는 필수.
+--   개인정보처리방침 제3조: "탈퇴 시 지체 없이 파기, 단 계약·결제 기록은 5년 보존(전자상거래법)".
+--
+--   ⚠️ 기존 bookings.member_id 는 on delete cascade 라 탈퇴 시 거래기록까지 삭제되어
+--      위 방침·법정 보존의무와 충돌했다. set null 로 바꿔 거래기록은 남기되 개인 식별고리를 끊는다.
+--      (payments·settlements 는 member_id/trainer_id 가 text·FK 없음이라 그대로 보존된다)
+-- ============================================================
+alter table public.bookings alter column member_id drop not null;
+alter table public.bookings drop constraint if exists bookings_member_id_fkey;
+alter table public.bookings add constraint bookings_member_id_fkey
+  foreign key (member_id) references public.profiles(id) on delete set null;
+
+comment on column public.bookings.member_id is
+  '탈퇴 시 null (거래기록은 전자상거래법상 5년 보존, 개인 식별고리만 제거)';
+
+-- ── 탈퇴 처리 Edge Function 배포 ─────────────────────────────
+--   supabase functions deploy delete-account
+--   (auth 사용자 삭제는 service_role 권한이 필요해 클라이언트에서 직접 못 한다)
+-- ============================================================
+
+-- ============================================================
+-- Phase P: 사용자 차단(blocks) — Apple Guideline 1.2 (UGC)
+--   신고만으로는 부족하고 '차단' 수단이 함께 있어야 한다.
+--   차단은 개인 설정이므로 본인만 읽고 쓴다(상대는 차단 여부를 알 수 없다).
+-- ============================================================
+create table if not exists public.blocks (
+  blocker_id   text not null,
+  blocked_id   text not null,
+  blocked_name text not null default '',
+  created_at   timestamptz not null default now(),
+  primary key (blocker_id, blocked_id)
+);
+create index if not exists idx_blocks_blocker on public.blocks(blocker_id);
+
+alter table public.blocks enable row level security;
+
+drop policy if exists "blocks select own" on public.blocks;
+create policy "blocks select own" on public.blocks for select using (blocker_id = auth.uid()::text);
+
+drop policy if exists "blocks insert own" on public.blocks;
+create policy "blocks insert own" on public.blocks for insert with check (blocker_id = auth.uid()::text);
+
+drop policy if exists "blocks delete own" on public.blocks;
+create policy "blocks delete own" on public.blocks for delete using (blocker_id = auth.uid()::text);
+-- ============================================================
+
+-- ============================================================
+-- Phase Q: 이미지·영상 저장소(Storage) — 사진 업로드 영속화
+--   기존엔 ImagePicker의 로컬 uri(blob:/file://)를 그대로 DB에 저장해
+--   새로고침하면 죽고 다른 사용자에겐 처음부터 안 보였다. Storage로 옮긴다.
+--
+--   경로 규칙: <folder>/<user_uuid>/<파일명>   (folder = avatars|gyms|posts|reviews)
+--   → 정책이 두 번째 경로 조각을 auth.uid()와 대조해 소유권을 판별한다.
+-- ============================================================
+insert into storage.buckets (id, name, public)
+values ('media', 'media', true)
+on conflict (id) do update set public = true;
+
+-- 공개 읽기 (카탈로그·프로필 사진이라 비로그인도 봐야 한다)
+drop policy if exists "media public read" on storage.objects;
+create policy "media public read" on storage.objects for select using (bucket_id = 'media');
+
+-- 업로드는 로그인 사용자가 자기 폴더에만
+drop policy if exists "media insert own" on storage.objects;
+create policy "media insert own" on storage.objects for insert to authenticated
+  with check (bucket_id = 'media' and (storage.foldername(name))[2] = auth.uid()::text);
+
+-- 수정·삭제도 자기 것만
+drop policy if exists "media update own" on storage.objects;
+create policy "media update own" on storage.objects for update to authenticated
+  using (bucket_id = 'media' and (storage.foldername(name))[2] = auth.uid()::text);
+
+drop policy if exists "media delete own" on storage.objects;
+create policy "media delete own" on storage.objects for delete to authenticated
+  using (bucket_id = 'media' and (storage.foldername(name))[2] = auth.uid()::text);
+
+-- 기존에 저장된 죽은 blob: URL 정리 (헬스장 사진)
+update public.gyms set images = '{}'
+ where exists (select 1 from unnest(images) u where u like 'blob:%' or u like 'file:%');
+-- ============================================================

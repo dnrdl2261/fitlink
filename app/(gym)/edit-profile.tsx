@@ -7,6 +7,8 @@ import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../store/authStore';
+import { uploadMedia, isLocalUri, canUpload } from '../../utils/upload';
+import { notify } from '../../utils/alert';
 import { useGymProfileStore } from '../../store/gymProfileStore';
 import { useGymStore } from '../../store/gymStore';
 import { COLORS } from '../../utils/constants';
@@ -110,6 +112,18 @@ export default function GymEditProfileScreen() {
   const handleSave = async () => {
     if (saving) return;
     setSaving(true);
+    // 로컬 uri(blob:/file://)는 Storage에 올린 뒤 공개 URL을 저장한다. 그대로 두면 남에게 안 보인다.
+    let photoUrl = profileImageUrl;
+    if (isLocalUri(photoUrl) && canUpload(gymAdmin.id)) {
+      const uploaded = await uploadMedia(photoUrl, 'gyms', gymAdmin.id);
+      if (!uploaded) {
+        setSaving(false);
+        notify('사진 업로드 실패', '사진을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+      photoUrl = uploaded;
+      setProfileImageUrl(uploaded);
+    }
     // 지역(시/구/동)이 바뀌었으면 좌표를 지오코딩해 거리정렬 정확도 확보. 실패/네트워크 시 기존 좌표 유지.
     let coordinate = baseGym.coordinate;
     const regionChanged = city !== (gym.city || '') || district !== (gym.district || '') || dong !== (gym.dong || '');
@@ -117,7 +131,7 @@ export default function GymEditProfileScreen() {
       const geo = await forwardGeocode(regionLabel);
       if (geo) coordinate = { latitude: geo.latitude, longitude: geo.longitude };
     }
-    updateGymAdmin({ name: adminName.trim() || gymAdmin.name, profileImageUrl });
+    updateGymAdmin({ name: adminName.trim() || gymAdmin.name, profileImageUrl: photoUrl });
     updateProfile(baseGym.id, {
       name: gymName.trim() || baseGym.name,
       phoneNumber: phoneNumber.trim() || baseGym.phoneNumber,
@@ -129,7 +143,9 @@ export default function GymEditProfileScreen() {
       address: regionLabel || baseGym.address,
       coordinate,
       // 헬스장 대표 사진을 gym.images에 저장(상세·목록·관리자 화면이 gym.images를 표시)
-      images: profileImageUrl ? [profileImageUrl, ...baseGym.images.slice(1)] : baseGym.images,
+      // 사진을 지웠으면(photoUrl='') 대표 사진 자리를 비워야 한다.
+      // 기존엔 baseGym.images로 되돌려서 삭제가 먹지 않았다.
+      images: photoUrl ? [photoUrl, ...baseGym.images.slice(1)] : baseGym.images.slice(1),
     });
     setSaving(false);
     if (Platform.OS === 'web') {
@@ -172,6 +188,17 @@ export default function GymEditProfileScreen() {
             </View>
           </TouchableOpacity>
           <Text style={styles.photoHint}>사진을 눌러 변경하세요</Text>
+          {!!profileImageUrl && (
+            <TouchableOpacity
+              onPress={() => setProfileImageUrl('')}
+              style={styles.photoRemoveLink}
+              accessibilityRole="button"
+              accessibilityLabel="헬스장 사진 삭제"
+            >
+              <MaterialCommunityIcons name="trash-can-outline" size={14} color={COLORS.error} />
+              <Text style={styles.photoRemoveText}>사진 삭제</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* ── 관리자 정보 ── */}
@@ -301,7 +328,7 @@ export default function GymEditProfileScreen() {
         <View style={styles.sectionHeader}>
           <Text style={styles.groupLabel}>이용 규칙</Text>
           <TouchableOpacity style={styles.addBtn} onPress={addRule}>
-            <MaterialCommunityIcons name="plus" size={14} color={'#4F63F5'} />
+            <MaterialCommunityIcons name="plus" size={14} color={'#0057ff'} />
             <Text style={styles.addBtnText}>추가</Text>
           </TouchableOpacity>
         </View>
@@ -408,7 +435,7 @@ const styles = StyleSheet.create({
   },
   navCancel: { fontSize: 16, color: COLORS.textSecondary },
   navTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text },
-  navSave: { fontSize: 16, fontWeight: '700', color: '#4F63F5' },
+  navSave: { fontSize: 16, fontWeight: '700', color: '#0057ff' },
 
   scroll: { paddingTop: 24, paddingHorizontal: 16 },
 
@@ -418,11 +445,13 @@ const styles = StyleSheet.create({
   photoEditBadge: {
     position: 'absolute', bottom: 0, right: 0,
     width: 28, height: 28, borderRadius: 14,
-    backgroundColor: '#4F63F5',
+    backgroundColor: '#0057ff',
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: COLORS.background,
   },
   photoHint: { marginTop: 8, fontSize: 12, color: COLORS.textSecondary },
+  photoRemoveLink: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, paddingVertical: 6, paddingHorizontal: 10 },
+  photoRemoveText: { fontSize: 12.5, color: COLORS.error, fontWeight: '600' },
 
   groupLabel: {
     fontSize: 13, fontWeight: '700', color: COLORS.textSecondary,
@@ -466,10 +495,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     borderWidth: 1.5, borderColor: COLORS.border,
   },
-  chipActive: { backgroundColor: '#4F63F5' + '15', borderColor: '#4F63F5' },
+  chipActive: { backgroundColor: '#0057ff' + '15', borderColor: '#0057ff' },
   chipEmoji: { fontSize: 14 },
   chipText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
-  chipTextActive: { color: '#4F63F5' },
+  chipTextActive: { color: '#0057ff' },
 
   priceRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   priceInput: {
@@ -485,9 +514,9 @@ const styles = StyleSheet.create({
   addBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20,
-    backgroundColor: '#4F63F5' + '15', marginBottom: 8,
+    backgroundColor: '#0057ff' + '15', marginBottom: 8,
   },
-  addBtnText: { fontSize: 13, fontWeight: '700', color: '#4F63F5' },
+  addBtnText: { fontSize: 13, fontWeight: '700', color: '#0057ff' },
 
   ruleRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
@@ -497,7 +526,7 @@ const styles = StyleSheet.create({
   },
   ruleDot: {
     width: 6, height: 6, borderRadius: 3,
-    backgroundColor: '#4F63F5', marginTop: 7,
+    backgroundColor: '#0057ff', marginTop: 7,
   },
   ruleInput: {
     flex: 1, fontSize: 14, color: COLORS.text, lineHeight: 20,

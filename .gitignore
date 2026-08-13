@@ -37,6 +37,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# 공공데이터 원본 CSV와 생성된 SQL (16MB) — scripts/import-gyms.js로 재생성한다
+scripts/data/
+
 # generated native folders
 /ios
 /android

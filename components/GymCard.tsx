@@ -4,6 +4,7 @@ import { Gym } from '../types';
 import { formatDistance } from '../utils/distance';
 import { COLORS } from '../utils/constants';
 import StarRating from './StarRating';
+import GymThumb from './GymThumb';
 
 interface GymCardProps {
   gym: Gym;
@@ -29,7 +30,7 @@ export default function GymCard({ gym, onPress }: GymCardProps) {
       </View>
 
       {/* 썸네일 (오른쪽) */}
-      <Image source={{ uri: gym.images[0] }} style={styles.thumb} />
+      <GymThumb name={gym.name} uri={gym.images[0]} size={64} radius={12} style={styles.thumb} />
     </TouchableOpacity>
   );
 }

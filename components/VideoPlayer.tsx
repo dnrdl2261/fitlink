@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { View, Platform } from 'react-native';
+import { Platform } from 'react-native';
+import { useVideoPlayer, VideoView } from 'expo-video';
 
 interface Props {
   uri: string;
@@ -11,7 +12,30 @@ export default function VideoPlayer(props: Props) {
   if (Platform.OS === 'web') {
     return <WebVideoPlayer {...props} />;
   }
-  return <View style={{ flex: 1, backgroundColor: '#111' }} />;
+  return <NativeVideoPlayer {...props} />;
+}
+
+function NativeVideoPlayer({ uri, isPlaying, muted = true }: Props) {
+  const player = useVideoPlayer(uri, (p) => {
+    p.loop = true;
+    p.muted = muted;
+  });
+
+  useEffect(() => {
+    if (isPlaying) player.play();
+    else player.pause();
+  }, [isPlaying, player]);
+
+  return (
+    <VideoView
+      style={{ flex: 1, backgroundColor: '#111' }}
+      player={player}
+      contentFit="cover"
+      nativeControls={false}
+      allowsFullscreen={false}
+      allowsPictureInPicture={false}
+    />
+  );
 }
 
 function WebVideoPlayer({ uri, isPlaying }: Props) {

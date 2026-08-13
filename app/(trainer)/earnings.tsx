@@ -11,7 +11,7 @@ import { formatPrice, formatDate } from '../../utils/formatters';
 import { COLORS } from '../../utils/constants';
 import { monthlyEarnings, monthTransactions, sessionNet } from '../../utils/earnings';
 
-const TRAINER = '#4F63F5';
+const TRAINER = '#0057ff';
 
 const CHART_PERIODS = [
   { key: '3m', label: '3개월' },

@@ -25,6 +25,7 @@ import { formatPrice } from '../../utils/formatters';
 import { COLORS, DAY_LABELS } from '../../utils/constants';
 import StarRating from '../../components/StarRating';
 import TrainerCard from '../../components/TrainerCard';
+import GymThumb from '../../components/GymThumb';
 
 const GYM_REPORT_REASONS = [
   '허위 시설·정보 기재',
@@ -121,14 +122,17 @@ export default function GymDetailScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* 이미지 슬라이더 */}
         <View style={styles.imageContainer}>
-          <Image source={{ uri: gym.images[activeImg] }} style={styles.mainImage} />
-<View style={styles.imageDots}>
-            {gym.images.map((_, i) => (
-              <TouchableOpacity key={i} onPress={() => setActiveImg(i)}>
-                <View style={[styles.dot, activeImg === i && styles.dotActive]} />
-              </TouchableOpacity>
-            ))}
-          </View>
+          {/* 공공데이터 헬스장은 사진이 없다. 빈 회색 영역 대신 이름 기반 플레이스홀더를 쓴다. */}
+          <GymThumb name={gym.name} uri={gym.images[activeImg]} size={250} radius={0} style={styles.mainImage} />
+          {gym.images.length > 1 && (
+            <View style={styles.imageDots}>
+              {gym.images.map((_, i) => (
+                <TouchableOpacity key={i} onPress={() => setActiveImg(i)}>
+                  <View style={[styles.dot, activeImg === i && styles.dotActive]} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
           {gym.isPartner && (
             <View style={styles.partnerBadge}>
               <Text style={styles.partnerText}>FLOWIN 파트너</Text>
@@ -152,9 +156,11 @@ export default function GymDetailScreen() {
           {gym.distance !== undefined && (
             <Text style={styles.distance}>현재 위치에서 {formatDistance(gym.distance)}</Text>
           )}
-          <StarRating rating={gym.rating} reviewCount={gym.reviewCount} size="medium" />
-          <Text style={styles.description}>{gym.description}</Text>
-          <Text style={styles.phone}>📞 {gym.phoneNumber}</Text>
+          {gym.reviewCount > 0 && (
+            <StarRating rating={gym.rating} reviewCount={gym.reviewCount} size="medium" />
+          )}
+          {!!gym.description && <Text style={styles.description}>{gym.description}</Text>}
+          {!!gym.phoneNumber && <Text style={styles.phone}>📞 {gym.phoneNumber}</Text>}
           {!isTrainer && (
             <TouchableOpacity style={styles.reportLink} onPress={() => setReportModal(true)}>
               <Text style={styles.reportLinkText}>🚩 이 헬스장 신고하기</Text>
@@ -163,47 +169,53 @@ export default function GymDetailScreen() {
         </View>
 
         {/* 시설 */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>시설 및 서비스</Text>
-          <View style={styles.facilityGrid}>
-            {gym.facilities.map((f) => (
-              <View key={f} style={styles.facilityItem}>
-                <Text style={styles.facilityEmoji}>{getFacilityEmoji(f)}</Text>
-                <Text style={styles.facilityName}>{f}</Text>
+        {gym.facilities.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>시설 및 서비스</Text>
+            <View style={styles.facilityGrid}>
+              {gym.facilities.map((f) => (
+                <View key={f} style={styles.facilityItem}>
+                  <Text style={styles.facilityEmoji}>{getFacilityEmoji(f)}</Text>
+                  <Text style={styles.facilityName}>{f}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* 운영 시간 */}
+        {gym.operatingHours.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>운영 시간</Text>
+            {gym.operatingHours.map((h) => (
+              <View key={h.dayOfWeek} style={styles.hourRow}>
+                <Text style={styles.dayLabel}>{DAY_LABELS[h.dayOfWeek]}요일</Text>
+                <Text style={styles.hourValue}>
+                  {h.openTime} ~ {h.closeTime}
+                </Text>
+                {h.ptAvailable && (
+                  <View style={styles.ptBadge}>
+                    <Text style={styles.ptText}>PT가능</Text>
+                  </View>
+                )}
               </View>
             ))}
           </View>
-        </View>
-
-        {/* 운영 시간 */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>운영 시간</Text>
-          {gym.operatingHours.map((h) => (
-            <View key={h.dayOfWeek} style={styles.hourRow}>
-              <Text style={styles.dayLabel}>{DAY_LABELS[h.dayOfWeek]}요일</Text>
-              <Text style={styles.hourValue}>
-                {h.openTime} ~ {h.closeTime}
-              </Text>
-              {h.ptAvailable && (
-                <View style={styles.ptBadge}>
-                  <Text style={styles.ptText}>PT가능</Text>
-                </View>
-              )}
-            </View>
-          ))}
-        </View>
+        )}
 
         {/* 이용 요금 */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>시설 이용료 (PT 세션 시)</Text>
-          {gym.pricing.map((p) => (
-            <View key={p.sessionType} style={styles.pricingRow}>
-              <Text style={styles.pricingLabel}>{p.label}</Text>
-              <Text style={styles.pricingValue}>{formatPrice(p.facilityFee)}</Text>
-            </View>
-          ))}
-          <Text style={styles.pricingNote}>* 위 금액은 헬스장 시설 이용료이며 트레이너 PT 비용은 별도입니다</Text>
-        </View>
+        {gym.pricing.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>시설 이용료 (PT 세션 시)</Text>
+            {gym.pricing.map((p) => (
+              <View key={p.sessionType} style={styles.pricingRow}>
+                <Text style={styles.pricingLabel}>{p.label}</Text>
+                <Text style={styles.pricingValue}>{formatPrice(p.facilityFee)}</Text>
+              </View>
+            ))}
+            <Text style={styles.pricingNote}>* 위 금액은 헬스장 시설 이용료이며 트레이너 PT 비용은 별도입니다</Text>
+          </View>
+        )}
 
         {/* 이용 규칙 */}
         {gym.usageRules && gym.usageRules.length > 0 && (
@@ -232,7 +244,8 @@ export default function GymDetailScreen() {
           </View>
         )}
 
-        {/* 리뷰 섹션 */}
+        {/* 리뷰 섹션 — 미등록 헬스장은 예약이 불가해 리뷰도 달릴 수 없으므로 숨긴다 */}
+        {gym.isClaimed !== false && (
         <View style={styles.section}>
           <View style={styles.reviewHeader}>
             <Text style={styles.sectionTitle}>리뷰 ({gymReviews.length})</Text>
@@ -271,9 +284,23 @@ export default function GymDetailScreen() {
             ))
           )}
         </View>
+        )}
+
+        {/* 미등록(공공데이터) 헬스장: 주인이 없어 예약·슬롯을 받을 수 없다 → 입점 신청으로 유도 */}
+        {gym.isClaimed === false && (
+          <View style={styles.unclaimedBox}>
+            <Text style={styles.unclaimedTitle}>아직 FLOWIN에 등록되지 않은 헬스장입니다</Text>
+            <Text style={styles.unclaimedDesc}>
+              공공데이터로 위치만 표시하고 있어 예약·슬롯 신청은 받을 수 없습니다.
+            </Text>
+            <TouchableOpacity style={styles.claimBtn} onPress={() => router.push('/gym-apply' as any)}>
+              <Text style={styles.claimBtnText}>사장님이신가요? 입점 신청하기</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* 예약 버튼 */}
-        {isTrainer && (
+        {isTrainer && gym.isClaimed !== false && (
           <View style={styles.actionRow}>
             <TouchableOpacity style={styles.chatBtn} onPress={handleGymChat}>
               <Text style={styles.chatBtnText}>💬 채팅</Text>
@@ -498,6 +525,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row', gap: 10,
     marginHorizontal: 16, marginBottom: 16,
   },
+  unclaimedBox: {
+    marginHorizontal: 16, marginBottom: 16, padding: 16,
+    borderRadius: 14, borderWidth: 1,
+    borderColor: COLORS.border, backgroundColor: COLORS.background,
+  },
+  unclaimedTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text, marginBottom: 6 },
+  unclaimedDesc: { fontSize: 13, color: COLORS.textSecondary, lineHeight: 19, marginBottom: 14 },
+  claimBtn: {
+    paddingVertical: 13, borderRadius: 12,
+    backgroundColor: COLORS.primary, alignItems: 'center',
+  },
+  claimBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
   chatBtn: {
     flex: 1,
     paddingVertical: 14,

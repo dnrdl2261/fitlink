@@ -21,7 +21,7 @@ import { COLORS, DAY_LABELS } from '../../utils/constants';
 import { FacilityTag } from '../../types';
 import { confirmDialog } from '../../utils/alert';
 
-const GYM  = '#4F63F5';
+const GYM  = '#0057ff';
 const BG   = '#F1F5F9';
 
 // 분 선택 목록 (5분 단위)

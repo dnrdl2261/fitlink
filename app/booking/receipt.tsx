@@ -11,7 +11,7 @@ import { formatDate, formatTime, formatPrice } from '../../utils/formatters';
 const D = {
   bg:          '#EEF2F9',
   surface:     '#FFFFFF',
-  primary:     '#4F63F5',
+  primary:     '#0057ff',
   primaryGlow: 'rgba(79,99,245,0.12)',
   text:        '#0F172A',
   textSec:     '#64748B',

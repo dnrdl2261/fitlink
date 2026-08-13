@@ -6,6 +6,7 @@ import {
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTrainerStore } from '../../store/trainerStore';
+import { useBlockedIds } from '../../hooks/useBlockedIds';
 import { useGymStore } from '../../store/gymStore';
 import { Trainer } from '../../types';
 import { COLORS } from '../../utils/constants';
@@ -81,7 +82,13 @@ export default function TrainerListScreen() {
     return () => clearTimeout(timer);
   }, [photoViewer, width]);
 
-  const allTrainers = useTrainerStore((s) => s.trainers);
+  // 차단한 트레이너는 목록에서 숨긴다(Apple Guideline 1.2)
+  const blockedIds = useBlockedIds();
+  const allTrainersRaw = useTrainerStore((s) => s.trainers);
+  const allTrainers = useMemo(
+    () => (blockedIds.length ? allTrainersRaw.filter((t) => !blockedIds.includes(t.id)) : allTrainersRaw),
+    [allTrainersRaw, blockedIds],
+  );
   const allGyms = useGymStore((s) => s.gyms);
   const trainerDistances = useMemo(() => {
     const map: Record<string, number> = {};

@@ -10,6 +10,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../../utils/constants';
 import { useReviewStore } from '../../store/reviewStore';
 import { useAuthStore } from '../../store/authStore';
+import { uploadMedia, uploadMediaMany, isLocalUri, canUpload } from '../../utils/upload';
+import { notify } from '../../utils/alert';
 import { useNotificationStore } from '../../store/notificationStore';
 
 const MAX_IMAGES = 5;
@@ -24,6 +26,7 @@ export default function ReviewWriteScreen() {
     bookingId: string;
   }>();
   const { member } = useAuthStore();
+  const [uploading, setUploading] = useState(false);
   const { addReview } = useReviewStore();
   const { addNotification } = useNotificationStore();
 
@@ -75,9 +78,29 @@ export default function ReviewWriteScreen() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit || !trainerId || !bookingId) return;
     const ts = Date.now();
+
+    // 후기 사진·영상을 Storage에 올린다(로컬 uri는 남에게 안 보인다).
+    let photoUrls = images;
+    let vid = videoUri;
+    if (canUpload(member?.id) && (images.some(isLocalUri) || isLocalUri(vid ?? undefined))) {
+      setUploading(true);
+      try {
+        photoUrls = await uploadMediaMany(images, 'reviews', member!.id);
+        if (isLocalUri(vid ?? undefined)) {
+          vid = await uploadMedia(vid!, 'reviews', member!.id);
+        }
+      } finally {
+        setUploading(false);
+      }
+      if (photoUrls.length !== images.length) {
+        notify('사진 업로드 실패', '일부 사진을 저장하지 못했습니다. 다시 시도해주세요.');
+        return;
+      }
+    }
+
     addReview({
       trainerId,
       trainerName: trainerName ?? '',
@@ -88,8 +111,8 @@ export default function ReviewWriteScreen() {
       rating,
       comment: comment.trim(),
       media: [
-        ...images.map((uri, i) => ({ id: `img_${ts}_${i}`, type: 'image' as const, uri })),
-        ...(videoUri ? [{ id: `vid_${ts}`, type: 'video' as const, uri: videoUri }] : []),
+        ...photoUrls.map((uri, i) => ({ id: `img_${ts}_${i}`, type: 'image' as const, uri })),
+        ...(vid ? [{ id: `vid_${ts}`, type: 'video' as const, uri: vid }] : []),
       ],
     });
     addNotification({
@@ -119,7 +142,7 @@ export default function ReviewWriteScreen() {
           <TouchableOpacity
             style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
             onPress={handleSubmit}
-            disabled={!canSubmit}
+            disabled={!canSubmit || uploading}
           >
             <Text style={[styles.submitText, !canSubmit && styles.submitTextDisabled]}>등록</Text>
           </TouchableOpacity>

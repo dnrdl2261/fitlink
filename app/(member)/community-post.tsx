@@ -10,6 +10,7 @@ import { COLORS } from '../../utils/constants';
 import { CAT_COLOR, INITIAL_GROUPS } from '../../data/community';
 import { useCommunityStore } from '../../store/communityStore';
 import { useAuthStore } from '../../store/authStore';
+import { useBlockedIds } from '../../hooks/useBlockedIds';
 import VideoPlayer from '../../components/VideoPlayer';
 
 const CAT_TO_GROUP: Record<string, string[]> = {
@@ -30,7 +31,12 @@ export default function CommunityPostScreen() {
   const { posts, comments, likedPosts, toggleLikePost, incrementViews, addComment } = useCommunityStore();
 
   const post = posts.find((p) => p.id === postId);
-  const postComments = comments.filter((c) => c.postId === postId);
+  // 차단한 사용자의 댓글은 숨긴다(Apple Guideline 1.2)
+  const blockedIds = useBlockedIds();
+  const postComments = useMemo(
+    () => comments.filter((c) => c.postId === postId && !(c.authorId && blockedIds.includes(c.authorId))),
+    [comments, postId, blockedIds],
+  );
   const isLiked = likedPosts.includes(postId ?? '');
 
   const similarPosts = useMemo(() =>

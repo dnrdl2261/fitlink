@@ -1,19 +1,19 @@
 import { Tabs, useRouter, useGlobalSearchParams, Redirect } from 'expo-router';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { COLORS } from '../../utils/constants';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import NotificationToast from '../../components/NotificationToast';
 import { useChatStore } from '../../store/chatStore';
 
-const PRIMARY = '#4F63F5';
+const PRIMARY = '#0057ff';
 const ERROR   = '#EF4444';
 
 const TAB_BAR = {
   backgroundColor: '#ffffff',
   borderTopWidth: StyleSheet.hairlineWidth,
   borderTopColor: '#e5e7eb',
-  height: 90,
 };
 
 // 진입 출처에 따라 뒤로가기 목적지 결정 (홈에서 왔으면 홈, 아니면 내정보)
@@ -76,10 +76,10 @@ export default function TrainerLayout() {
     <>
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: PRIMARY,
+        tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: '#c7c7cc',
         tabBarStyle: TAB_BAR,
-        tabBarItemStyle: { justifyContent: 'flex-start', paddingTop: 9 },
+        tabBarShowLabel: false,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
         headerStyle: { backgroundColor: '#EEF2F9' },
         headerTintColor: '#0F172A',
@@ -92,32 +92,35 @@ export default function TrainerLayout() {
         name="index"
         options={{
           tabBarLabel: '홈',
-          tabBarIcon: ({ color }) => <TabIcon name="view-dashboard-outline" color={color} />,
+          tabBarAccessibilityLabel: '홈',
+          tabBarIcon: ({ color }) => <TabIcon name="home" color={color} />,
           headerTitle: 'FLOWIN 트레이너',
           headerRight: () => <TrainerBellBtn userId={trainer?.id ?? ''} color={PRIMARY} />,
         }}
       />
       <Tabs.Screen
-        name="schedule"
+        name="map"
         options={{
-          tabBarLabel: '일정',
-          tabBarIcon: ({ color }) => <TabIcon name="calendar-month-outline" color={color} />,
-          headerTitle: '일정 관리',
-          headerLeft: () => <BackToMoreBtn />,
+          tabBarLabel: '헬스장',
+          tabBarAccessibilityLabel: '헬스장',
+          tabBarIcon: ({ color }) => <TabIcon name="map-marker" color={color} />,
+          headerTitle: '헬스장 찾기',
         }}
       />
       <Tabs.Screen
-        name="members"
+        name="community"
         options={{
-          tabBarLabel: '회원',
-          tabBarIcon: ({ color }) => <TabIcon name="account-group-outline" color={color} />,
-          headerShown: false,
+          tabBarLabel: '커뮤니티',
+          tabBarAccessibilityLabel: '커뮤니티',
+          tabBarIcon: ({ color }) => <TabIcon name="account-group" color={color} />,
+          headerTitle: '커뮤니티',
         }}
       />
       <Tabs.Screen
         name="chat"
         options={{
           tabBarLabel: '채팅',
+          tabBarAccessibilityLabel: '채팅',
           tabBarIcon: ({ color }) => <TabIconBadge name="message" color={color} badge={unread} />,
           headerTitle: '채팅',
         }}
@@ -126,15 +129,16 @@ export default function TrainerLayout() {
         name="more"
         options={{
           tabBarLabel: '내정보',
-          tabBarIcon: ({ color }) => <TabIcon name="cog-outline" color={color} />,
+          tabBarAccessibilityLabel: '내정보',
+          tabBarIcon: ({ color }) => <TabIcon name="account" color={color} />,
           headerTitle: '설정',
         }}
       />
 
       {/* ── 숨김 탭 (탭바에 미표시) ── */}
-      <Tabs.Screen name="map"      options={{ href: null, headerTitle: '헬스장 찾기' }} />
+      <Tabs.Screen name="schedule" options={{ href: null, headerTitle: '일정 관리', headerLeft: () => <BackToMoreBtn /> }} />
       <Tabs.Screen name="earnings" options={{ href: null, headerTitle: '매출 관리', headerLeft: () => <BackToMoreBtn /> }} />
-      <Tabs.Screen name="community" options={{ href: null, headerTitle: '커뮤니티', headerLeft: () => <BackToMoreBtn /> }} />
+      <Tabs.Screen name="members"  options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="manage"   options={{ href: null, headerTitle: '예약·세션 관리', headerLeft: () => <BackToMoreBtn /> }} />
 
       <Tabs.Screen name="community-post"        options={{ href: null, headerShown: false }} />

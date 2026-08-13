@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, SafeAreaView, Modal,
@@ -8,6 +8,7 @@ import { useScrollToTop } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useChatStore } from '../../store/chatStore';
+import { useBlockedIds } from '../../hooks/useBlockedIds';
 import { formatChatTime } from '../../utils/formatters';
 import { MOCK_TRAINERS } from '../../data/trainers';
 import { COLORS } from '../../utils/constants';
@@ -25,7 +26,15 @@ export default function MemberChatScreen() {
   const [newModal, setNewModal] = useState(false);
 
   const myId = member?.id ?? '';
-  const conversations = getConversationsForUser(myId);
+  // 차단한 상대와의 대화는 목록에서 숨긴다(Apple Guideline 1.2)
+  const blockedIds = useBlockedIds();
+  const allConversations = getConversationsForUser(myId);
+  const conversations = useMemo(
+    () => (blockedIds.length
+      ? allConversations.filter((c) => !c.participants.some((pt) => pt.id !== myId && blockedIds.includes(pt.id)))
+      : allConversations),
+    [allConversations, blockedIds, myId],
+  );
 
   const openChat = (conversationId: string) => {
     router.push(`/chat/${conversationId}` as any);

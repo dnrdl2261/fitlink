@@ -26,15 +26,14 @@ function LocationHeader() {
   );
 }
 
-// height를 크게 잡고 paddingBottom을 '안전 버퍼'로 사용
-// → 브라우저 하단 UI 크롬이 30px를 가려도 아이콘/라벨은 위쪽에 배치되어 보임
-// 핵심: justifyContent:'flex-start' + paddingTop으로 아이콘·라벨을 상단에 배치
-// → 브라우저 하단 크롬이 아무리 가려도 콘텐츠는 이미 위쪽에 있어 잘리지 않음
+// height 미지정 = react-navigation 기본값(49px + 하단 세이프에어리어).
+// 고정 height를 주면 세이프에어리어가 더해지지 않고 그 높이 안쪽 여백으로 깎여
+// 홈 인디케이터가 있는 기기에서 아이콘이 잘린다.
+// 브라우저 하단 UI 크롬 대응은 patch-html.js의 100dvh / viewport-fit=cover가 담당.
 const TAB_BAR = {
   backgroundColor: '#ffffff',
   borderTopWidth: StyleSheet.hairlineWidth,
   borderTopColor: '#e5e7eb',
-  height: 90,
 };
 
 function BackBtn({ color }: { color: string }) {
@@ -96,7 +95,7 @@ export default function MemberLayout() {
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: '#c7c7cc',
         tabBarStyle: TAB_BAR,
-        tabBarItemStyle: { justifyContent: 'flex-start', paddingTop: 9 },
+        tabBarShowLabel: false,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
         headerStyle: { backgroundColor: COLORS.background },
         headerTintColor: COLORS.text,
@@ -108,6 +107,7 @@ export default function MemberLayout() {
         name="trainers"
         options={{
           tabBarLabel: '홈',
+          tabBarAccessibilityLabel: '홈',
           tabBarIcon: ({ color }) => <TabIcon name="home" color={color} />,
           headerTitle: () => <LocationHeader />,
           headerRight: () => <BellBtn userId={member?.id ?? ''} color={COLORS.primary} />,
@@ -117,6 +117,7 @@ export default function MemberLayout() {
         name="map"
         options={{
           tabBarLabel: '헬스장',
+          tabBarAccessibilityLabel: '헬스장',
           tabBarIcon: ({ color }) => <TabIcon name="map-marker" color={color} />,
           headerShown: false,
         }}
@@ -125,6 +126,7 @@ export default function MemberLayout() {
         name="community"
         options={{
           tabBarLabel: '커뮤니티',
+          tabBarAccessibilityLabel: '커뮤니티',
           tabBarIcon: ({ color }) => <TabIcon name="account-group" color={color} />,
           headerTitle: '커뮤니티',
         }}
@@ -133,6 +135,7 @@ export default function MemberLayout() {
         name="chat"
         options={{
           tabBarLabel: '채팅',
+          tabBarAccessibilityLabel: '채팅',
           tabBarIcon: ({ color }) => <TabIconBadge name="message" color={color} badge={unread} />,
           headerTitle: '채팅',
         }}
@@ -141,6 +144,7 @@ export default function MemberLayout() {
         name="more"
         options={{
           tabBarLabel: '내정보',
+          tabBarAccessibilityLabel: '내정보',
           tabBarIcon: ({ color }) => <TabIcon name="account" color={color} />,
           headerTitle: '내 정보',
         }}

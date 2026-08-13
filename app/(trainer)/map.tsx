@@ -7,9 +7,11 @@ import { useRouter } from 'expo-router';
 import { useFilteredGyms } from '../../hooks/useFilteredGyms';
 import { useLocation } from '../../hooks/useLocation';
 import { useLocationStore } from '../../store/locationStore';
+import { useGymStore } from '../../store/gymStore';
 import { formatDistance } from '../../utils/distance';
-import { COLORS } from '../../utils/constants';
+import { COLORS, DEFAULT_LOCATION_LABEL } from '../../utils/constants';
 import StarRating from '../../components/StarRating';
+import GymThumb from '../../components/GymThumb';
 
 let MapView: any = null;
 let Marker: any = null;
@@ -61,43 +63,14 @@ export default function TrainerMapScreen() {
         wrapper.appendChild(container);
 
         const map = new win.kakao.maps.Map(container, {
-          center: new win.kakao.maps.LatLng(37.5665, 126.978),
+          center: new win.kakao.maps.LatLng(currentLocation.latitude, currentLocation.longitude),
           level: 9,
         });
         kakaoMapRef.current = map;
 
-        gyms.forEach(gym => {
-          const el = document.createElement('div');
-          el.style.cssText = [
-            `background:${gym.isPartner ? COLORS.gym : '#606060'}`,
-            'color:#fff',
-            'width:28px',
-            'height:28px',
-            'border-radius:50%',
-            'font-size:14px',
-            'text-align:center',
-            'line-height:24px',
-            'cursor:pointer',
-            'box-shadow:0 2px 6px rgba(0,0,0,0.28)',
-            'border:2.5px solid rgba(255,255,255,0.6)',
-            'user-select:none',
-            'transition:all 0.15s',
-          ].join(';');
-          el.textContent = '🏠';
-
-          el.addEventListener('click', () => {
-            setSelectedGymId(gym.id);
-            map.panTo(new win.kakao.maps.LatLng(gym.coordinate.latitude, gym.coordinate.longitude));
-          });
-
-          new win.kakao.maps.CustomOverlay({
-            map,
-            position: new win.kakao.maps.LatLng(gym.coordinate.latitude, gym.coordinate.longitude),
-            content: el,
-            yAnchor: 1.5,
-          });
-          markerEls.current[gym.id] = el;
-        });
+        // ⚠️ 마커는 여기서 만들지 않는다. initMap은 1회만 실행돼서,
+        //    검색·지도이동으로 나중에 추가된 헬스장은 마커가 안 생겼다.
+        //    아래 별도 effect가 목록 변화에 맞춰 생성한다.
 
         setMapReady(true);
       } catch (e: any) {
@@ -124,19 +97,76 @@ export default function TrainerMapScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── 웹: 내 위치
+  // 공공데이터 헬스장은 전량 로드하지 않으므로, 보고 있는 위치 주변을 그때그때 받는다.
   useEffect(() => {
-    if (Platform.OS !== 'web' || !hasPermission || !kakaoMapRef.current) return;
+    useGymStore.getState().loadNearby(currentLocation);
+  }, [currentLocation]);
+
+  // 내 위치 점을 다시 그린다. 지도 준비 전에는 kakaoMapRef가 비어 있어 그릴 수 없으므로
+  // effect 의존성에 mapReady를 넣고, 버튼에서도 같은 함수를 호출한다.
+  const drawUserDot = () => {
+    if (Platform.OS !== 'web' || !kakaoMapRef.current) return;
     const win = window as any;
     if (!win.kakao) return;
     const latlng = new win.kakao.maps.LatLng(currentLocation.latitude, currentLocation.longitude);
-    kakaoMapRef.current.setCenter(latlng);
-    kakaoMapRef.current.setLevel(7);
     if (userDotRef.current) userDotRef.current.setMap(null);
     const dot = document.createElement('div');
     dot.style.cssText = 'width:14px;height:14px;background:#4A90E2;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 6px rgba(74,144,226,0.18)';
     userDotRef.current = new win.kakao.maps.CustomOverlay({ map: kakaoMapRef.current, position: latlng, content: dot, zIndex: 20 });
-  }, [hasPermission, currentLocation]);
+    return latlng;
+  };
+
+  // ── 웹: 내 위치
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !hasPermission || !kakaoMapRef.current) return;
+    const latlng = drawUserDot();
+    if (!latlng) return;
+    kakaoMapRef.current.setCenter(latlng);
+    kakaoMapRef.current.setLevel(7);
+  }, [hasPermission, currentLocation, mapReady]);
+
+  // ── 웹: 헬스장 목록이 늘어나면 마커를 추가로 생성
+  // 전국 데이터는 화면 범위로 나중에 들어온다. 이미 만든 마커는 건너뛴다.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !mapReady || !kakaoMapRef.current) return;
+    const win = window as any;
+    if (!win.kakao) return;
+    const map = kakaoMapRef.current;
+    gyms.forEach(gym => {
+      if (markerEls.current[gym.id]) return;
+      if (!gym.coordinate?.latitude || !gym.coordinate?.longitude) return;
+      const el = document.createElement('div');
+      el.style.cssText = [
+        `background:${gym.isPartner ? COLORS.gym : '#606060'}`,
+        'color:#fff',
+        'width:28px',
+        'height:28px',
+        'border-radius:50%',
+        'font-size:14px',
+        'text-align:center',
+        'line-height:24px',
+        'cursor:pointer',
+        'box-shadow:0 2px 6px rgba(0,0,0,0.28)',
+        'border:2.5px solid rgba(255,255,255,0.6)',
+        'user-select:none',
+        'transition:all 0.15s',
+      ].join(';');
+      el.textContent = '🏠';
+
+      el.addEventListener('click', () => {
+        setSelectedGymId(gym.id);
+        map.panTo(new win.kakao.maps.LatLng(gym.coordinate.latitude, gym.coordinate.longitude));
+      });
+
+      new win.kakao.maps.CustomOverlay({
+        map,
+        position: new win.kakao.maps.LatLng(gym.coordinate.latitude, gym.coordinate.longitude),
+        content: el,
+        yAnchor: 1.5,
+      });
+      markerEls.current[gym.id] = el;
+    });
+  }, [gyms, mapReady]);
 
   // ── 웹: 선택 마커 하이라이트
   useEffect(() => {
@@ -193,6 +223,7 @@ export default function TrainerMapScreen() {
   const moveToMyLocation = () => {
     const win = window as any;
     if (!kakaoMapRef.current || !win.kakao) return;
+    drawUserDot(); // 지도만 옮기고 점이 안 보이던 문제 — 이동할 때 점도 다시 그린다
     kakaoMapRef.current.setCenter(new win.kakao.maps.LatLng(currentLocation.latitude, currentLocation.longitude));
     kakaoMapRef.current.setLevel(6);
   };
@@ -227,7 +258,7 @@ export default function TrainerMapScreen() {
                 ? <><ActivityIndicator size="small" color={COLORS.secondary} style={{ marginRight: 5 }} /><Text style={styles.locChipText}>위치 확인 중</Text></>
                 : hasPermission
                   ? <Text style={styles.locChipText}>📍 현재 위치 기준</Text>
-                  : <Text style={styles.locChipText}>⚠️ 서울 중심 기준</Text>
+                  : <Text style={styles.locChipText}>⚠️ {DEFAULT_LOCATION_LABEL} 중심 기준</Text>
               }
             </View>
             <View style={styles.legendChip}>
@@ -260,7 +291,7 @@ export default function TrainerMapScreen() {
             onPress={() => router.push({ pathname: '/gym/[id]', params: { id: selectedGym.id, from: 'trainer' } } as any)}
             activeOpacity={0.88}
           >
-            <Image source={{ uri: selectedGym.images[0] }} style={styles.selImg} />
+            <GymThumb name={selectedGym.name} uri={selectedGym.images[0]} size={64} radius={12} style={styles.selImg} />
             <View style={styles.selInfo}>
               <View style={styles.selNameRow}>
                 <Text style={styles.selName} numberOfLines={1}>{selectedGym.name}</Text>
@@ -304,7 +335,7 @@ export default function TrainerMapScreen() {
                     }}
                     activeOpacity={0.8}
                   >
-                    <Image source={{ uri: gym.images[0] }} style={styles.gymThumb} />
+                    <GymThumb name={gym.name} uri={gym.images[0]} size={56} radius={10} style={styles.gymThumb} />
                     <View style={styles.gymInfo}>
                       <View style={styles.gymNameRow}>
                         <Text style={styles.gymName} numberOfLines={1}>{gym.name}</Text>
@@ -357,7 +388,7 @@ export default function TrainerMapScreen() {
           onPress={() => router.push({ pathname: '/gym/[id]', params: { id: selectedGym.id, from: 'trainer' } } as any)}
           activeOpacity={0.9}
         >
-          <Image source={{ uri: selectedGym.images[0] }} style={styles.selImg} />
+          <GymThumb name={selectedGym.name} uri={selectedGym.images[0]} size={64} radius={12} style={styles.selImg} />
           <View style={styles.selInfo}>
             <Text style={styles.selName}>{selectedGym.name}</Text>
             <StarRating rating={selectedGym.rating} reviewCount={selectedGym.reviewCount} size="small" />

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, SafeAreaView, Modal,
@@ -8,11 +8,12 @@ import { useScrollToTop } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useChatStore } from '../../store/chatStore';
+import { useBlockedIds } from '../../hooks/useBlockedIds';
 import { formatChatTime } from '../../utils/formatters';
 import { MOCK_TRAINERS } from '../../data/trainers';
 import { COLORS } from '../../utils/constants';
 
-const GYM  = '#4F63F5';
+const GYM  = '#0057ff';
 const DARK = '#0F172A';
 const SLATE = '#64748B';
 
@@ -27,7 +28,15 @@ export default function GymChatScreen() {
   const [newModal, setNewModal] = useState(false);
 
   const myId = gymAdmin?.id ?? '';
-  const conversations = getConversationsForUser(myId);
+  // 차단한 상대와의 대화는 목록에서 숨긴다(Apple Guideline 1.2)
+  const blockedIds = useBlockedIds();
+  const allConversations = getConversationsForUser(myId);
+  const conversations = useMemo(
+    () => (blockedIds.length
+      ? allConversations.filter((c) => !c.participants.some((pt) => pt.id !== myId && blockedIds.includes(pt.id)))
+      : allConversations),
+    [allConversations, blockedIds, myId],
+  );
 
   const openChat = (conversationId: string) => {
     router.push(`/chat/${conversationId}` as any);
@@ -164,14 +173,14 @@ const styles = StyleSheet.create({
   convTime: { fontSize: 11, color: COLORS.textSecondary },
   convLast: { fontSize: 13, color: COLORS.textSecondary },
   unreadBadge: {
-    backgroundColor: '#4F63F5', borderRadius: 10,
+    backgroundColor: '#0057ff', borderRadius: 10,
     minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6,
   },
   unreadText: { fontSize: 11, fontWeight: '800', color: '#fff' },
 
   fab: {
     position: 'absolute', bottom: 20, right: 20,
-    backgroundColor: '#4F63F5', borderRadius: 24,
+    backgroundColor: '#0057ff', borderRadius: 24,
     paddingHorizontal: 20, paddingVertical: 13,
     shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
     elevation: 6,
@@ -194,5 +203,5 @@ const styles = StyleSheet.create({
   trainerInfo: { flex: 1, gap: 2 },
   trainerName: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   trainerSub: { fontSize: 12, color: COLORS.textSecondary },
-  existingLabel: { fontSize: 12, color: '#4F63F5', fontWeight: '600' },
+  existingLabel: { fontSize: 12, color: '#0057ff', fontWeight: '600' },
 });

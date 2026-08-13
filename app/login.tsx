@@ -22,6 +22,7 @@ import { UserRole } from '../types';
 import { OAUTH_CONFIG } from '../config/oauth';
 import { COLORS } from '../utils/constants';
 import OnboardingModal from '../components/OnboardingModal';
+import { supabase, isSupabaseConfigured } from '../config/supabase';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -144,6 +145,49 @@ export default function LoginScreen() {
     }
   };
 
+  // 비밀번호 재설정 메일 발송.
+  // ⚠️ 가입 여부는 숨기되(미가입 주소도 "보냈습니다"), **서버 오류는 반드시 구분해서 알린다**.
+  //    예전엔 오류도 성공처럼 표시해서, SMTP가 죽었는데 사용자는 메일만 기다리는 상황이 있었다.
+  const handleForgotPassword = async () => {
+    const addr = email.trim();
+    if (!addr) {
+      notify('이메일을 입력해주세요', '가입하신 이메일 주소를 입력한 뒤 다시 눌러주세요.');
+      return;
+    }
+    if (!isSupabaseConfigured) {
+      notify('데모 모드', '데모 모드에서는 비밀번호 재설정을 사용할 수 없습니다.');
+      return;
+    }
+
+    setLoading(true);
+    let err: any = null;
+    try {
+      const res = await supabase.auth.resetPasswordForEmail(addr, {
+        redirectTo: AuthSession.makeRedirectUri({}),
+      });
+      err = res.error;
+    } catch (e) {
+      err = e; // 네트워크 단절 등
+    }
+    setLoading(false);
+
+    if (!err) {
+      // 가입된 주소든 아니든 동일 문구(계정 존재 여부 탐지 방지)
+      notify('메일을 보냈습니다', `${addr} 으로 비밀번호 재설정 링크를 보냈습니다.\n메일이 오지 않으면 스팸함을 확인해주세요.`);
+      return;
+    }
+
+    const status = Number(err?.status ?? 0);
+    if (status === 429) {
+      notify('잠시 후 다시 시도해주세요', '요청이 너무 잦습니다. 1분 뒤에 다시 눌러주세요.');
+    } else if (status >= 500 || status === 0) {
+      // 메일 발송 자체가 실패한 경우 — 기다려도 오지 않으므로 반드시 알려야 한다.
+      notify('메일을 보내지 못했습니다', '일시적인 문제로 메일 발송에 실패했습니다.\n잠시 후 다시 시도하시고, 계속 안 되면 고객센터로 문의해주세요.');
+    } else {
+      notify('메일을 보내지 못했습니다', '이메일 주소를 다시 확인해주세요.');
+    }
+  };
+
   const handleDemo = (r: UserRole) => {
     selectRole(r);
     navigateByRole(router, r);
@@ -234,6 +278,14 @@ export default function LoginScreen() {
                 disabled={loading}
               >
                 <Text style={s.formLoginBtnText}>{loading ? '로그인 중...' : '로그인'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.forgotBtn}
+                onPress={handleForgotPassword}
+                disabled={loading}
+                accessibilityLabel="비밀번호 찾기"
+              >
+                <Text style={s.forgotText}>비밀번호를 잊으셨나요?</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -387,6 +439,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   formLoginBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  forgotBtn: { alignSelf: 'center', paddingVertical: 12, paddingHorizontal: 8 },
+  forgotText: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '600', textDecorationLine: 'underline' },
 
   /* 구분선 */
   divRow:  { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },

@@ -17,12 +17,19 @@ import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../../store/authStore';
+import { uploadMedia, isLocalUri, canUpload } from '../../utils/upload';
+import { notify } from '../../utils/alert';
 import { COLORS } from '../../utils/constants';
 import { REGION_DATA } from '../../data/regions';
 import { TrainingGoal, Certification, WorkHistory } from '../../types/trainer';
 
 type MediaItem = { id: string; uri: string; type: 'photo' | 'video' };
-const THUMB_SIZE = (Dimensions.get('window').width - 32 - 16 * 2 - 8 * 3) / 4;
+// ⚠️ 웹에서는 앱이 430px 컨테이너(_layout.tsx webStyles.phone)에 갇히는데
+//    Dimensions.get('window').width는 브라우저 창 전체 폭을 준다. 그대로 쓰면 PC에서
+//    썸네일이 300px 넘게 커져 한 줄에 1장씩만 나오고 삭제 버튼을 찾기 어려워진다.
+const APP_MAX_WIDTH = 430;
+const CONTENT_WIDTH = Math.min(Dimensions.get('window').width, APP_MAX_WIDTH);
+const THUMB_SIZE = (CONTENT_WIDTH - 32 - 16 * 2 - 8 * 3) / 4;
 
 // 회원 '운동 목적'(trainers.tsx SPEC_FILTERS / 수업 목적)과 동일한 키워드
 const ALL_GOALS: TrainingGoal[] = [
@@ -38,6 +45,7 @@ export default function EditProfileScreen() {
 
   if (!trainer) return null;
 
+  const [uploading, setUploading] = useState(false);
   const [profileImageUrl, setProfileImageUrl] = useState(trainer.profileImageUrl ?? '');
   const [tagline, setTagline] = useState(trainer.tagline ?? '');
   const [bio, setBio] = useState(trainer.bio);
@@ -126,11 +134,37 @@ export default function EditProfileScreen() {
     }
   };
 
-  const handleSave = () => {
-    if (!tagline.trim()) { Alert.alert('입력 오류', '한줄 소개를 입력해주세요.'); return; }
-    if (goals.length === 0) { Alert.alert('입력 오류', '운동 목적을 1개 이상 선택해주세요.'); return; }
+  const handleSave = async () => {
+    if (!tagline.trim()) { notify('입력 오류', '한줄 소개를 입력해주세요.'); return; }
+    if (goals.length === 0) { notify('입력 오류', '운동 목적을 1개 이상 선택해주세요.'); return; }
+
+    // 대표사진·갤러리의 로컬 uri를 Storage에 올린다(그대로 저장하면 남에게 안 보인다).
+    let photoUrl = profileImageUrl;
+    let media = mediaItems;
+    if (canUpload(trainer.id) && (isLocalUri(photoUrl) || mediaItems.some(m => isLocalUri(m.uri)))) {
+      setUploading(true);
+      try {
+        if (isLocalUri(photoUrl)) {
+          const up = await uploadMedia(photoUrl, 'avatars', trainer.id);
+          if (!up) { notify('사진 업로드 실패', '대표 사진을 저장하지 못했습니다.'); return; }
+          photoUrl = up;
+          setProfileImageUrl(up);
+        }
+        const next = [];
+        for (const m of mediaItems) {
+          if (!isLocalUri(m.uri)) { next.push(m); continue; }
+          const up = await uploadMedia(m.uri, 'avatars', trainer.id);
+          if (up) next.push({ ...m, uri: up });
+        }
+        media = next;
+        setMediaItems(next);
+      } finally {
+        setUploading(false);
+      }
+    }
+
     updateTrainer({
-      profileImageUrl,
+      profileImageUrl: photoUrl,
       tagline: tagline.trim(),
       bio: bio.trim(),
       gender,
@@ -140,8 +174,8 @@ export default function EditProfileScreen() {
       trainingGoals: goals,
       certifications,
       workHistory,
-      photos: mediaItems.filter(m => m.type === 'photo').map(({ id, uri }) => ({ id, uri })),
-      videos: mediaItems.filter(m => m.type === 'video').map(({ id, uri }) => ({ id, uri })),
+      photos: media.filter(m => m.type === 'photo').map(({ id, uri }) => ({ id, uri })),
+      videos: media.filter(m => m.type === 'video').map(({ id, uri }) => ({ id, uri })),
     });
     if (Platform.OS === 'web') {
       window.alert('수정이 완료되었습니다');
@@ -175,7 +209,7 @@ export default function EditProfileScreen() {
           <Text style={styles.navCancel}>취소</Text>
         </TouchableOpacity>
         <Text style={styles.navTitle}>프로필 수정</Text>
-        <TouchableOpacity onPress={handleSave} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+        <TouchableOpacity onPress={handleSave} disabled={uploading} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           <Text style={styles.navSave}>저장</Text>
         </TouchableOpacity>
       </View>
@@ -197,6 +231,17 @@ export default function EditProfileScreen() {
             </View>
           </TouchableOpacity>
           <Text style={styles.photoHint}>사진을 눌러 변경하세요</Text>
+          {!!profileImageUrl && (
+            <TouchableOpacity
+              onPress={() => setProfileImageUrl('')}
+              style={styles.photoRemoveLink}
+              accessibilityRole="button"
+              accessibilityLabel="프로필 사진 삭제"
+            >
+              <MaterialCommunityIcons name="trash-can-outline" size={14} color={COLORS.error} />
+              <Text style={styles.photoRemoveText}>사진 삭제</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* ── 한줄 소개 ── */}
@@ -317,11 +362,12 @@ export default function EditProfileScreen() {
               <TouchableOpacity
                 style={styles.mediaRemoveBtn}
                 onPress={() => removeMediaItem(item.id)}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                activeOpacity={0.7}
                 accessibilityRole="button"
                 accessibilityLabel="미디어 삭제"
               >
-                <MaterialCommunityIcons name="close-circle" size={20} color="#fff" />
+                <MaterialCommunityIcons name="close" size={16} color="#fff" />
               </TouchableOpacity>
             </View>
           ))}
@@ -549,6 +595,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.background,
   },
   photoHint: { marginTop: 8, fontSize: 12, color: COLORS.textSecondary },
+  photoRemoveLink: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, paddingVertical: 6, paddingHorizontal: 10 },
+  photoRemoveText: { fontSize: 12.5, color: COLORS.error, fontWeight: '600' },
 
   /* 그룹 레이블 */
   groupLabel: { fontSize: 13, fontWeight: '700', color: COLORS.textSecondary, marginBottom: 8, marginLeft: 4, letterSpacing: 0.3 },
@@ -711,11 +759,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mediaRemoveBtn: {
+    // 썸네일 안쪽 모서리에 둔다. 바깥(top:-6/right:-6)에 두면 RN-Web에서 잘리거나 눈에 안 띈다.
     position: 'absolute',
-    top: -6,
-    right: -6,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 10,
+    top: 4,
+    right: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.9)',
   },
   mediaEmpty: {
     flex: 1,

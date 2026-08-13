@@ -8,7 +8,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useGymSlotStore } from '../../store/gymSlotStore';
 import { DAY_LABELS } from '../../utils/constants';
 
-const GYM   = '#4F63F5';
+const GYM   = '#0057ff';
 const SLATE = '#64748B';
 const BG    = '#F1F5F9';
 const CARD  = '#FFFFFF';

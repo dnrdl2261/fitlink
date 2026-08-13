@@ -7,7 +7,7 @@ import { useGymApplicationStore, GymAppStatus } from '../store/gymApplicationSto
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../utils/constants';
 
-const R_STATUS: Record<ReportStatus, string> = { '접수': '#F59E0B', '검토중': '#4F63F5', '조치완료': '#10B981', '반려': '#94A3B8' };
+const R_STATUS: Record<ReportStatus, string> = { '접수': '#F59E0B', '검토중': '#0057ff', '조치완료': '#10B981', '반려': '#94A3B8' };
 const A_STATUS: Record<GymAppStatus, string> = { '대기': '#F59E0B', '승인': '#10B981', '반려': '#EF4444' };
 
 export default function OperatorConsole() {
@@ -62,7 +62,7 @@ export default function OperatorConsole() {
               <Text style={s.cardReason}>{r.reason}</Text>
               <Text style={s.cardMeta}>신고자 {r.reporterName} · {r.createdAt.slice(0, 10)}</Text>
               <View style={s.actionRow}>
-                <ActBtn label="검토중" color="#4F63F5" onPress={() => setReportStatus(r.id, '검토중')} active={r.status === '검토중'} />
+                <ActBtn label="검토중" color="#0057ff" onPress={() => setReportStatus(r.id, '검토중')} active={r.status === '검토중'} />
                 <ActBtn label="조치완료" color="#10B981" onPress={() => setReportStatus(r.id, '조치완료')} active={r.status === '조치완료'} />
                 <ActBtn label="반려" color="#94A3B8" onPress={() => setReportStatus(r.id, '반려')} active={r.status === '반려'} />
               </View>

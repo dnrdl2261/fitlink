@@ -18,7 +18,7 @@ const D = {
   bg:       '#F1F5F9',
   surface:  '#FFFFFF',
   surface2: '#F8FAFC',
-  primary:  '#4F63F5',
+  primary:  '#0057ff',
   text:     '#0F172A',
   textSec:  '#64748B',
   textMuted:'#94A3B8',

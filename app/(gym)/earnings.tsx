@@ -14,7 +14,7 @@ import {
   gymNextSettlement, gymTrainerContribution, gymPopularHours,
 } from '../../utils/gymRevenue';
 
-const GYM = '#4F63F5';
+const GYM = '#0057ff';
 
 const CHART_PERIODS = [
   { key: '3m', label: '3개월' },
