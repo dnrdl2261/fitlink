@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   SafeAreaView, Platform, ActivityIndicator, Image, Modal,
@@ -13,6 +13,7 @@ import { formatDistance } from '../../utils/distance';
 import { COLORS, DEFAULT_LOCATION_LABEL } from '../../utils/constants';
 import StarRating from '../../components/StarRating';
 import GymThumb from '../../components/GymThumb';
+import { clusterByGrid, clusterBubbleCss } from '../../utils/cluster';
 
 let MapView: any = null;
 let Marker: any = null;
@@ -41,6 +42,7 @@ export default function GymMapScreen() {
   const userDotRef      = useRef<any>(null);
   const nativeMapRef    = useRef<any>(null);
   const markerEls       = useRef<Record<string, any>>({});
+  const clusterOverlays = useRef<any[]>([]);
 
   const dragStartY = useRef(0);
   const swipeHandlers = {
@@ -220,6 +222,72 @@ export default function GymMapScreen() {
       }
     });
   }, [selectedGymId, gyms, myGymId]);
+
+  // ── 웹: 겹치는 마커 묶기 (하이라이트 effect 뒤에 적용)
+  // 전국 1만6천 곳이라 밀집 지역은 핀이 서로 뭉개진다. 화면 픽셀 격자로 묶어
+  // 개수 버블 하나로 보여주고, 확대하면 자연히 개별 핀으로 풀린다.
+  const renderMarkers = useCallback(() => {
+    if (Platform.OS !== 'web' || !mapReady || !kakaoMapRef.current) return;
+    const win = window as any;
+    if (!win.kakao) return;
+    const map = kakaoMapRef.current;
+    const proj = map.getProjection();
+
+    clusterOverlays.current.forEach(o => o.setMap(null));
+    clusterOverlays.current = [];
+
+    const byId = new Map(gyms.map(g => [g.id, g]));
+    // 선택한 헬스장과 내 헬스장은 묶지 않는다 — 둘 다 항상 보여야 하는 표시다.
+    const points = gyms
+      .filter(g => g.id !== selectedGymId && g.id !== myGymId && g.coordinate?.latitude && g.coordinate?.longitude)
+      .map(g => {
+        const pt = proj.containerPointFromCoords(
+          new win.kakao.maps.LatLng(g.coordinate.latitude, g.coordinate.longitude)
+        );
+        return { id: g.id, x: pt.x, y: pt.y };
+      });
+
+    const clustered = new Set<string>();
+    clusterByGrid(points).forEach(c => {
+      if (c.ids.length < 2) return;
+      c.ids.forEach(id => clustered.add(id));
+
+      const el = document.createElement('div');
+      el.style.cssText = clusterBubbleCss(c.ids.length, COLORS.secondary);
+      el.textContent = String(c.ids.length);
+      el.addEventListener('click', () => {
+        const bounds = new win.kakao.maps.LatLngBounds();
+        c.ids.forEach(id => {
+          const g = byId.get(id);
+          if (g) bounds.extend(new win.kakao.maps.LatLng(g.coordinate.latitude, g.coordinate.longitude));
+        });
+        map.setBounds(bounds);
+      });
+
+      clusterOverlays.current.push(new win.kakao.maps.CustomOverlay({
+        map,
+        position: proj.coordsFromContainerPoint(new win.kakao.maps.Point(c.x, c.y)),
+        content: el,
+        zIndex: 5,
+      }));
+    });
+
+    Object.entries(markerEls.current).forEach(([gymId, el]) => {
+      el.style.display = clustered.has(gymId) ? 'none' : '';
+    });
+  }, [gyms, selectedGymId, myGymId, mapReady]);
+
+  useEffect(() => { renderMarkers(); }, [renderMarkers]);
+
+  // 지도를 움직이거나 확대하면 픽셀 간격이 달라지므로 다시 묶는다.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !mapReady || !kakaoMapRef.current) return;
+    const win = window as any;
+    if (!win.kakao) return;
+    const map = kakaoMapRef.current;
+    win.kakao.maps.event.addListener(map, 'idle', renderMarkers);
+    return () => win.kakao.maps.event.removeListener(map, 'idle', renderMarkers);
+  }, [mapReady, renderMarkers]);
 
   // ── 네이티브: 위치 이동
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput,
   SafeAreaView, Platform, ActivityIndicator, Image, Modal,
@@ -13,6 +13,7 @@ import { formatDistance } from '../../utils/distance';
 import { COLORS, DEFAULT_LOCATION_LABEL } from '../../utils/constants';
 import StarRating from '../../components/StarRating';
 import GymThumb from '../../components/GymThumb';
+import { clusterByGrid, clusterBubbleCss } from '../../utils/cluster';
 
 let MapView: any = null;
 let Marker: any = null;
@@ -46,6 +47,7 @@ export default function MapScreen() {
   const userDotRef      = useRef<any>(null);
   const nativeMapRef    = useRef<any>(null);
   const markerEls       = useRef<Record<string, any>>({});
+  const clusterOverlays = useRef<any[]>([]);
 
   const dragStartY = useRef(0);
   const swipeHandlers = {
@@ -340,14 +342,71 @@ export default function MapScreen() {
     });
   }, [gyms, mapReady]);
 
-  // ── 웹: 검색/지역 필터에 맞춰 마커 표시·숨김 (하이라이트 effect 뒤에 적용)
-  useEffect(() => {
-    if (Platform.OS !== 'web') return;
-    const visible = new Set(displayGyms.map(g => g.id));
+  // ── 웹: 마커 표시·숨김 + 겹치는 마커 묶기 (하이라이트 effect 뒤에 적용)
+  // 전국 1만6천 곳이라 밀집 지역은 핀이 서로 뭉개진다. 화면 픽셀 격자로 묶어
+  // 개수 버블 하나로 보여주고, 확대하면 자연히 개별 핀으로 풀린다.
+  const renderMarkers = useCallback(() => {
+    if (Platform.OS !== 'web' || !mapReady || !kakaoMapRef.current) return;
+    const win = window as any;
+    if (!win.kakao) return;
+    const map = kakaoMapRef.current;
+    const proj = map.getProjection();
+
+    clusterOverlays.current.forEach(o => o.setMap(null));
+    clusterOverlays.current = [];
+
+    const byId = new Map(displayGyms.map(g => [g.id, g]));
+    // 선택한 헬스장은 묶지 않는다 — 선택 표시가 버블에 가려지면 뭘 골랐는지 알 수 없다.
+    const points = displayGyms
+      .filter(g => g.id !== selectedGymId && g.coordinate?.latitude && g.coordinate?.longitude)
+      .map(g => {
+        const pt = proj.containerPointFromCoords(
+          new win.kakao.maps.LatLng(g.coordinate.latitude, g.coordinate.longitude)
+        );
+        return { id: g.id, x: pt.x, y: pt.y };
+      });
+
+    const clustered = new Set<string>();
+    clusterByGrid(points).forEach(c => {
+      if (c.ids.length < 2) return;                       // 혼자면 개별 핀 그대로
+      c.ids.forEach(id => clustered.add(id));
+
+      const el = document.createElement('div');
+      el.style.cssText = clusterBubbleCss(c.ids.length, COLORS.primary);
+      el.textContent = String(c.ids.length);
+      el.addEventListener('click', () => {
+        const bounds = new win.kakao.maps.LatLngBounds();
+        c.ids.forEach(id => {
+          const g = byId.get(id);
+          if (g) bounds.extend(new win.kakao.maps.LatLng(g.coordinate.latitude, g.coordinate.longitude));
+        });
+        map.setBounds(bounds);
+      });
+
+      clusterOverlays.current.push(new win.kakao.maps.CustomOverlay({
+        map,
+        position: proj.coordsFromContainerPoint(new win.kakao.maps.Point(c.x, c.y)),
+        content: el,
+        zIndex: 5,
+      }));
+    });
+
     Object.entries(markerEls.current).forEach(([gymId, el]) => {
-      el.style.display = visible.has(gymId) ? '' : 'none';
+      el.style.display = byId.has(gymId) && !clustered.has(gymId) ? '' : 'none';
     });
   }, [displayGyms, selectedGymId, mapReady]);
+
+  useEffect(() => { renderMarkers(); }, [renderMarkers]);
+
+  // 지도를 움직이거나 확대하면 픽셀 간격이 달라지므로 다시 묶는다.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !mapReady || !kakaoMapRef.current) return;
+    const win = window as any;
+    if (!win.kakao) return;
+    const map = kakaoMapRef.current;
+    win.kakao.maps.event.addListener(map, 'idle', renderMarkers);
+    return () => win.kakao.maps.event.removeListener(map, 'idle', renderMarkers);
+  }, [mapReady, renderMarkers]);
 
   // ── 웹: 검색/지역 필터 시 결과 영역에 맞춰 지도 이동·줌
   useEffect(() => {
