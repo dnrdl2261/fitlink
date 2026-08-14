@@ -16,7 +16,10 @@ export interface Certification {
   issuer: string;
   issuedDate: string;
   expiryDate?: string;
+  /** 운영자가 확인한 자격만 true. 트레이너는 스스로 켤 수 없다(항상 false로 등록됨). */
   verified: boolean;
+  /** 운영자가 심사한 시각(ISO). 없으면 아직 심사 전 — verified=false와 '반려'를 구분한다. */
+  reviewedAt?: string;
 }
 
 export interface WorkHistory {

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { onDbError } from '../utils/db';
-import { Trainer } from '../types';
+import { Trainer, Certification } from '../types';
 import { MOCK_TRAINERS } from '../data/trainers';
 import { supabase, isSupabaseConfigured } from '../config/supabase';
 
@@ -81,6 +81,7 @@ interface TrainerState {
   trainers: Trainer[];
   upsertTrainer: (trainer: Trainer) => void;     // 로컬 목록 갱신 + 실 트레이너는 DB 미러
   getTrainer: (id: string) => Trainer | undefined;
+  reviewCertification: (trainerId: string, certId: string, approved: boolean) => void;
   loadFromSupabase: () => Promise<void>;
 }
 
@@ -102,6 +103,30 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
   },
 
   getTrainer: (id) => get().trainers.find((t) => t.id === id),
+
+  // 운영자 자격 심사. 트레이너는 verified를 스스로 켤 수 없고(등록 시 항상 false),
+  // 운영자만 이 경로로 승인·반려한다.
+  // ⚠️ upsert가 아니라 update를 쓴다 — upsert는 INSERT 권한을 요구하는데
+  //    trainers insert 정책은 본인(profile_id = auth.uid())만 허용이라 운영자는 막힌다.
+  reviewCertification: (trainerId, certId, approved) => {
+    const reviewedAt = new Date().toISOString();
+    let next: Certification[] | null = null;
+
+    set((s) => ({
+      trainers: s.trainers.map((t) => {
+        if (t.id !== trainerId) return t;
+        next = (t.certifications ?? []).map((c) =>
+          c.id === certId ? { ...c, verified: approved, reviewedAt } : c
+        );
+        return { ...t, certifications: next };
+      }),
+    }));
+
+    if (next && isRealTrainer(trainerId)) {
+      supabase.from('trainers').update({ certifications: next }).eq('id', trainerId)
+        .then(() => {}, onDbError);
+    }
+  },
 
   // Supabase trainers(실 트레이너)를 목록에 병합(id 기준 DB 우선). mock 카탈로그는 유지. 미설정 시 no-op.
   loadFromSupabase: async () => {
