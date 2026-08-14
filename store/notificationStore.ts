@@ -184,11 +184,14 @@ export const useNotificationStore = create<NotifState>((set, get) => ({
     set((s) => ({ notifications: [n, ...s.notifications] }));
     // 실 수신자 알림만 DB에 미러(작성자=다른 사용자라도 RLS insert는 인증 사용자 누구나 허용).
     if (isRealUser(n.userId)) {
-      supabase.from('notifications').insert(notifToRow(n)).then(() => {}, onDbError);
-      // 네이티브 푸시 발송(Edge Function). 미배포/토큰없음이면 조용히 무시 — 인앱 알림은 정상 동작.
-      supabase.functions.invoke('send-push', {
-        body: { userId: n.userId, title: n.title, body: n.body, data: n.meta ?? {} },
-      }).then(() => {}, () => {}); // Edge Function 미배포/토큰없음은 정상 → 조용히 무시
+      // 네이티브 푸시 발송(Edge Function)은 알림 행이 저장된 뒤에 호출한다.
+      // 함수가 notificationId로 DB에서 수신자·문구를 읽으므로, 먼저 호출하면 행을 못 찾는다.
+      // (문구를 본문으로 넘기던 예전 방식은 아무에게나 임의 푸시를 보낼 수 있어 폐기)
+      supabase.from('notifications').insert(notifToRow(n)).then((res: { error: unknown }) => {
+        if (res.error) { onDbError(res.error); return; }
+        supabase.functions.invoke('send-push', { body: { notificationId: n.id } })
+          .then(() => {}, () => {}); // 미배포/토큰없음은 정상 → 조용히 무시
+      }, onDbError);
     }
   },
 

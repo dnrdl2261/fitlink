@@ -16,6 +16,7 @@ import {
 import { useRouter, Redirect } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../utils/constants';
+import { withRo } from '../utils/formatters';
 import { UserRole } from '../types';
 import { CITIES, getDistricts, getDongs } from '../data/regions';
 import { LEGAL_DOCS } from '../data/legal';
@@ -356,7 +357,7 @@ export default function SignupScreen() {
             disabled={loading}
           >
             <Text style={styles.signupBtnText}>
-              {loading ? '처리 중...' : `${selectedRole.emoji}  ${selectedRole.label}로 시작하기`}
+              {loading ? '처리 중...' : `${selectedRole.emoji}  ${withRo(selectedRole.label)} 시작하기`}
             </Text>
           </TouchableOpacity>
 

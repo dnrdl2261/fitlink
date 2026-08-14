@@ -54,3 +54,15 @@ export function formatChatTime(timestamp: number): string {
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   return `${d.getMonth() + 1}.${d.getDate()}`;
 }
+
+/**
+ * 조사 '(으)로'를 앞말 받침에 맞춰 붙인다. ('회원' → '회원으로', '트레이너' → '트레이너로')
+ * 받침이 'ㄹ'이면 '로'를 쓴다('서울로'). 한글이 아니면 '로'로 둔다.
+ */
+export function withRo(word: string): string {
+  const last = (word || '').trim().slice(-1);
+  const code = last.charCodeAt(0);
+  if (!last || code < 0xac00 || code > 0xd7a3) return `${word}로`;
+  const jong = (code - 0xac00) % 28;              // 0 = 받침 없음, 8 = ㄹ
+  return `${word}${jong === 0 || jong === 8 ? '로' : '으로'}`;
+}
