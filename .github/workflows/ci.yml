@@ -12,7 +12,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # ⚠️ Node 20 이하로 내리지 말 것. config/supabase.ts가 import 시점에 createClient()를
+          #    호출하는데, supabase-js의 RealtimeClient가 전역 WebSocket을 요구한다.
+          #    WebSocket 전역은 Node 22부터 들어와서, Node 20에서는 upload.test.ts가
+          #    "WebSocket not supported"로 로드조차 실패한다(로컬 Node 24에서는 재현 안 됨).
+          node-version: 22
           cache: npm
       - run: npm ci
 
