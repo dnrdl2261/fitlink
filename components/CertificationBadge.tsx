@@ -16,11 +16,6 @@ export default function CertificationBadge({ cert }: CertificationBadgeProps) {
       <View style={styles.info}>
         <View style={styles.nameRow}>
           <Text style={styles.name}>{cert.name}</Text>
-          {cert.verified && (
-            <View style={styles.verifiedBadge}>
-              <Text style={styles.verifiedText}>인증</Text>
-            </View>
-          )}
         </View>
         <Text style={styles.issuer}>{cert.issuer}</Text>
         <Text style={styles.date}>{cert.issuedDate} 취득</Text>

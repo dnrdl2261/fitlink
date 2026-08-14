@@ -84,7 +84,7 @@ export default function SafetyScreen() {
           </View>
           <View style={s.bannerText}>
             <Text style={s.bannerTitle}>FLOWIN 안전 시스템</Text>
-            <Text style={s.bannerSub}>모든 트레이너는 자격 인증 및 신원 확인을 거쳤습니다</Text>
+            <Text style={s.bannerSub}>부적절한 이용자는 신고·차단할 수 있습니다</Text>
           </View>
         </View>
 

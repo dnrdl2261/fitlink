@@ -45,7 +45,7 @@ function getTrialPrice(price: number) {
 function getBadges(trainer: Trainer): string[] {
   const badges: string[] = [];
   if (trainer.trainingStyles?.includes('식단밀착관리')) badges.push('식단관리 제공');
-  if (trainer.certifications.filter(c => c.verified).length >= 2) badges.push('검증 자격 보유');
+  if (trainer.certifications.length >= 2) badges.push('자격 2개 이상 등록');
   return badges.slice(0, 2);
 }
 

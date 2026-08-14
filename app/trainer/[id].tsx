@@ -168,7 +168,6 @@ export default function TrainerDetailScreen() {
     : allNormalized;
   const visibleReviews = showAllReviews ? sortedReviews : sortedReviews.slice(0, 3);
   const visibleCerts = showAllCerts ? trainer.certifications : trainer.certifications.slice(0, 3);
-  const isVerified = trainer.certifications.some((c) => c.verified);
   const visibleWork = showAllWork ? trainer.workHistory : trainer.workHistory.slice(0, 2);
   const visibleGyms = showAllGyms ? partnerGyms : partnerGyms.slice(0, 3);
 
@@ -267,12 +266,6 @@ export default function TrainerDetailScreen() {
             </View>
             <View style={st.heroNameRow}>
               <Text style={st.heroOverlayName}>{trainer.name} 트레이너</Text>
-              {isVerified && (
-                <View style={st.heroVerifyBadge}>
-                  <MaterialCommunityIcons name="check-decagram" size={13} color="#fff" />
-                  <Text style={st.heroVerifyText}>자격 인증</Text>
-                </View>
-              )}
             </View>
             <View style={st.heroOverlayMeta2}>
               {(trainer.address?.city || trainer.address?.district) && (

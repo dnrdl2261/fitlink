@@ -16,10 +16,12 @@ export interface Certification {
   issuer: string;
   issuedDate: string;
   expiryDate?: string;
-  /** 운영자가 확인한 자격만 true. 트레이너는 스스로 켤 수 없다(항상 false로 등록됨). */
+  /**
+   * ⚠️ 화면에 표시하지 않는다. 자격을 검증하는 절차가 없어서(2026-08-14) '인증' 뱃지를 전부 걷어냈다.
+   * 검증 없이 인증 표시를 하면 이용약관 제11조(회사는 자격의 진위를 보증하지 않음)와 어긋난다.
+   * 다시 표시하려면 실제 확인 절차부터 만들 것. 필드는 기존 데이터 호환을 위해 남겨 둔다.
+   */
   verified: boolean;
-  /** 운영자가 심사한 시각(ISO). 없으면 아직 심사 전 — verified=false와 '반려'를 구분한다. */
-  reviewedAt?: string;
 }
 
 export interface WorkHistory {
