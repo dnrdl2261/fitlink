@@ -20,18 +20,19 @@ import { useFollowStore } from '../../store/followStore';
 import { MOCK_TRAINERS } from '../../data/trainers';
 import { formatPrice } from '../../utils/formatters';
 import { COLORS } from '../../utils/constants';
+import Avatar from '../../components/Avatar';
 import CertificationBadge from '../../components/CertificationBadge';
 import StarRating from '../../components/StarRating';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_SIZE = (SCREEN_WIDTH - 12 * 2 - 16 * 2 - 4 * 4) / 5;
 
-const MOCK_MEMBER_LOOKUP: Record<string, { name: string; avatar: string }> = {
-  member_001: { name: '홍길동', avatar: 'https://i.pravatar.cc/200?u=member1' },
-  member_002: { name: '이수진', avatar: 'https://i.pravatar.cc/200?u=member2' },
-  member_003: { name: '박지훈', avatar: 'https://i.pravatar.cc/200?u=member3' },
-  member_004: { name: '최민서', avatar: 'https://i.pravatar.cc/200?u=member4' },
-  member_005: { name: '정유나', avatar: 'https://i.pravatar.cc/200?u=member5' },
+const MOCK_MEMBER_LOOKUP: Record<string, { name: string; avatar?: string }> = {
+  member_001: { name: '홍길동', avatar: undefined },
+  member_002: { name: '이수진', avatar: undefined },
+  member_003: { name: '박지훈', avatar: undefined },
+  member_004: { name: '최민서', avatar: undefined },
+  member_005: { name: '정유나', avatar: undefined },
 };
 
 function resolveUser(uid: string) {
@@ -41,7 +42,7 @@ function resolveUser(uid: string) {
   }
   const m = MOCK_MEMBER_LOOKUP[uid];
   if (m) return { id: uid, name: m.name, avatar: m.avatar, role: 'member' as const };
-  return { id: uid, name: '알 수 없는 사용자', avatar: 'https://picsum.photos/seed/unknown/200/200', role: 'member' as const };
+  return { id: uid, name: '알 수 없는 사용자', avatar: undefined, role: 'member' as const };
 }
 
 export default function TrainerProfileScreen() {
@@ -213,7 +214,7 @@ export default function TrainerProfileScreen() {
                         }
                       }}
                     >
-                      <Image source={{ uri: user.avatar }} style={styles.followUserAvatar} />
+                      <Avatar uri={user.avatar} name={user.name} size={44} style={styles.followUserAvatar} />
                       <View style={styles.followUserInfo}>
                         <Text style={styles.followUserName}>{user.name}</Text>
                         <View style={[styles.followUserRoleBadge, user.role === 'trainer' && styles.followUserRoleBadgeTrainer]}>

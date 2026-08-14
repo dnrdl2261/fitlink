@@ -15,6 +15,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useFollowStore } from '../../store/followStore';
 import { calculateDistance } from '../../utils/distance';
 import { CITIES, getDistricts, getDongs } from '../../data/regions';
+import Avatar from '../../components/Avatar';
 
 type ModalStep = 'district' | 'dong';
 type SortType = 'recommend' | 'rating' | 'distance';
@@ -25,13 +26,17 @@ const SORT_LABELS: Record<SortType, string> = {
   distance: '내주변',
 };
 
-function getPhotos(trainer: Trainer) {
-  const s = trainer.id.replace('trainer_', '');
-  return [
-    trainer.profileImageUrl ?? `https://picsum.photos/seed/${s}a/200/260`,
-    `https://picsum.photos/seed/${s}b/200/260`,
-    `https://picsum.photos/seed/${s}c/200/260`,
-  ];
+// 트레이너가 실제로 올린 사진만 쓴다. 예전에는 빈 자리를 picsum 무작위 사진으로 채워서,
+// 그 트레이너 것이 아닌 사진이 프로필 갤러리처럼 보였다. 빈 자리는 이니셜로 대체한다.
+function getPhotos(trainer: Trainer): (string | null)[] {
+  const real = [trainer.profileImageUrl, ...(trainer.photos ?? [])].filter(Boolean) as string[];
+  return [real[0] ?? null, real[1] ?? null, real[2] ?? null];
+}
+
+// 사진 한 칸. 없으면 Avatar(이니셜)로 채워 3칸 레이아웃을 유지한다.
+function Photo({ uri, name, size }: { uri: string | null; name: string; size: number }) {
+  if (uri) return <Image source={{ uri }} style={s.photo} resizeMode="cover" />;
+  return <Avatar name={name} size={size} radius={0} style={s.photo} />;
 }
 
 function getPrimaryGym(trainer: Trainer) {
@@ -142,12 +147,12 @@ export default function TrainerListScreen() {
         {/* 사진 3장 - 탭하면 프로필 이동 */}
         <TouchableOpacity activeOpacity={0.92} onPress={() => router.push(`/trainer/${t.id}`)}>
           <View style={[s.photoRow, { height: PHOTO_H }]}>
-            <Image source={{ uri: photos[0] }} style={s.photo} resizeMode="cover" />
+            <Photo uri={photos[0]} name={t.name} size={PHOTO_H} />
             <View style={s.photoDivider} />
-            <Image source={{ uri: photos[1] }} style={s.photo} resizeMode="cover" />
+            <Photo uri={photos[1]} name={t.name} size={PHOTO_H} />
             <View style={s.photoDivider} />
             <View style={s.photoLast}>
-              <Image source={{ uri: photos[2] }} style={s.photo} resizeMode="cover" />
+              <Photo uri={photos[2]} name={t.name} size={PHOTO_H} />
               <TouchableOpacity
                 style={s.heartBtn}
                 onPress={() => toggleFollow(t.id)}

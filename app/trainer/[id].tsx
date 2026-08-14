@@ -25,12 +25,12 @@ import Avatar from '../../components/Avatar';
 const { width: SW, height: SH } = Dimensions.get('window');
 const HERO_H = Math.round(SH * 0.52);
 
-const MOCK_MEMBER_LOOKUP: Record<string, { name: string; avatar: string }> = {
-  member_001: { name: '홍길동',  avatar: 'https://i.pravatar.cc/200?u=member1' },
-  member_002: { name: '이수진',  avatar: 'https://i.pravatar.cc/200?u=member2' },
-  member_003: { name: '박지훈',  avatar: 'https://i.pravatar.cc/200?u=member3' },
-  member_004: { name: '최민서',  avatar: 'https://i.pravatar.cc/200?u=member4' },
-  member_005: { name: '정유나',  avatar: 'https://i.pravatar.cc/200?u=member5' },
+const MOCK_MEMBER_LOOKUP: Record<string, { name: string; avatar?: string }> = {
+  member_001: { name: '홍길동',  avatar: undefined },
+  member_002: { name: '이수진',  avatar: undefined },
+  member_003: { name: '박지훈',  avatar: undefined },
+  member_004: { name: '최민서',  avatar: undefined },
+  member_005: { name: '정유나',  avatar: undefined },
 };
 
 function resolveUser(uid: string) {
@@ -40,7 +40,7 @@ function resolveUser(uid: string) {
   }
   const m = MOCK_MEMBER_LOOKUP[uid];
   if (m) return { id: uid, name: m.name, avatar: m.avatar, role: 'member' as const };
-  return { id: uid, name: '알 수 없는 사용자', avatar: 'https://picsum.photos/seed/unknown/200/200', role: 'member' as const };
+  return { id: uid, name: '알 수 없는 사용자', avatar: undefined, role: 'member' as const };
 }
 
 const SCHEDULE_KEYS = ['새벽수업', '심야수업', '주말수업', '유동적스케줄', '예약제운영'] as const;
@@ -574,7 +574,7 @@ export default function TrainerDetailScreen() {
             <View key={rev.id} style={st.reviewCard}>
               <View style={st.reviewTop}>
                 {rev.avatar ? (
-                  <Image source={{ uri: rev.avatar }} style={st.reviewAvatar} />
+                  <Avatar uri={rev.avatar} name={rev.name} size={40} style={st.reviewAvatar} />
                 ) : (
                   <View style={[st.reviewAvatar, st.reviewAvatarEmpty]}>
                     <MaterialCommunityIcons name="account" size={18} color="#ccc" />
@@ -792,7 +792,7 @@ export default function TrainerDetailScreen() {
                         }
                       }}
                     >
-                      <Image source={{ uri: user.avatar }} style={st.followUserAvatar} />
+                      <Avatar uri={user.avatar} name={user.name} size={44} style={st.followUserAvatar} />
                       <View style={{ flex: 1, gap: 3 }}>
                         <Text style={st.followUserName}>{user.name}</Text>
                         <View style={[st.followRoleBadge, user.role === 'trainer' && st.followRoleBadgeTrainer]}>
@@ -954,8 +954,6 @@ const st = StyleSheet.create({
   heroSpecText: { fontSize: 11, fontWeight: '700', color: '#fff' },
   heroNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   heroOverlayName: { fontSize: 24, fontWeight: '900', color: '#fff', letterSpacing: -0.3 },
-  heroVerifyBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#16A34A', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  heroVerifyText: { fontSize: 11, fontWeight: '800', color: '#fff' },
   heroOverlayMeta2: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   heroOverlayRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   heroOverlayMetaText: { fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },

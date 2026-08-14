@@ -63,17 +63,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     flex: 1,
   },
-  verifiedBadge: {
-    backgroundColor: COLORS.successBg,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-  },
-  verifiedText: {
-    color: COLORS.success,
-    fontSize: 10,
-    fontWeight: '700',
-  },
   issuer: {
     fontSize: 12,
     color: COLORS.textSecondary,
