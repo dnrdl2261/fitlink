@@ -15,7 +15,25 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+
       - name: Type check
         run: npx tsc --noEmit
+
+      # 실패해도 원인이 보이도록 출력을 잡 요약(Job Summary)에 남긴다.
+      # 요약은 로그와 달리 로그인 없이도 API로 읽을 수 있어, 로컬에서 재현되지 않는
+      # 환경 차이(리눅스·Node 버전)를 진단할 때 이게 유일한 단서가 된다.
       - name: Test
-        run: npm test
+        run: |
+          set +e
+          npx jest --ci 2>&1 | tee jest.log
+          code=${PIPESTATUS[0]}
+          {
+            echo "### 환경"
+            echo "- node $(node -v) / npm $(npm -v)"
+            echo ""
+            echo "### jest 종료코드: $code"
+            echo '```'
+            tail -80 jest.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $code
