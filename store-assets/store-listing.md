@@ -294,8 +294,24 @@ FLOWIN은 PT 트레이너·헬스장·회원을 연결하는 중개 플랫폼입
 | store-7-gym-dash.png | 헬스장 대시보드 |
 
 필요 규격:
-- **App Store**: 6.9"(1290×2796) 필수, 6.5"(1242×2688) 권장. iPad는 `supportsTablet: true`이므로 **12.9" iPad 스크린샷도 필요**하다. ⚠️ iPad를 지원하지 않을 계획이라면 `app.json`의 `supportsTablet`을 `false`로 바꾸는 편이 심사가 간단하다.
-- **Google Play**: 최소 2장, 1080×1920 이상. 별도로 **그래픽 이미지 1024×500** 필수.
+- **App Store**: 6.9"(1290×2796) 필수 — 보유한 7장이 이 규격이다. iPad 스크린샷은 **불필요**(2026-08-14에 `supportsTablet: false`로 변경, iPhone 전용 앱).
+- **Google Play**: 최소 2장, 1080×1920 이상 → 위 7장 그대로 사용 가능.
+
+### 아이콘·그래픽 (2026-08-14 제작)
+⚠️ 이전까지 **Expo 기본 플레이스홀더**(격자+동심원)였다. 그대로 제출하면 미완성 앱으로 보인다.
+
+| 파일 | 규격 | 용도 |
+|---|---|---|
+| `assets/icon.png` | 1024×1024 | 앱 아이콘 (iOS·공통) |
+| `assets/adaptive-icon.png` | 1024×1024 | Android 어댑티브 (마크를 72%로 축소해 안전영역 확보) |
+| `assets/splash-icon.png` | 1024×1024 | 스플래시 (흰 배경 위 파란 마크) |
+| `store-assets/play-icon-512.png` | 512×512 | **Play Console 앱 아이콘 (필수)** |
+| `store-assets/play-feature-graphic.png` | 1024×500 | **Play Console 그래픽 이미지 (필수)** |
+
+재생성: `node store-assets/gen-icons.js --apply a` / `node store-assets/gen-feature-graphic.js`
+시안을 다시 보려면 `node store-assets/gen-icons.js` (A~D 4종 + 48px 비교 시트).
+
+⚠️ 아이콘 교체는 **네이티브 빌드에 포함되는 자산**이다. 2026-08-14 빌드된 APK(`866c9492`)는 교체 전이라 플레이스홀더 아이콘이 들어 있다 — 제출용 빌드는 반드시 다시 뽑을 것.
 
 ⚠️ 5번(안심 결제·정산) 스크린샷은 결제 PG 연동 완료 전까지는 문구 검토가 필요하다. 실제로 결제가 되지 않는 상태에서 결제 화면을 전면에 내세우면 반려 위험이 있다.
 
