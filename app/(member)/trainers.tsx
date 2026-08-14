@@ -19,6 +19,7 @@ import { useUiPrefStore } from '../../store/uiPrefStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { calculateDistance, formatDistance } from '../../utils/distance';
 import { formatPrice, formatTime } from '../../utils/formatters';
+import Avatar from '../../components/Avatar';
 
 const D = {
   bg:          '#EEF2F9',
@@ -399,17 +400,7 @@ export default function MemberHomeScreen() {
                   color={fav ? '#EF4444' : D.textMuted}
                 />
               </TouchableOpacity>
-              {item.profileImageUrl ? (
-                <Image
-                  source={{ uri: item.profileImageUrl }}
-                  style={styles.trainerPhoto}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={[styles.trainerPhoto, { alignItems: 'center', justifyContent: 'center' }]}>
-                  <MaterialCommunityIcons name="account" size={40} color={D.textMuted} />
-                </View>
-              )}
+              <Avatar uri={item.profileImageUrl} name={item.name} size={80} radius={16} style={styles.trainerPhoto} />
               <View style={styles.trainerInfo}>
                 <View style={styles.trainerNameRow}>
                   <Text style={styles.trainerName}>{item.name}</Text>

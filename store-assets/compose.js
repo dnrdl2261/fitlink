@@ -2,14 +2,16 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const b64 = (f) => 'data:image/png;base64,' + fs.readFileSync('store-assets/raw/' + f).toString('base64');
 
+// ⚠️ 문구는 이용약관과 어긋나면 안 된다. 제11조가 "회사는 트레이너 자격의 진위를 보증하지 않는다"이므로
+//    '검증된'처럼 회사가 심사한다는 인상을 주는 표현은 쓰지 않는다(실제로 자격 검증 절차도 없다).
 const SLIDES = [
-  { name:'1-home',         img:'member-home.png',    eyebrow:'회원',   h1:'내 주변 검증된',        h2:'PT 트레이너를 한눈에' },
-  { name:'2-trainer',      img:'trainer-detail.png', eyebrow:'회원',   h1:'전문 분야·후기·가격',   h2:'비교하고 선택하세요' },
-  { name:'3-booking',      img:'booking.png',        eyebrow:'회원',   h1:'원하는 시간에',          h2:'바로 예약하세요' },
-  { name:'4-chat',         img:'chat-conv.png',      eyebrow:'회원',   h1:'트레이너와',             h2:'1:1 채팅 상담' },
-  { name:'5-escrow',       img:'escrow.png',         eyebrow:'회원',   h1:'완료 확인 후 정산되는',   h2:'안심 에스크로 결제' },
-  { name:'6-trainer-dash', img:'trainer-dash.png',   eyebrow:'트레이너', h1:'트레이너를 위한',        h2:'일정·수익 관리 도구' },
-  { name:'7-gym-dash',     img:'gym-dash.png',       eyebrow:'헬스장',  h1:'헬스장 운영을',          h2:'한 화면에서 관리하세요' },
+  { name:'1-home',         img:'member-home.png',    eyebrow:'회원',   h1:'내 주변 PT 트레이너를',   h2:'지도에서 한눈에' },
+  { name:'2-trainer',      img:'trainer-detail.png', eyebrow:'회원',   h1:'전문 분야·후기·가격을',   h2:'비교하고 고르세요' },
+  { name:'3-booking',      img:'booking.png',        eyebrow:'회원',   h1:'원하는 요일과 시간에',    h2:'바로 예약하세요' },
+  { name:'4-chat',         img:'chat-conv.png',      eyebrow:'회원',   h1:'결제 전에 채팅으로',      h2:'먼저 상담하세요' },
+  { name:'5-escrow',       img:'escrow.png',         eyebrow:'회원',   h1:'이용한 만큼만 정산되는',  h2:'안심 에스크로 결제' },
+  { name:'6-trainer-dash', img:'trainer-dash.png',   eyebrow:'트레이너', h1:'일정·회원·정산까지',     h2:'트레이너 업무 한 곳에서' },
+  { name:'7-gym-dash',     img:'gym-dash.png',       eyebrow:'헬스장',  h1:'시설·트레이너·매출을',   h2:'한 화면에서 관리하세요' },
 ];
 fs.writeFileSync('store-assets/manifest.json', JSON.stringify(SLIDES.map(s=>({name:s.name,eyebrow:s.eyebrow,h1:s.h1,h2:s.h2})),null,2));
 

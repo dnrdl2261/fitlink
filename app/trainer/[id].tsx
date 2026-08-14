@@ -20,6 +20,7 @@ import { useMergedGyms } from '../../hooks/useFilteredGyms';
 import { formatPrice, formatRelativeDate } from '../../utils/formatters';
 import { COLORS } from '../../utils/constants';
 import CertificationBadge from '../../components/CertificationBadge';
+import Avatar from '../../components/Avatar';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const HERO_H = Math.round(SH * 0.52);
@@ -195,7 +196,7 @@ export default function TrainerDetailScreen() {
             />
           ) : (
             <View style={[st.heroImg, { backgroundColor: '#1A2235', alignItems: 'center', justifyContent: 'center' }]}>
-              <MaterialCommunityIcons name="account" size={96} color="#526080" />
+              <Avatar name={trainer.name} size={132} />
             </View>
           )}
 

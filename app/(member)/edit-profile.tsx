@@ -26,9 +26,8 @@ export default function MemberEditProfileScreen() {
   if (!member) return null;
 
   const [saving, setSaving] = useState(false);
-  const [profileImageUrl, setProfileImageUrl] = useState(
-    member.profileImageUrl ?? 'https://i.pravatar.cc/200?u=member1'
-  );
+  // 기본값에 남의 사진(pravatar)을 넣지 않는다 — 저장하면 그 주소가 그대로 프로필이 된다.
+  const [profileImageUrl, setProfileImageUrl] = useState(member.profileImageUrl ?? '');
   const [name, setName] = useState(member.name);
   const [phone, setPhone] = useState(member.phone ?? '');
 

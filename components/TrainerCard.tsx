@@ -5,6 +5,7 @@ import { Trainer } from '../types';
 import { formatDistance } from '../utils/distance';
 import { formatPrice } from '../utils/formatters';
 import { COLORS } from '../utils/constants';
+import Avatar from './Avatar';
 
 interface TrainerCardProps {
   trainer: Trainer;
@@ -19,14 +20,8 @@ export default function TrainerCard({ trainer, onPress, distance }: TrainerCardP
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.72}>
-      {/* 원형 프로필 사진 */}
-      {trainer.profileImageUrl ? (
-        <Image source={{ uri: trainer.profileImageUrl }} style={styles.avatar} />
-      ) : (
-        <View style={[styles.avatar, { alignItems: 'center', justifyContent: 'center' }]}>
-          <MaterialCommunityIcons name="account" size={36} color={COLORS.textSecondary} />
-        </View>
-      )}
+      {/* 원형 프로필 사진 (없으면 이니셜) */}
+      <Avatar uri={trainer.profileImageUrl} name={trainer.name} size={68} style={styles.avatar} />
 
       {/* 정보 영역 */}
       <View style={styles.info}>

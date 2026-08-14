@@ -6,7 +6,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     name: '김민준',
     email: 'minjun.kim@fitlink.kr',
     phone: '010-1234-5678',
-    profileImageUrl: 'https://i.pravatar.cc/300?img=1',
+    // profileImageUrl 없음 — 데모 데이터에 실존 인물 사진을 쓰지 않는다(권리 문제). Avatar가 이니셜로 대체.
     role: 'trainer',
     gender: 'male',
     createdAt: '2021-01-15',
@@ -112,7 +112,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     name: '이지수',
     email: 'jisu.lee@fitlink.kr',
     phone: '010-2345-6789',
-    profileImageUrl: 'https://i.pravatar.cc/300?img=2',
+    // profileImageUrl 없음 — 데모 데이터에 실존 인물 사진을 쓰지 않는다(권리 문제). Avatar가 이니셜로 대체.
     role: 'trainer',
     gender: 'female',
     createdAt: '2020-03-10',
@@ -207,7 +207,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     name: '박철수',
     email: 'chulsoo.park@fitlink.kr',
     phone: '010-3456-7890',
-    profileImageUrl: 'https://i.pravatar.cc/300?img=3',
+    // profileImageUrl 없음 — 데모 데이터에 실존 인물 사진을 쓰지 않는다(권리 문제). Avatar가 이니셜로 대체.
     role: 'trainer',
     gender: 'male',
     createdAt: '2022-07-01',
@@ -288,7 +288,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     name: '최유진',
     email: 'yujin.choi@fitlink.kr',
     phone: '010-4567-8901',
-    profileImageUrl: 'https://i.pravatar.cc/300?img=4',
+    // profileImageUrl 없음 — 데모 데이터에 실존 인물 사진을 쓰지 않는다(권리 문제). Avatar가 이니셜로 대체.
     role: 'trainer',
     gender: 'female',
     createdAt: '2019-05-20',
@@ -379,7 +379,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     name: '정태양',
     email: 'taeyang.jung@fitlink.kr',
     phone: '010-5678-9012',
-    profileImageUrl: 'https://i.pravatar.cc/300?img=5',
+    // profileImageUrl 없음 — 데모 데이터에 실존 인물 사진을 쓰지 않는다(권리 문제). Avatar가 이니셜로 대체.
     role: 'trainer',
     gender: 'male',
     createdAt: '2023-01-10',
@@ -463,7 +463,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     name: '강하늘',
     email: 'haneul.kang@followfit.kr',
     phone: '010-6789-0123',
-    profileImageUrl: 'https://i.pravatar.cc/300?img=6',
+    // profileImageUrl 없음 — 데모 데이터에 실존 인물 사진을 쓰지 않는다(권리 문제). Avatar가 이니셜로 대체.
     role: 'trainer',
     gender: 'male',
     createdAt: '2020-09-01',
@@ -554,7 +554,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     name: '박소연',
     email: 'soyeon.park@followfit.kr',
     phone: '010-7890-1234',
-    profileImageUrl: 'https://i.pravatar.cc/300?img=7',
+    // profileImageUrl 없음 — 데모 데이터에 실존 인물 사진을 쓰지 않는다(권리 문제). Avatar가 이니셜로 대체.
     role: 'trainer',
     gender: 'female',
     createdAt: '2018-04-15',
@@ -649,7 +649,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     name: '오동현',
     email: 'donghyun.oh@followfit.kr',
     phone: '010-8901-2345',
-    profileImageUrl: 'https://i.pravatar.cc/300?img=8',
+    // profileImageUrl 없음 — 데모 데이터에 실존 인물 사진을 쓰지 않는다(권리 문제). Avatar가 이니셜로 대체.
     role: 'trainer',
     gender: 'male',
     createdAt: '2021-03-10',
@@ -730,7 +730,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     name: '임수아',
     email: 'sua.lim@followfit.kr',
     phone: '010-9012-3456',
-    profileImageUrl: 'https://i.pravatar.cc/300?img=9',
+    // profileImageUrl 없음 — 데모 데이터에 실존 인물 사진을 쓰지 않는다(권리 문제). Avatar가 이니셜로 대체.
     role: 'trainer',
     gender: 'female',
     createdAt: '2017-11-20',
@@ -821,7 +821,7 @@ export const MOCK_TRAINERS: Trainer[] = [
     name: '서준혁',
     email: 'junhyuk.seo@followfit.kr',
     phone: '010-0123-4567',
-    profileImageUrl: 'https://i.pravatar.cc/300?img=10',
+    // profileImageUrl 없음 — 데모 데이터에 실존 인물 사진을 쓰지 않는다(권리 문제). Avatar가 이니셜로 대체.
     role: 'trainer',
     gender: 'male',
     createdAt: '2022-06-01',

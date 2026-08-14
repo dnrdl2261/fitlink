@@ -12,6 +12,7 @@ import { useBookingStore } from '../../store/bookingStore';
 import { MOCK_TRAINERS } from '../../data/trainers';
 import { formatTime, formatDate } from '../../utils/formatters';
 import { COLORS } from '../../utils/constants';
+import Avatar from '../../components/Avatar';
 
 const TODAY = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
 const THIS_MONTH = TODAY.slice(0, 7);
@@ -23,12 +24,13 @@ interface MenuItem {
   onPress: () => void;
 }
 
-const MOCK_MEMBER_LOOKUP: Record<string, { name: string; avatar: string }> = {
-  member_001: { name: '홍길동', avatar: 'https://i.pravatar.cc/200?u=member1' },
-  member_002: { name: '이수진', avatar: 'https://i.pravatar.cc/200?u=member2' },
-  member_003: { name: '박지훈', avatar: 'https://i.pravatar.cc/200?u=member3' },
-  member_004: { name: '최민서', avatar: 'https://i.pravatar.cc/200?u=member4' },
-  member_005: { name: '정유나', avatar: 'https://i.pravatar.cc/200?u=member5' },
+// 데모 회원은 사진을 두지 않는다 — 실존 인물 사진(pravatar)을 쓰지 않기 위함. Avatar가 이니셜로 대체.
+const MOCK_MEMBER_LOOKUP: Record<string, { name: string; avatar?: string }> = {
+  member_001: { name: '홍길동' },
+  member_002: { name: '이수진' },
+  member_003: { name: '박지훈' },
+  member_004: { name: '최민서' },
+  member_005: { name: '정유나' },
 };
 
 function resolveUser(uid: string) {
@@ -38,7 +40,7 @@ function resolveUser(uid: string) {
   }
   const m = MOCK_MEMBER_LOOKUP[uid];
   if (m) return { id: uid, name: m.name, avatar: m.avatar, role: 'member' as const };
-  return { id: uid, name: '알 수 없는 사용자', avatar: 'https://picsum.photos/seed/unknown/200/200', role: 'member' as const };
+  return { id: uid, name: '알 수 없는 사용자', avatar: undefined, role: 'member' as const };
 }
 
 export default function MemberMoreScreen() {
@@ -245,7 +247,7 @@ export default function MemberMoreScreen() {
                         }
                       }}
                     >
-                      <Image source={{ uri: user.avatar }} style={styles.userAvatar} />
+                      <Avatar uri={user.avatar} name={user.name} size={44} style={styles.userAvatar} />
                       <View style={styles.userInfo}>
                         <Text style={styles.userName}>{user.name}</Text>
                         <View style={[styles.roleBadge, user.role === 'trainer' && styles.roleBadgeTrainer]}>

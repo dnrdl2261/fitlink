@@ -19,11 +19,12 @@ export function colorFor(name: string): string {
 /**
  * 썸네일에 넣을 글자.
  * 한글·숫자 등은 첫 글자, 영문은 최대 두 글자(단어가 둘 이상이면 각 단어 첫 글자).
- * 공백만 있거나 비면 '짐'으로 대체한다(빈 원이 뜨는 걸 막기 위해).
+ * 공백만 있거나 비면 fallback으로 대체한다(빈 원이 뜨는 걸 막기 위해).
+ * 사람 아바타(Avatar)는 '짐'이 어색하므로 fallback을 따로 넘긴다.
  */
-export function initialsOf(name: string): string {
+export function initialsOf(name: string, fallback: string = '짐'): string {
   const t = (name || '').trim();
-  if (!t) return '짐';
+  if (!t) return fallback;
   if (/^[A-Za-z]/.test(t)) {
     const words = t.split(/\s+/).filter(Boolean);
     const v = words.length > 1 ? words[0][0] + words[1][0] : t.slice(0, 2);
