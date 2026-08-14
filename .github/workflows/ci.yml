@@ -19,21 +19,16 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
-      # 실패해도 원인이 보이도록 출력을 잡 요약(Job Summary)에 남긴다.
-      # 요약은 로그와 달리 로그인 없이도 API로 읽을 수 있어, 로컬에서 재현되지 않는
-      # 환경 차이(리눅스·Node 버전)를 진단할 때 이게 유일한 단서가 된다.
+      # 실패 시 jest 출력을 **어노테이션**으로 내보낸다.
+      # 로그 본문과 잡 요약은 로그인해야 읽을 수 있지만 어노테이션은 공개 API로 읽힌다.
+      # 로컬·깨끗한 설치에서는 통과하는데 CI에서만 깨지는 환경 차이를 진단하기 위한 장치다.
       - name: Test
         run: |
           set +e
           npx jest --ci 2>&1 | tee jest.log
           code=${PIPESTATUS[0]}
-          {
-            echo "### 환경"
-            echo "- node $(node -v) / npm $(npm -v)"
-            echo ""
-            echo "### jest 종료코드: $code"
-            echo '```'
-            tail -80 jest.log
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" != "0" ]; then
+            msg=$(tail -c 1800 jest.log | sed ':a;N;$!ba;s/%/%25/g;s/\r/ /g;s/\n/%0A/g')
+            echo "::error title=jest 실패 (node $(node -v))::${msg}"
+          fi
           exit $code
