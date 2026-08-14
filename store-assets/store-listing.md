@@ -10,13 +10,14 @@
 
 | # | 항목 | 상태 |
 |---|---|---|
-| 1 | **개인정보처리방침 URL이 HTTP 404** — `flowinpt.kr/legal/privacy`는 화면엔 뜨지만 상태코드가 404다(SPA 404.html 폴백). 양 스토어 모두 이 URL의 접근성을 확인하므로 반려 사유가 된다. | ❌ 해결 필요 |
+| 1 | ~~개인정보처리방침 URL이 HTTP 404~~ | ✅ **해결(2026-08-14)** — `scripts/gen-legal.js`가 배포 때 `dist/legal/<doc>/index.html` 7종을 생성한다. 7개 문서 전부 200 확인. |
 | 2 | **결제 PG 미연동** — 현재 결제는 데모다. 설명·스크린샷에 결제를 내세운 채로 제출하면 리뷰어가 "동작하지 않는 기능"으로 반려한다(Apple 2.1). 토스페이먼츠 심사 완료 후 제출할 것. | ⏳ 심사 대기 |
 | 3 | **심사용 데모 계정** — Apple은 리뷰어 로그인 계정이 필수. 회원 1개 + 트레이너 1개를 실제로 가입시켜 두고 아래 §6에 기입할 것. | ❌ 미생성 |
 | 4 | **통신판매업 신고번호** — `data/legal.ts`의 `mailOrderNo`가 아직 `'준비 중'`. 유료 결제를 하는 앱이라 신고 후 교체 권장. | ⏳ |
 | 5 | **고객센터 연락처** — 현재 개인 gmail·개인 휴대폰. 법적으로는 적법하나 스토어 공개 정보이므로 노출을 감수할지 확인할 것. | 판단 필요 |
 
-> 1번 해결책: `dist/legal/<doc>/index.html`을 빌드 후 생성하는 스크립트를 추가하면 된다(`data/legal.ts`에서 문구를 그대로 뽑아 정적 HTML로 출력). 앱 동작은 그대로 두고 파일만 추가하는 방식이라 안전하다.
+> URL은 **끝에 슬래시를 붙여** 등록할 것. 슬래시가 없으면 301 리다이렉트를 한 번 거친다(따라가면 200이지만, 검사 도구에 따라 리다이렉트를 문제 삼을 수 있다).
+> 약관 문구를 고치면 다음 배포에 자동 반영된다(`data/legal.ts` 한 곳에서 생성).
 
 ---
 
@@ -33,9 +34,9 @@
 | 지원 전화 | 010-5556-7732 *(교체 예정)* |
 | 웹사이트 / 마케팅 URL | https://flowinpt.kr |
 | 지원 URL | https://flowinpt.kr |
-| 개인정보처리방침 URL | https://flowinpt.kr/legal/privacy |
-| 이용약관 URL | https://flowinpt.kr/legal/terms |
-| 환불정책 URL | https://flowinpt.kr/legal/refund |
+| 개인정보처리방침 URL | https://flowinpt.kr/legal/privacy/ |
+| 이용약관 URL | https://flowinpt.kr/legal/terms/ |
+| 환불정책 URL | https://flowinpt.kr/legal/refund/ |
 | 저작권 표기 | 2026 플로윈 |
 | 카테고리 | 건강 및 피트니스 (2차: 라이프스타일) |
 | 가격 | 무료 (앱 내 서비스 결제 있음) |
