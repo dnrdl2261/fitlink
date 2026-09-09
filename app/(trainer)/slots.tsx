@@ -216,6 +216,9 @@ export default function TrainerSlotsScreen() {
   const selectedGym = selectedGymId ? sortedGyms.find((g) => g.id === selectedGymId) ?? null : null;
   const singleFee   = selectedGym?.pricing.find((p) => p.sessionType === 'single')?.facilityFee ?? 0;
 
+  // 공공데이터로 넣은 헬스장은 요금이 비어 있다. 0원으로 찍으면 무료로 읽히므로 나눠 쓴다.
+  const feeText = (fee: number) => (fee > 0 ? formatPrice(fee) : '미등록');
+
   // ── 다중 슬롯 선택 로직 ────────────────────────────────────────
   const toggleSlot = (date: string, slot: SlotInfo) => {
     if (multiDateMode && selectedDates.length > 0) {
@@ -251,6 +254,7 @@ export default function TrainerSlotsScreen() {
 
   const handleSubmit = () => {
     if (!selectedGymId || !selectedGym || pendingSlots.length === 0) return;
+    if (singleFee <= 0) return;   // 요금 미등록 헬스장은 금액 확정 불가
     const sorted = [...pendingSlots].sort((a, b) =>
       a.date < b.date ? -1 : a.date > b.date ? 1 : a.slot.startTime.localeCompare(b.slot.startTime)
     );
@@ -405,12 +409,16 @@ export default function TrainerSlotsScreen() {
               gym.facilities.some((f) => f.includes('사우나'))&& '사우나',
             ].filter(Boolean) as string[];
 
+            // 요금이 없으면 청구 금액을 확정할 수 없어 예약을 받지 않는다
+            const bookable = fee > 0;
+
             return (
               <TouchableOpacity
                 key={gym.id}
-                style={ds.gymCard}
+                style={[ds.gymCard, !bookable && ds.gymCardOff]}
                 onPress={() => { setSelectedGymId(gym.id); setStep('time'); setSelectedDate(null); setPendingSlots([]); }}
                 activeOpacity={0.8}
+                disabled={!bookable}
               >
                 <GymThumb name={gym.name} uri={gym.images[0]} size={56} radius={10} style={ds.gymImg} />
                 <View style={ds.gymInfo}>
@@ -427,11 +435,13 @@ export default function TrainerSlotsScreen() {
                     ))}
                   </View>
                   <View style={ds.gymMeta}>
-                    <Text style={ds.gymRating}>⭐ {gym.rating.toFixed(1)}</Text>
+                    <Text style={ds.gymRating}>
+                      {gym.reviewCount > 0 ? `⭐ ${gym.rating.toFixed(1)}` : '평점 없음'}
+                    </Text>
                     <Text style={ds.gymMetaDot}>·</Text>
                     <Text style={ds.gymDist}>📍 {fmtDist(gym.distance)}</Text>
                     <Text style={ds.gymMetaDot}>·</Text>
-                    <Text style={ds.gymFee}>1회 {formatPrice(fee)}</Text>
+                    <Text style={ds.gymFee}>{fee > 0 ? `1회 ${formatPrice(fee)}` : '요금 미등록'}</Text>
                   </View>
                 </View>
                 <View style={ds.gymRight}>
@@ -442,8 +452,10 @@ export default function TrainerSlotsScreen() {
                   >
                     <Text style={[ds.favIcon, fav && ds.favIconActive]}>{fav ? '★' : '☆'}</Text>
                   </TouchableOpacity>
-                  <View style={ds.selectBtn}>
-                    <Text style={ds.selectBtnText}>선택</Text>
+                  <View style={[ds.selectBtn, !bookable && ds.selectBtnOff]}>
+                    <Text style={[ds.selectBtnText, !bookable && ds.selectBtnTextOff]}>
+                      {bookable ? '선택' : '예약 불가'}
+                    </Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -481,7 +493,7 @@ export default function TrainerSlotsScreen() {
             <View style={ls.gymInfoText}>
               <Text style={ls.gymInfoName}>{selectedGym?.name}</Text>
               <Text style={ls.gymInfoAddr}>{selectedGym?.address}</Text>
-              <Text style={ls.gymInfoFee}>1회 이용료 {formatPrice(singleFee)}</Text>
+              <Text style={ls.gymInfoFee}>1회 이용료 {feeText(singleFee)}</Text>
             </View>
           </View>
 
@@ -507,7 +519,7 @@ export default function TrainerSlotsScreen() {
                       <Text style={ls.reviewItemDate}>{m}월 {d}일 ({DAY_LABELS[dow]})</Text>
                       <Text style={ls.reviewItemTime}>{p.slot.startTime} ~ {p.slot.endTime}</Text>
                     </View>
-                    <Text style={ls.reviewItemFee}>{formatPrice(singleFee)}</Text>
+                    <Text style={ls.reviewItemFee}>{feeText(singleFee)}</Text>
                     <TouchableOpacity
                       onPress={() => toggleSlot(p.date, p.slot)}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -563,6 +575,11 @@ export default function TrainerSlotsScreen() {
   // STEP 2: 이용 시간 선택 (달력 + 슬롯 다중 선택)
   // ════════════════════════════════════════════════════════════
   const isBlocked = isBlacklisted(selectedGymId ?? '', trainer?.id ?? '');
+  // 요금 미등록이면 청구 금액을 확정할 수 없다. 목록에서도 막지만 다른 화면에서
+  // gymId를 들고 바로 들어오는 경로(회원 상세·제휴 헬스장·헬스장 상세)가 있어 여기서도 막는다.
+  // 헬스장을 못 찾은 경우(목록에 없는 id로 진입)도 singleFee가 0이라 함께 막힌다
+  const noFee = singleFee <= 0;
+  const cannotBook = isBlocked || noFee;
 
   const [selDateParts] = activeDate ? [activeDate.split('-')] : [['', '', '']];
   const selMonth = activeDate ? parseInt(selDateParts[1]) : 0;
@@ -593,7 +610,17 @@ export default function TrainerSlotsScreen() {
           </View>
         )}
 
-        {!isBlocked && (
+        {!isBlocked && noFee && (
+          <View style={ls.blockedBanner}>
+            <Text style={ls.blockedIcon}>💸</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={ls.blockedTitle}>요금이 등록되지 않은 헬스장입니다</Text>
+              <Text style={ls.blockedSub}>이용료가 정해지지 않아 예약할 수 없습니다. 헬스장에 요금 등록을 요청해주세요.</Text>
+            </View>
+          </View>
+        )}
+
+        {!cannotBook && (
           <>
             {/* 헬스장 정보 */}
             <View style={ls.gymInfoCard}>
@@ -601,7 +628,7 @@ export default function TrainerSlotsScreen() {
               <View style={ls.gymInfoText}>
                 <Text style={ls.gymInfoName}>{selectedGym?.name}</Text>
                 <Text style={ls.gymInfoAddr}>{selectedGym?.address}</Text>
-                <Text style={ls.gymInfoFee}>1회 이용료 {formatPrice(singleFee)}</Text>
+                <Text style={ls.gymInfoFee}>1회 이용료 {feeText(singleFee)}</Text>
               </View>
             </View>
 
@@ -794,7 +821,7 @@ export default function TrainerSlotsScreen() {
       </ScrollView>
 
       {/* 하단 선택 완료 버튼 */}
-      {!isBlocked && pendingSlots.length > 0 && (
+      {!cannotBook && pendingSlots.length > 0 && (
         <View style={ls.footer}>
           <View style={ls.footerInfo}>
             <Text style={ls.footerTime}>{pendingSlots.length}개 선택됨</Text>
@@ -900,7 +927,7 @@ function renderSlot(
 // ── 다크 테마 스타일 ──────────────────────────────────────────
 const ds = StyleSheet.create({
   container:      { flex: 1, backgroundColor: DARK.bg },
-  header:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
+  header:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, gap: 10 },
   headerBack:     { width: 36 },
   headerBackText: { fontSize: 32, fontWeight: '300', color: DARK.text },
   headerCenter:   { flex: 1 },
@@ -952,12 +979,15 @@ const ds = StyleSheet.create({
   favIconActive:  { color: DARK.amber },
   selectBtn:      { backgroundColor: DARK.primary, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
   selectBtnText:  { fontSize: 13, fontWeight: '700', color: '#fff' },
+  gymCardOff:     { opacity: 0.55 },
+  selectBtnOff:   { backgroundColor: DARK.surface2 },
+  selectBtnTextOff: { color: DARK.textMuted },
 });
 
 // ── 라이트 테마 스타일 (Step 2 & 3) ─────────────────────────
 const ls = StyleSheet.create({
   container:    { flex: 1, backgroundColor: LIGHT.bg },
-  header:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, backgroundColor: LIGHT.surface, borderBottomWidth: 1, borderBottomColor: LIGHT.border, gap: 8 },
+  header:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, backgroundColor: LIGHT.surface, borderBottomWidth: 1, borderBottomColor: LIGHT.border, gap: 8 },
   backBtn:      { width: 36 },
   backText:     { fontSize: 30, fontWeight: '300', color: LIGHT.primary },
   headerTitle:  { flex: 1, fontSize: 16, fontWeight: '700', color: LIGHT.text, textAlign: 'center' },

@@ -592,6 +592,7 @@ create table if not exists public.posts (
   is_video        boolean not null default false,
   video_url       text,
   related_group_id text,
+  hashtags        text[] not null default '{}',
   created_at      timestamptz not null default now()
 );
 alter table public.posts enable row level security;
@@ -630,17 +631,17 @@ alter table public.groups enable row level security;
 create policy "groups read" on public.groups for select using (true);
 create policy "groups insert own" on public.groups for insert with check (creator_id = auth.uid()::text);
 
--- ── 게시글 반응(post_reactions) ── like/dislike(공개 집계) + save(본인만)
+-- ── 게시글 반응(post_reactions) ── like(공개 집계) + save(본인만)
 create table if not exists public.post_reactions (
   user_id    text not null,
   post_id    text not null,
-  type       text not null check (type in ('like','dislike','save')),
+  type       text not null check (type in ('like','save')),
   created_at timestamptz not null default now(),
   primary key (user_id, post_id, type)
 );
 create index if not exists idx_post_reactions_post on public.post_reactions(post_id);
 alter table public.post_reactions enable row level security;
-create policy "post_reactions read" on public.post_reactions for select using (type in ('like','dislike') or user_id = auth.uid()::text);
+create policy "post_reactions read" on public.post_reactions for select using (type = 'like' or user_id = auth.uid()::text);
 create policy "post_reactions insert own" on public.post_reactions for insert with check (user_id = auth.uid()::text);
 create policy "post_reactions delete own" on public.post_reactions for delete using (user_id = auth.uid()::text);
 
@@ -1016,8 +1017,10 @@ create policy "blocks delete own" on public.blocks for delete using (blocker_id 
 --   기존엔 ImagePicker의 로컬 uri(blob:/file://)를 그대로 DB에 저장해
 --   새로고침하면 죽고 다른 사용자에겐 처음부터 안 보였다. Storage로 옮긴다.
 --
---   경로 규칙: <folder>/<user_uuid>/<파일명>   (folder = avatars|gyms|posts|reviews)
+--   경로 규칙: <folder>/<user_uuid>/<파일명>   (folder = avatars|trainers|gyms|posts|reviews)
 --   → 정책이 두 번째 경로 조각을 auth.uid()와 대조해 소유권을 판별한다.
+--   ⚠️ 정책은 폴더명을 열거하지 않는다 → 폴더를 늘려도 이 SQL은 손댈 필요가 없다.
+--      (2026-09-09 'trainers' 추가 = 클라이언트 변경만으로 끝남)
 -- ============================================================
 insert into storage.buckets (id, name, public)
 values ('media', 'media', true)
@@ -1045,3 +1048,564 @@ create policy "media delete own" on storage.objects for delete to authenticated
 update public.gyms set images = '{}'
  where exists (select 1 from unnest(images) u where u like 'blob:%' or u like 'file:%');
 -- ============================================================
+
+-- ============================================================
+-- Phase R: 게시글 해시태그(posts.hashtags) — 고정 카테고리 폐지
+--   분류를 6종 고정 카테고리에서 작성자가 직접 쓰는 해시태그로 바꿨다.
+--   category 컬럼은 이미 쌓인 글을 잃지 않으려고 남겨둔다(신규 글은 쓰지 않음, 기본값 '자유').
+-- ============================================================
+alter table public.posts add column if not exists hashtags text[] not null default '{}';
+comment on column public.posts.hashtags is '작성자가 입력한 해시태그(# 제외). 예: {오운완,스쿼트}';
+
+-- 기존 글: 카테고리를 첫 해시태그로 이전 (여러 번 실행해도 안전)
+update public.posts set hashtags = array[category]
+ where cardinality(hashtags) = 0 and coalesce(category, '') <> '';
+-- ============================================================
+
+-- ============================================================
+-- Phase S: 커뮤니티 검색 RPC (해시태그 부분 일치)
+--   hashtags가 text[]라 PostgREST or() 필터로는 요소 단위 일치(cs)만 된다.
+--   "운동"으로 #운동팁까지 잡으려면 배열을 문자열로 펴서 ilike 해야 해서 함수로 뺀다.
+--   ⚠️ 기존 환경은 이 블록만 실행하면 적용됨.
+-- ============================================================
+
+create or replace function public.search_posts(q text)
+returns setof public.posts
+language sql
+stable
+security invoker            -- posts의 RLS("posts read" using(true))를 그대로 탄다
+set search_path = public
+as $$
+  -- ilike 대신 strpos: 검색어에 % _ 가 들어와도 와일드카드로 해석되지 않는다
+  select p.*
+    from public.posts p
+   where strpos(lower(p.title),   lower(q)) > 0
+      or strpos(lower(p.content), lower(q)) > 0
+      or strpos(lower(p.author),  lower(q)) > 0
+      or strpos(lower(array_to_string(p.hashtags, ' ')), lower(q)) > 0
+   order by p.created_at desc
+   limit 50;
+$$;
+
+comment on function public.search_posts(text) is
+  '커뮤니티 게시글 검색. 제목·본문·작성자·해시태그(부분 일치) 대상, 최신순 50건.';
+
+-- 비로그인 둘러보기에서도 검색이 되어야 한다
+grant execute on function public.search_posts(text) to anon, authenticated;
+-- ============================================================
+
+-- ============================================================
+-- Phase T: 관심없음(dislike) 폐지
+--   영상 관심없음 버튼을 없애면서 앱이 더는 dislike를 읽지도 쓰지도 않는다.
+--   남겨두면 되돌릴 수단 없이 영상만 숨기는 죽은 데이터라 값 자체를 막는다.
+--   ⚠️ 기존 환경은 이 블록만 실행하면 적용됨.
+-- ============================================================
+
+-- ① 남아있는 dislike 기록 삭제 (없으면 0행, 여러 번 실행해도 안전)
+delete from public.post_reactions where type = 'dislike';
+
+-- ② 허용 값에서 dislike 제거 (①을 먼저 해야 제약이 걸린다)
+alter table public.post_reactions drop constraint if exists post_reactions_type_check;
+alter table public.post_reactions add constraint post_reactions_type_check
+  check (type in ('like','save'));
+
+-- ③ 공개 읽기 정책에서도 dislike 제외 (save는 여전히 본인만)
+drop policy if exists "post_reactions read" on public.post_reactions;
+create policy "post_reactions read" on public.post_reactions
+  for select using (type = 'like' or user_id = auth.uid()::text);
+-- ============================================================
+
+-- ============================================================
+-- Phase U: 삼각 정산 구조 보강 (회원 ─ 트레이너 ─ 파트너 시설)
+--   축1 회원 PT 에스크로: 보관/해제/환불을 원장(escrow_ledger)으로 추적.
+--   축2 시설 대여료:      트레이너 즉시결제(facility_payments) → 시설주 정기정산
+--                        (settlement_batches + facility_settlements).
+--   + 동일 슬롯 중복예약(오버부킹) 서버 차단.
+--   ⚠️ 기존 환경은 이 블록만 실행하면 적용됨.
+-- ============================================================
+
+-- ── U-1. 오버부킹 차단 ────────────────────────────────────────
+--   지금까지 정원 판정이 클라이언트 zustand 배열뿐이라 두 기기가 동시에
+--   같은 슬롯을 넣으면 둘 다 저장됐다. 살아있는 예약(pending/confirmed)에 대해
+--   같은 트레이너가 같은 시각을 두 번 잡는 것을 DB가 막는다.
+create unique index if not exists uq_slot_active_trainer
+  on public.slot_bookings (gym_id, date, start_time, trainer_id)
+  where status in ('pending', 'confirmed');
+
+--   정원(capacity)까지 강제하려면 세는 동안 잠가야 한다.
+--   클라 insert 대신 이 함수를 rpc로 부르면 동시 요청이 직렬화된다.
+create or replace function public.book_facility_slot(
+  p_id           text,
+  p_gym_id       text,
+  p_gym_name     text,
+  p_trainer_id   text,
+  p_trainer_name text,
+  p_member_id    text,
+  p_member_name  text,
+  p_date         text,
+  p_start_time   text,
+  p_member_count int,
+  p_facility_fee int,
+  p_capacity     int
+) returns public.slot_bookings
+language plpgsql
+security invoker
+set search_path = public
+as $fn$
+declare
+  v_taken int;
+  v_row   public.slot_bookings;
+begin
+  -- 같은 (헬스장·날짜·시각)의 살아있는 예약을 잠그고 센다.
+  -- 잠금이 없으면 두 트랜잭션이 같은 수를 읽어 둘 다 통과한다.
+  perform 1 from public.slot_bookings
+   where gym_id = p_gym_id and date = p_date and start_time = p_start_time
+     and status in ('pending', 'confirmed')
+   for update;
+
+  select count(*) into v_taken
+    from public.slot_bookings
+   where gym_id = p_gym_id and date = p_date and start_time = p_start_time
+     and status in ('pending', 'confirmed');
+
+  if v_taken >= p_capacity then
+    raise exception '정원이 찼습니다 (%/%)', v_taken, p_capacity
+      using errcode = 'P0001';
+  end if;
+
+  insert into public.slot_bookings (
+    id, gym_id, gym_name, trainer_id, trainer_name, member_id, member_name,
+    date, start_time, member_count, facility_fee, status, created_at
+  ) values (
+    p_id, p_gym_id, p_gym_name, p_trainer_id, p_trainer_name,
+    nullif(p_member_id, ''), nullif(p_member_name, ''),
+    p_date, p_start_time, p_member_count, p_facility_fee, 'pending',
+    to_char(now(), 'YYYY-MM-DD')
+  )
+  returning * into v_row;
+
+  return v_row;
+end;
+$fn$;
+grant execute on function public.book_facility_slot(
+  text, text, text, text, text, text, text, text, text, int, int, int) to authenticated;
+
+-- ── U-2. 에스크로 원장 ────────────────────────────────────────
+--   지금까지 보관 잔액을 화면에서 (잔여회차 × 회당가)로 계산만 했다.
+--   부분 환불·정산 역전이 섞이면 그 계산은 어긋나므로 증감을 행으로 남긴다.
+--   잔액 = sum(amount). hold(+) / release(−) / refund(−) / reverse(+).
+create table if not exists public.escrow_ledger (
+  id         text primary key,
+  booking_id text not null,
+  member_id  text not null,
+  session_id text,                       -- release/reverse 시 해당 회차
+  kind       text not null check (kind in ('hold','release','refund','reverse')),
+  amount     int  not null,              -- hold/reverse 는 양수, release/refund 는 음수
+  memo       text not null default '',
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_escrow_booking on public.escrow_ledger(booking_id);
+create index if not exists idx_escrow_member  on public.escrow_ledger(member_id);
+alter table public.escrow_ledger enable row level security;
+create policy "escrow select own" on public.escrow_ledger for select
+  using (member_id = auth.uid()::text);
+create policy "escrow insert own" on public.escrow_ledger for insert
+  with check (member_id = auth.uid()::text);
+
+comment on table public.escrow_ledger is
+  'PT 결제금 보관 원장. 잔액 = sum(amount). 결제 시 hold(+), 세션정산 release(−), 환불 refund(−), 정산역전 reverse(+)';
+
+-- 부호 방향을 DB가 강제한다(클라 실수로 잔액이 늘어나는 것 방지)
+alter table public.escrow_ledger drop constraint if exists escrow_amount_sign;
+alter table public.escrow_ledger add constraint escrow_amount_sign check (
+  (kind in ('hold','reverse') and amount > 0) or
+  (kind in ('release','refund') and amount < 0)
+);
+
+-- ── U-3. 시설 대여료 결제 (트레이너 → 플랫폼) ──────────────────
+--   payments 는 booking_id 가 bookings 를 참조하는 트리거에 묶여 있어
+--   시설 결제를 담을 수 없다. 별도 테이블로 둔다.
+create table if not exists public.facility_payments (
+  id              text primary key,      -- orderId (fac_타임스탬프)
+  slot_booking_id text not null,
+  trainer_id      text not null,
+  gym_id          text not null,
+  amount          int  not null default 0,
+  status          text not null default 'paid'
+                    check (status in ('paid','refunded','partially_refunded','failed')),
+  refunded_amount int  not null default 0,
+  refunded_at     timestamptz,
+  pg_payment_id   text,
+  created_at      timestamptz not null default now()
+);
+create index if not exists idx_fac_pay_slot    on public.facility_payments(slot_booking_id);
+create index if not exists idx_fac_pay_trainer on public.facility_payments(trainer_id);
+create index if not exists idx_fac_pay_gym     on public.facility_payments(gym_id);
+create unique index if not exists uq_fac_pay_slot on public.facility_payments(slot_booking_id);
+alter table public.facility_payments enable row level security;
+-- 트레이너는 자기 결제를, 헬스장 관리자는 자기 헬스장 매출을 본다
+create policy "fac_pay select" on public.facility_payments for select using (
+  trainer_id = auth.uid()::text
+  or exists (select 1 from public.gyms g where g.id = public.facility_payments.gym_id and g.admin_id = auth.uid())
+);
+create policy "fac_pay insert trainer" on public.facility_payments for insert
+  with check (trainer_id = auth.uid()::text);
+create policy "fac_pay update trainer" on public.facility_payments for update
+  using (trainer_id = auth.uid()::text) with check (trainer_id = auth.uid()::text);
+
+-- 저장 금액을 slot_bookings.facility_fee 로 강제 (클라 위조 차단, Phase J 와 같은 방식)
+create or replace function public.enforce_facility_payment_amount()
+returns trigger language plpgsql security definer as $fn$
+declare v_fee int; v_gym text; v_trainer text;
+begin
+  select facility_fee, gym_id, trainer_id into v_fee, v_gym, v_trainer
+    from public.slot_bookings where id = new.slot_booking_id;
+  if v_fee is null then
+    raise exception 'invalid slot_booking_id: %', new.slot_booking_id using errcode = 'P0001';
+  end if;
+  new.amount     := v_fee;
+  new.gym_id     := v_gym;
+  new.trainer_id := v_trainer;
+  return new;
+end; $fn$;
+drop trigger if exists trg_fac_pay_amount on public.facility_payments;
+create trigger trg_fac_pay_amount before insert on public.facility_payments
+  for each row execute function public.enforce_facility_payment_amount();
+
+-- ── U-4. 시설주 정기 정산 (플랫폼 → 시설) ──────────────────────
+--   배치 단위로 묶어 지급 상태를 관리한다. 배치 = (수취인, 정산기간).
+create table if not exists public.settlement_batches (
+  id            text primary key,
+  payee_type    text not null check (payee_type in ('facility','trainer')),
+  payee_id      text not null,           -- gym_id 또는 trainer_id
+  period_start  date not null,
+  period_end    date not null,
+  gross_amount  int  not null default 0,
+  platform_fee  int  not null default 0,
+  payout_amount int  not null default 0,
+  status        text not null default 'pending'
+                  check (status in ('pending','paid','failed')),
+  paid_at       timestamptz,
+  memo          text not null default '',
+  created_at    timestamptz not null default now()
+);
+create unique index if not exists uq_batch_period
+  on public.settlement_batches (payee_type, payee_id, period_start, period_end);
+alter table public.settlement_batches enable row level security;
+-- 수취인 본인만 조회(운영자는 전체)
+create policy "batch select payee" on public.settlement_batches for select using (
+  public.is_operator()
+  or (payee_type = 'trainer'  and payee_id = auth.uid()::text)
+  or (payee_type = 'facility' and exists (
+        select 1 from public.gyms g where g.id = public.settlement_batches.payee_id and g.admin_id = auth.uid()))
+);
+
+create table if not exists public.facility_settlements (
+  id                  text primary key,
+  batch_id            text references public.settlement_batches(id) on delete set null,
+  facility_payment_id text not null,
+  slot_booking_id     text not null,
+  gym_id              text not null,
+  trainer_id          text not null,
+  gross_amount        int  not null default 0,
+  platform_fee        int  not null default 0,
+  facility_amount     int  not null default 0,
+  status              text not null default 'pending'
+                        check (status in ('pending','settled','reversed')),
+  created_at          timestamptz not null default now()
+);
+create index if not exists idx_fac_settle_gym   on public.facility_settlements(gym_id);
+create index if not exists idx_fac_settle_batch on public.facility_settlements(batch_id);
+create unique index if not exists uq_fac_settle_payment
+  on public.facility_settlements(facility_payment_id);
+alter table public.facility_settlements enable row level security;
+create policy "fac_settle select" on public.facility_settlements for select using (
+  public.is_operator()
+  or trainer_id = auth.uid()::text
+  or exists (select 1 from public.gyms g where g.id = public.facility_settlements.gym_id and g.admin_id = auth.uid())
+);
+create policy "fac_settle insert trainer" on public.facility_settlements for insert
+  with check (trainer_id = auth.uid()::text);
+create policy "fac_settle update trainer" on public.facility_settlements for update
+  using (trainer_id = auth.uid()::text) with check (trainer_id = auth.uid()::text);
+
+comment on table public.facility_settlements is
+  '시설 이용 1건당 정산 명세. 이용이 끝나면 settled, 취소·환불되면 reversed. batch_id 로 정기 지급에 묶인다.';
+
+-- ── U-5. 노쇼 기록 ────────────────────────────────────────────
+--   세션 상태는 bookings.sessions(jsonb) 안이라 컬럼 제약을 걸 수 없다.
+--   분쟁 근거가 되는 기록이므로 별도 테이블에 남긴다.
+create table if not exists public.session_no_shows (
+  id          text primary key,
+  booking_id  text not null,
+  session_id  text not null,
+  member_id   text not null,
+  trainer_id  text not null,
+  marked_by   text not null check (marked_by in ('trainer','member','system')),
+  reason      text not null default '',
+  created_at  timestamptz not null default now()
+);
+create unique index if not exists uq_no_show_session on public.session_no_shows(session_id);
+create index if not exists idx_no_show_booking on public.session_no_shows(booking_id);
+alter table public.session_no_shows enable row level security;
+create policy "no_show select" on public.session_no_shows for select
+  using (member_id = auth.uid()::text or trainer_id = auth.uid()::text);
+create policy "no_show insert party" on public.session_no_shows for insert
+  with check (member_id = auth.uid()::text or trainer_id = auth.uid()::text);
+
+-- ── U-6. 세션 완료 자동 확정 ───────────────────────────────────
+--   회원이 완료 확인을 안 하면 정산이 영원히 멈춘다.
+--   트레이너 완료요청 후 7일이 지나면 자동 확정한다(약관 고지 필요).
+--   Edge Function(auto-confirm-sessions) 배포 후 pg_cron 으로 스케줄:
+--
+-- select cron.schedule('auto-confirm-sessions-daily', '0 4 * * *', $cron$
+--   select net.http_post(
+--     url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/auto-confirm-sessions',
+--     headers := '{"Content-Type":"application/json","Authorization":"Bearer <SERVICE_ROLE_KEY>"}'::jsonb
+--   );
+-- $cron$);
+-- ============================================================
+
+-- ============================================================
+-- Phase V: 남용 방지(rate limit + 후기 무결성)
+--   Phase F 보안점검에서 "출시 후"로 미뤄뒀던 M2(가짜리뷰)·M3(스팸알림)·M5(스팸DM).
+--
+--   ⚠️ conversations 에는 트리거를 걸지 않는다 — chatStore 가 메시지를 보낼 때마다
+--      conversations 를 upsert 하는데, BEFORE INSERT 트리거는 ON CONFLICT 판정 *전에*
+--      실행되므로 정상 대화에서도 매번 발동한다. 대화 개설 스팸은 chat_messages 의
+--      시간당 한도로 함께 잡는다.
+-- ============================================================
+
+-- ── V-0. rate limit 계산용 컬럼 ──────────────────────────────
+--   리뷰의 created_at 은 text(ISO 문자열)라 기간 비교에 쓸 수 없다.
+alter table public.trainer_reviews add column if not exists inserted_at timestamptz not null default now();
+alter table public.gym_reviews     add column if not exists inserted_at timestamptz not null default now();
+
+--   알림엔 작성자 컬럼이 아예 없었다 — 누가 만들었는지 추적조차 안 됐다.
+alter table public.notifications   add column if not exists created_by uuid;
+
+create index if not exists idx_notifications_creator  on public.notifications(created_by, inserted_at);
+create index if not exists idx_chat_messages_sender   on public.chat_messages(sender_id, inserted_at);
+create index if not exists idx_trainer_reviews_member on public.trainer_reviews(member_id, inserted_at);
+create index if not exists idx_gym_reviews_member     on public.gym_reviews(member_id, inserted_at);
+
+-- ── V-1. 작성자 각인 ─────────────────────────────────────────
+--   클라이언트가 보낸 created_by 는 무시하고 서버가 덮어쓴다(위조 방지).
+create or replace function public.stamp_creator() returns trigger
+language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  if auth.uid() is not null then
+    NEW.created_by := auth.uid();
+  end if;
+  return NEW;
+end $$;
+
+drop trigger if exists trg_a_stamp_creator on public.notifications;
+create trigger trg_a_stamp_creator before insert on public.notifications
+  for each row execute function public.stamp_creator();
+
+-- ── V-2. 공통 rate limit ─────────────────────────────────────
+--   TG_ARGV = [행위자 컬럼, 시각 컬럼, 기간, 최대 건수]
+--
+--   ⚠️ SECURITY DEFINER 가 필수다. 내가 "남에게 보낸" 알림은 RLS(select 는 수신자 본인만)로
+--      안 보이기 때문에, 그냥 세면 항상 0 이 나와 한도가 영영 걸리지 않는다.
+--   ⚠️ auth.uid() 가 null 이면(= service_role · pg_cron) 통과시킨다. 안 그러면
+--      session-reminder / expire-bookings 같은 배치가 자기 한도에 걸려 조용히 죽는다.
+--   ⚠️ 트리거 이름은 알파벳 순으로 실행된다. 각인(trg_a) 이 한도검사(trg_b) 보다 먼저여야
+--      notifications 의 created_by 가 채워진 상태로 세어진다.
+create or replace function public.rate_limit_guard() returns trigger
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  actor_col text := TG_ARGV[0];
+  ts_col    text := TG_ARGV[1];
+  win       text := TG_ARGV[2];
+  max_n     int  := TG_ARGV[3]::int;
+  actor     text;
+  n         int;
+begin
+  if auth.uid() is null then return NEW; end if;
+
+  execute format('select ($1).%I::text', actor_col) into actor using NEW;
+  if actor is null then return NEW; end if;
+
+  execute format(
+    'select count(*) from public.%I where %I::text = $1 and %I > now() - $2::interval',
+    TG_TABLE_NAME, actor_col, ts_col
+  ) into n using actor, win;
+
+  if n >= max_n then
+    raise exception '요청이 너무 잦습니다. 잠시 후 다시 시도해주세요. (한도 %건 / %)', max_n, win;
+  end if;
+  return NEW;
+end $$;
+
+-- 알림: 시간당 120건. 예약 한 번에 여러 건이 생기므로 넉넉하게 잡되, 대량 발송은 막는다.
+drop trigger if exists trg_b_rate_limit on public.notifications;
+create trigger trg_b_rate_limit before insert on public.notifications
+  for each row execute function public.rate_limit_guard('created_by', 'inserted_at', '1 hour', '120');
+
+-- DM: 분당 30건(연타 차단) + 시간당 300건(대량 발송·대화 개설 스팸 차단).
+drop trigger if exists trg_b_rate_limit_min on public.chat_messages;
+create trigger trg_b_rate_limit_min before insert on public.chat_messages
+  for each row execute function public.rate_limit_guard('sender_id', 'inserted_at', '1 minute', '30');
+
+drop trigger if exists trg_b_rate_limit_hour on public.chat_messages;
+create trigger trg_b_rate_limit_hour before insert on public.chat_messages
+  for each row execute function public.rate_limit_guard('sender_id', 'inserted_at', '1 hour', '300');
+
+-- 후기: 하루 5건. 리뷰 폭탄 방지.
+drop trigger if exists trg_b_rate_limit on public.trainer_reviews;
+create trigger trg_b_rate_limit before insert on public.trainer_reviews
+  for each row execute function public.rate_limit_guard('member_id', 'inserted_at', '1 day', '5');
+
+drop trigger if exists trg_b_rate_limit on public.gym_reviews;
+create trigger trg_b_rate_limit before insert on public.gym_reviews
+  for each row execute function public.rate_limit_guard('member_id', 'inserted_at', '1 day', '5');
+
+-- ── V-3. 후기 무결성 (M2 가짜리뷰) ───────────────────────────
+--   기존 정책은 member_id = auth.uid() 만 봤다. 즉 예약한 적 없는 트레이너에게도
+--   후기를 무제한 달 수 있었다(경쟁 트레이너 별점 테러가 가능).
+--
+--   ⚠️ status='completed' 를 요구하면 안 된다 — app/booking/[id].tsx 는 usedSessions > 0 이면
+--      진행 중(active)인 예약에도 후기 버튼을 띄운다. 소유자·트레이너 일치만 검사한다.
+create or replace function public.enforce_review_booking() returns trigger
+language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  if auth.uid() is null then return NEW; end if;
+
+  if NEW.booking_id is null or NEW.booking_id = '' then
+    raise exception '후기는 예약 건에만 작성할 수 있습니다.';
+  end if;
+
+  if not exists (
+    select 1 from public.bookings b
+    where b.id = NEW.booking_id
+      and b.member_id = auth.uid()
+      and b.trainer_id = NEW.trainer_id
+  ) then
+    raise exception '본인의 예약 건에만 후기를 작성할 수 있습니다.';
+  end if;
+
+  return NEW;
+end $$;
+
+drop trigger if exists trg_c_review_booking on public.trainer_reviews;
+create trigger trg_c_review_booking before insert on public.trainer_reviews
+  for each row execute function public.enforce_review_booking();
+
+-- 한 예약에 후기 하나, 한 헬스장에 회원당 후기 하나.
+-- (클라이언트 hasReviewed / hasReviewedGym 과 같은 규칙을 DB 에서도 강제)
+create unique index if not exists uq_trainer_reviews_booking
+  on public.trainer_reviews(booking_id) where booking_id is not null and booking_id <> '';
+create unique index if not exists uq_gym_reviews_member
+  on public.gym_reviews(gym_id, member_id);
+
+-- ============================================================
+-- Phase W: 알림 사칭 차단 (M3 잔여 — Phase V rate limit 으로는 안 풀리는 부분)
+--
+--   문제: notifications insert 정책이 `auth.uid() is not null` 뿐이라
+--         아무 로그인 사용자나 **임의 수신자에게 임의 문구** 알림을 만들 수 있었다.
+--         게다가 send-push 가 알림 id 로 DB 에서 문구를 읽어 발송하므로
+--         "결제 오류입니다" 같은 **실제 푸시 사칭 피싱**이 가능했다.
+--         (send-push 의 위조 방지 수정이 이 경로로 우회됨)
+--
+--   규칙 한 줄: **아는 사이면 네 문구, 모르는 사이면 서버 문구.**
+--     - 수신자가 나와 예약·슬롯·파트너신청·대화로 엮인 사람 → 클라이언트 문구 그대로
+--     - 그렇지 않으면 → title/body 를 type 기준 서버 템플릿으로 덮어씀
+--
+--   ⚠️ 일부러 **예외를 던지지 않는다.** 알림 insert 는 fire-and-forget 이라
+--      거절하면 화면엔 성공으로 뜨고 알림만 조용히 사라진다. 특히
+--      `booking/new.tsx` 는 예약 mirror 가 끝나기 전에 트레이너 알림을 보내므로
+--      관계 검사로 거절했다면 **앱에서 가장 중요한 "새 예약" 알림이 사라졌을 것**이다.
+--      (그 경쟁 조건 자체는 클라이언트에서 awaitBookingSaved 로 따로 막았다)
+-- ============================================================
+
+-- 대화 참여자 조회용 (참여자 배열 any() 검색)
+create index if not exists idx_conversations_participants
+  on public.conversations using gin(participant_ids);
+
+create or replace function public.enforce_notification_target() returns trigger
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  actor   uuid := auth.uid();
+  related boolean;
+  s       text;   -- 발신자 표시명
+begin
+  -- service_role · pg_cron(session-reminder 등)은 그대로 통과
+  if actor is null then return NEW; end if;
+
+  -- 본인에게 보내는 알림(결제완료·취소 확인 등)
+  if NEW.user_id = actor::text then return NEW; end if;
+
+  select
+       exists (select 1 from public.bookings b
+                where (b.member_id = actor        and b.trainer_id     = NEW.user_id)
+                   or (b.trainer_id = actor::text and b.member_id::text = NEW.user_id))
+    or exists (select 1 from public.slot_bookings sb
+                 join public.gyms g on g.id = sb.gym_id
+                where (sb.trainer_id = actor::text and g.admin_id::text = NEW.user_id)
+                   or (sb.trainer_id = NEW.user_id and g.admin_id      = actor))
+    or exists (select 1 from public.partner_requests r
+                 join public.gyms g on g.id = r.gym_id
+                where (r.trainer_id = actor::text and g.admin_id::text = NEW.user_id)
+                   or (r.trainer_id = NEW.user_id and g.admin_id      = actor))
+    or exists (select 1 from public.conversations c
+                where actor::text = any(c.participant_ids)
+                  and NEW.user_id = any(c.participant_ids))
+  into related;
+
+  if related then return NEW; end if;
+
+  -- 모르는 사이 → 문구를 서버가 만든다(사칭 불가). 발송 자체는 막지 않는다.
+  select coalesce(nullif(p.name, ''), '사용자') into s
+    from public.profiles p where p.id = actor;
+  s := coalesce(s, '사용자');
+
+  case NEW.type
+    when 'booking_confirmed'      then NEW.title := '예약 알림';
+                                       NEW.body  := s || '님과의 PT 예약에 변동이 있습니다. 예약 화면에서 확인해 주세요.';
+    when 'booking_cancelled'      then NEW.title := '예약이 취소되었습니다';
+                                       NEW.body  := s || '님과의 PT 예약이 취소되었습니다.';
+    when 'session_reminder'       then NEW.title := '세션 알림';
+                                       NEW.body  := '예정된 세션이 있습니다. 일정을 확인해 주세요.';
+    when 'session_completed'      then NEW.title := '세션이 완료되었습니다';
+                                       NEW.body  := s || '님과의 세션이 완료 처리되었습니다.';
+    when 'session_confirm_request' then NEW.title := '세션 완료 확인 요청';
+                                       NEW.body  := s || '님이 세션 완료 확인을 요청했습니다.';
+    when 'session_confirmed'      then NEW.title := '세션이 확인되었습니다';
+                                       NEW.body  := s || '님이 세션 완료를 확인했습니다.';
+    when 'session_disputed'       then NEW.title := '세션에 이의가 제기되었습니다';
+                                       NEW.body  := s || '님이 세션 완료 요청에 이의를 제기했습니다.';
+    when 'slot_request'           then NEW.title := '새 슬롯 예약 요청';
+                                       NEW.body  := s || '님이 슬롯 예약을 요청했습니다.';
+    when 'slot_approved'          then NEW.title := '슬롯 예약이 승인되었습니다';
+                                       NEW.body  := s || '님이 슬롯 예약을 승인했습니다.';
+    when 'slot_rejected'          then NEW.title := '슬롯 예약이 거절되었습니다';
+                                       NEW.body  := s || '님이 슬롯 예약을 거절했습니다.';
+    when 'payment_done'           then NEW.title := '결제가 완료되었습니다';
+                                       NEW.body  := '결제가 정상 처리되었습니다. 결제 내역에서 확인해 주세요.';
+    when 'review_received'        then NEW.title := '새 후기가 등록되었습니다';
+                                       NEW.body  := s || '님이 후기를 남겼습니다.';
+    when 'partner_approved'       then NEW.title := '파트너 신청이 승인되었습니다';
+                                       NEW.body  := s || '님이 파트너 신청을 승인했습니다.';
+    when 'partner_rejected'       then NEW.title := '파트너 신청이 거절되었습니다';
+                                       NEW.body  := s || '님이 파트너 신청을 거절했습니다.';
+    when 'partner_invite'         then NEW.title := '헬스장 초대가 도착했습니다';
+                                       NEW.body  := s || '님이 파트너 초대를 보냈습니다. 확인 후 수락해 주세요.';
+    when 'partner_request'        then NEW.title := '파트너 입점 신청이 도착했습니다';
+                                       NEW.body  := s || '님이 입점을 신청했습니다. 검토 후 승인해 주세요.';
+    when 'consultation_request'   then NEW.title := '무료상담이 접수되었습니다';
+                                       NEW.body  := s || '님이 무료상담을 신청했습니다.';
+    when 'trainer_proposal'       then NEW.title := 'PT 제안이 도착했습니다';
+                                       NEW.body  := s || '님이 PT 제안을 보냈습니다. 확인해 주세요.';
+    else                               NEW.title := '새 알림';
+                                       NEW.body  := '앱에서 확인해 주세요.';
+  end case;
+
+  return NEW;
+end $$;
+
+-- trg_a(작성자 각인) → trg_b(rate limit) → trg_c(수신자 검증) 순서로 실행된다.
+drop trigger if exists trg_c_notification_target on public.notifications;
+create trigger trg_c_notification_target before insert on public.notifications
+  for each row execute function public.enforce_notification_target();

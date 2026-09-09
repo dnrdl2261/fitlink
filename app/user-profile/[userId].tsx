@@ -11,7 +11,7 @@ import { useFollowStore } from '../../store/followStore';
 import { useAuthStore } from '../../store/authStore';
 import { MOCK_TRAINERS } from '../../data/trainers';
 import { MOCK_MEMBER, MOCK_GYM_ADMINS } from '../../data/users';
-import { Post, CAT_COLOR } from '../../data/community';
+import { Post } from '../../data/community';
 
 interface UserInfo {
   name: string;
@@ -55,14 +55,24 @@ function resolveUser(userId: string, fallbackName?: string): UserInfo {
   return { name: fallbackName ?? userId, role: 'unknown' };
 }
 
-function PostItem({ post, onPress }: { post: Post; onPress: () => void }) {
-  const catColor = CAT_COLOR[post.category] ?? '#888';
+function PostItem({ post, onPress, onTag }: { post: Post; onPress: () => void; onTag: (tag: string) => void }) {
   return (
     <TouchableOpacity style={styles.postCard} activeOpacity={0.82} onPress={onPress}>
       <View style={styles.postCatRow}>
-        <View style={[styles.catBadge, { backgroundColor: catColor + '18' }]}>
-          <Text style={[styles.catText, { color: catColor }]}>{post.category}</Text>
-        </View>
+        {post.hashtags.length > 0 && (
+          <View style={styles.tagRow}>
+            {post.hashtags.map((tag) => (
+              <TouchableOpacity
+                key={tag}
+                onPress={() => onTag(tag)}
+                accessibilityRole="button"
+                accessibilityLabel={`#${tag} 태그 글 모아보기`}
+              >
+                <Text style={styles.tagText}>#{tag}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
         {post.isVideo && (
           <View style={styles.videoBadge}>
             <MaterialCommunityIcons name="play-circle" size={13} color="#FF2D55" />
@@ -122,10 +132,19 @@ export default function UserProfileScreen() {
   const imagePosts = useMemo(() => userPosts.filter((p) => !!p.imageUrl), [userPosts]);
   const textPosts = useMemo(() => userPosts.filter((p) => !p.imageUrl), [userPosts]);
 
-  const goPost = (postId: string) => {
-    if (role === 'trainer') router.push(`/(trainer)/community-post?postId=${postId}` as any);
-    else if (role === 'gym_admin') router.push(`/(gym)/community-post?postId=${postId}` as any);
-    else router.push(`/(member)/community-post?postId=${postId}` as any);
+  // 영상 글은 게시글 상세가 아니라 전체화면 뷰어로 연다
+  const goPost = (post: Post) => {
+    const group = role === 'trainer' ? '(trainer)' : role === 'gym_admin' ? '(gym)' : '(member)';
+    const screen = post.isVideo ? 'community-story' : 'community-post';
+    router.push(`/${group}/${screen}?postId=${post.id}` as any);
+  };
+
+  // 해시태그는 보는 사람의 역할에 맞는 커뮤니티 탭에서 모아본다
+  const goTag = (tag: string) => {
+    const params = { tag, t: String(Date.now()) };
+    if (role === 'trainer') router.navigate({ pathname: '/(trainer)/community', params } as any);
+    else if (role === 'gym_admin') router.navigate({ pathname: '/(gym)/community', params } as any);
+    else router.navigate({ pathname: '/(member)/community', params } as any);
   };
 
   const handleFollow = () => {
@@ -214,7 +233,7 @@ export default function UserProfileScreen() {
                   key={post.id}
                   style={styles.gridCell}
                   activeOpacity={0.85}
-                  onPress={() => goPost(post.id)}
+                  onPress={() => goPost(post)}
                 >
                   <Image
                     source={{ uri: post.imageUrl }}
@@ -238,7 +257,7 @@ export default function UserProfileScreen() {
             <View style={styles.sectionDivider} />
             {textPosts.map((post, idx) => (
               <View key={post.id}>
-                <PostItem post={post} onPress={() => goPost(post.id)} />
+                <PostItem post={post} onPress={() => goPost(post)} onTag={goTag} />
                 {idx < textPosts.length - 1 && <View style={styles.separator} />}
               </View>
             ))}
@@ -262,7 +281,7 @@ const styles = StyleSheet.create({
 
   headerBar: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 12,
+    paddingHorizontal: 16, paddingVertical: 8,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
@@ -342,8 +361,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 14,
   },
   postCatRow: { flexDirection: 'row', gap: 6, alignItems: 'center', marginBottom: 6 },
-  catBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  catText: { fontSize: 11, fontWeight: '700' },
+  tagRow: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  tagText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
   videoBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6,

@@ -34,6 +34,8 @@ function loadTs(file) {
   cache.set(file, module.exports);
 
   const localRequire = (request) => {
+    // react-native는 문서에 쓰이지 않지만 constants.ts가 최상위에서 Platform을 읽으므로 최소 스텁이 필요하다
+    if (request === 'react-native') return { Platform: { OS: 'web', select: (o) => o.web ?? o.default }, StatusBar: {} };
     if (!request.startsWith('.')) return {};            // 외부 패키지는 문서에 쓰이지 않는다
     const base = path.resolve(path.dirname(file), request);
     for (const candidate of [base + '.ts', base + '.tsx', path.join(base, 'index.ts')]) {

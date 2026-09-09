@@ -202,7 +202,7 @@ function Divider() { return <View style={s.divider} />; }
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: D.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: D.surface, borderBottomWidth: 1, borderBottomColor: D.border },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 8, backgroundColor: D.surface, borderBottomWidth: 1, borderBottomColor: D.border },
   backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: D.bg, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: D.text },
   content: { padding: 16, gap: 4 },

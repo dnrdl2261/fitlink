@@ -121,7 +121,7 @@ function Empty({ text }: { text: string }) {
 
 const s = StyleSheet.create({
   c: { flex: 1, backgroundColor: COLORS.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 14, backgroundColor: '#0F172A' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#0F172A' },
   back: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 17, fontWeight: '800', color: '#fff', textAlign: 'center' },
   sub: { fontSize: 11, color: 'rgba(255,255,255,0.6)', textAlign: 'center', marginTop: 1 },

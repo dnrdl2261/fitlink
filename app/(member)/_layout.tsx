@@ -1,7 +1,7 @@
 import { Tabs, useRouter, useGlobalSearchParams, Redirect } from 'expo-router';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS } from '../../utils/constants';
+import { COLORS, HEADER_HEIGHT } from '../../utils/constants';
 import { useAuthStore } from '../../store/authStore';
 import { useChatStore } from '../../store/chatStore';
 import { useLocationStore } from '../../store/locationStore';
@@ -85,7 +85,7 @@ export default function MemberLayout() {
   if (!isLoggedIn) return null;
   // 역할 가드: 다른 역할이 직접 진입(딥링크) 시 본인 역할 그룹으로 리다이렉트
   if (role !== 'member') {
-    return <Redirect href={(role === 'trainer' ? '/(trainer)' : role === 'gym_admin' ? '/(gym)/bookings' : '/login') as any} />;
+    return <Redirect href={(role === 'trainer' ? '/(trainer)/community' : role === 'gym_admin' ? '/(gym)/community' : '/login') as any} />;
   }
 
   return (
@@ -97,20 +97,19 @@ export default function MemberLayout() {
         tabBarStyle: TAB_BAR,
         tabBarShowLabel: false,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
-        headerStyle: { backgroundColor: COLORS.background },
+        headerStyle: { backgroundColor: COLORS.background, height: HEADER_HEIGHT },
         headerTintColor: COLORS.text,
         headerTitleStyle: { fontWeight: '700', fontSize: 17, color: COLORS.text },
         headerShadowVisible: false,
       }}
     >
       <Tabs.Screen
-        name="trainers"
+        name="community"
         options={{
-          tabBarLabel: '홈',
-          tabBarAccessibilityLabel: '홈',
-          tabBarIcon: ({ color }) => <TabIcon name="home" color={color} />,
-          headerTitle: () => <LocationHeader />,
-          headerRight: () => <BellBtn userId={member?.id ?? ''} color={COLORS.primary} />,
+          tabBarLabel: '커뮤니티',
+          tabBarAccessibilityLabel: '커뮤니티',
+          tabBarIcon: ({ color }) => <TabIcon name="account-group" color={color} />,
+          headerShown: false,
         }}
       />
       <Tabs.Screen
@@ -123,12 +122,13 @@ export default function MemberLayout() {
         }}
       />
       <Tabs.Screen
-        name="community"
+        name="trainers"
         options={{
-          tabBarLabel: '커뮤니티',
-          tabBarAccessibilityLabel: '커뮤니티',
-          tabBarIcon: ({ color }) => <TabIcon name="account-group" color={color} />,
-          headerTitle: '커뮤니티',
+          tabBarLabel: '홈',
+          tabBarAccessibilityLabel: '홈',
+          tabBarIcon: ({ color }) => <TabIcon name="home" color={color} />,
+          headerTitle: () => <LocationHeader />,
+          headerRight: () => <BellBtn userId={member?.id ?? ''} color={COLORS.primary} />,
         }}
       />
       <Tabs.Screen
@@ -174,6 +174,7 @@ export default function MemberLayout() {
       <Tabs.Screen name="community-group" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="community-write" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="community-group-write" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="community-search" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="community-story" options={{ href: null, headerShown: false, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="trainer-list" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="custom-plan" options={{ href: null, headerShown: false }} />

@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useGymSlotStore } from '../../store/gymSlotStore';
+import { useGymSlotStore, awaitSlotSaved } from '../../store/gymSlotStore';
+import { notify } from '../../utils/alert';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { MOCK_GYM_ADMINS } from '../../data/users';
@@ -152,7 +153,7 @@ export default function GymBookPayScreen() {
   const [pointsInput, setPointsInput]     = useState('');
   const [useAllPoints, setUseAllPoints]   = useState(false);
 
-  const { bookSlot, confirmSlot } = useGymSlotStore();
+  const { bookSlot, confirmSlot, recordFacilityPayment } = useGymSlotStore();
   const { trainer }               = useAuthStore();
   const { addNotification }       = useNotificationStore();
 
@@ -220,8 +221,10 @@ export default function GymBookPayScreen() {
 
   const spin = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
-  // 슬롯별 bookSlot 호출 후 request 단계로
-  const handleBook = () => {
+  // 슬롯별 bookSlot 호출 후 request 단계로.
+  // 정원 초과는 서버(book_facility_slot RPC)가 판정하므로 저장 완료를 기다려야 한다 —
+  // 기다리지 않으면 "예약됨" 화면을 띄운 뒤 뒤에서 조용히 롤백된다.
+  const handleBook = async () => {
     if (!trainer) return;
     const ids: string[] = [];
     for (const slot of slotsData) {
@@ -238,8 +241,21 @@ export default function GymBookPayScreen() {
       });
       if (id) ids.push(id);
     }
-    if (ids.length > 0) {
-      setBookingIds(ids);
+    if (ids.length === 0) return;
+
+    const saved: string[] = [];
+    for (const id of ids) {
+      try { await awaitSlotSaved(id); saved.push(id); } catch { /* 서버 거절 = 이미 롤백됨 */ }
+    }
+    if (saved.length === 0) {
+      notify('예약 실패', '선택한 시간이 방금 마감됐습니다. 다른 시간을 선택해주세요.');
+      return;
+    }
+    // 대여료는 예약 시점에 트레이너가 즉시 결제한다 → 결제·정산 명세 기록
+    saved.forEach((id) => recordFacilityPayment(id));
+
+    {
+      setBookingIds(saved);
       const gymAdminId = MOCK_GYM_ADMINS.find((a) => a.gymId === gymId)?.id ?? '';
       if (gymAdminId) {
         addNotification({
@@ -775,7 +791,7 @@ export default function GymBookPayScreen() {
 const s = StyleSheet.create({
   container:    { flex: 1, backgroundColor: D.bg },
 
-  header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: D.border, backgroundColor: D.surface },
+  header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: D.border, backgroundColor: D.surface },
   backBtn:      { width: 40, paddingVertical: 4 },
   backText:     { fontSize: 30, fontWeight: '300', color: D.primary },
   headerTitle:  { fontSize: 17, fontWeight: '700', color: D.text },

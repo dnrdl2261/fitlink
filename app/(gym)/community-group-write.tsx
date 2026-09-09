@@ -99,6 +99,40 @@ export default function CommunityGroupWriteScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* 고정 커버 무대 — 폼을 내려도 커버가 계속 보인다 */}
+        <View style={styles.stage}>
+          {coverImage ? (
+            <>
+              <Image source={{ uri: coverImage }} style={styles.stageImg} resizeMode="cover" />
+              <TouchableOpacity
+                style={StyleSheet.absoluteFill}
+                onPress={pickCoverImage}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="커버 사진 변경"
+              />
+              <View style={styles.stageEdit}>
+                <MaterialCommunityIcons name="pencil" size={13} color="#fff" />
+                <Text style={styles.stageEditText}>사진 변경</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.stageRemove}
+                onPress={() => setCoverImage(null)}
+                accessibilityRole="button"
+                accessibilityLabel="커버 이미지 삭제"
+              >
+                <MaterialCommunityIcons name="close" size={18} color="#fff" />
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity style={styles.stagePick} onPress={pickCoverImage} activeOpacity={0.8}>
+              <MaterialCommunityIcons name="image-plus" size={34} color={COLORS.textSecondary} />
+              <Text style={styles.stagePickText}>커버 사진 추가</Text>
+              <Text style={styles.stagePickSub}>선택 · 모임을 대표하는 사진</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         <ScrollView key={t} style={styles.scroll} showsVerticalScrollIndicator={false}>
 
           {/* 1. 카테고리 */}
@@ -166,38 +200,7 @@ export default function CommunityGroupWriteScreen() {
             />
           </View>
 
-          {/* 4. 커버 이미지 */}
-          <View style={styles.section}>
-            <View style={styles.labelRow}>
-              <Text style={styles.sectionLabel}>커버 이미지</Text>
-              <Text style={styles.optionalLabel}>선택</Text>
-            </View>
-            <TouchableOpacity style={styles.coverPicker} onPress={pickCoverImage} activeOpacity={0.8}>
-              {coverImage ? (
-                <>
-                  <Image source={{ uri: coverImage }} style={styles.coverPreview} resizeMode="cover" />
-                  <View style={styles.coverEditOverlay}>
-                    <MaterialCommunityIcons name="pencil-circle" size={32} color="rgba(255,255,255,0.9)" />
-                    <Text style={styles.coverEditText}>사진 변경</Text>
-                  </View>
-                </>
-              ) : (
-                <View style={styles.coverPlaceholder}>
-                  <MaterialCommunityIcons name="image-plus" size={36} color={COLORS.textSecondary} />
-                  <Text style={styles.coverPlaceholderText}>커버 사진 추가</Text>
-                  <Text style={styles.coverPlaceholderSub}>모임을 대표하는 사진을 선택해주세요</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            {coverImage && (
-              <TouchableOpacity onPress={() => setCoverImage(null)} style={styles.removeCoverBtn}>
-                <MaterialCommunityIcons name="trash-can-outline" size={14} color={COLORS.textSecondary} />
-                <Text style={styles.removeCoverText}>이미지 삭제</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* 5. 활동 지역 */}
+          {/* 4. 활동 지역 */}
           <View style={styles.section}>
             <View style={styles.labelRow}>
               <Text style={styles.sectionLabel}>활동 지역</Text>
@@ -214,7 +217,7 @@ export default function CommunityGroupWriteScreen() {
             <Text style={styles.fieldHint}>오프라인 활동이 있는 경우 주요 지역을 입력해주세요</Text>
           </View>
 
-          {/* 6. 최대 인원 */}
+          {/* 5. 최대 인원 */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>최대 인원</Text>
             <View style={styles.memberRow}>
@@ -255,7 +258,7 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 14,
+    paddingHorizontal: 16, paddingVertical: 8,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
@@ -279,12 +282,6 @@ const styles = StyleSheet.create({
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   sectionLabel: { fontSize: 15, fontWeight: '700', color: COLORS.text },
   required: { fontSize: 15, fontWeight: '700', color: '#E53935', lineHeight: 20 },
-  optionalLabel: {
-    fontSize: 11, fontWeight: '600', color: COLORS.textSecondary,
-    backgroundColor: COLORS.background, borderRadius: 6,
-    paddingHorizontal: 6, paddingVertical: 2, marginLeft: 4,
-    borderWidth: 1, borderColor: COLORS.border,
-  },
   labelHint: { fontSize: 12, color: COLORS.textSecondary, marginLeft: 4, flex: 1 },
   labelSpacer: { flex: 1 },
   charCount: { fontSize: 12, color: COLORS.textSecondary },
@@ -306,24 +303,6 @@ const styles = StyleSheet.create({
     borderRadius: 12, padding: 14,
   },
 
-  coverPicker: {
-    borderRadius: 12, overflow: 'hidden',
-    backgroundColor: COLORS.background,
-    borderWidth: 1.5, borderColor: COLORS.border, borderStyle: 'dashed',
-    height: 160,
-  },
-  coverPreview: { width: '100%', height: '100%' },
-  coverEditOverlay: {
-    position: 'absolute', inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    alignItems: 'center', justifyContent: 'center', gap: 4,
-  },
-  coverEditText: { fontSize: 13, color: '#fff', fontWeight: '700' },
-  coverPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6 },
-  coverPlaceholderText: { fontSize: 15, fontWeight: '700', color: COLORS.textSecondary },
-  coverPlaceholderSub: { fontSize: 12, color: COLORS.textSecondary },
-  removeCoverBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-end' },
-  removeCoverText: { fontSize: 12, color: COLORS.textSecondary },
 
   memberRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
   memberChip: {
@@ -339,4 +318,20 @@ const styles = StyleSheet.create({
     fontSize: 14, color: COLORS.text, textAlign: 'center',
     backgroundColor: COLORS.background,
   },
+  stage: { height: 200, backgroundColor: '#0f0f10' },
+  stageImg: { width: '100%', height: '100%' },
+  stagePick: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  stagePickText: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '700' },
+  stagePickSub: { fontSize: 11, color: COLORS.textSecondary },
+  stageRemove: {
+    position: 'absolute', top: 10, right: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 14, padding: 5,
+  },
+  stageEdit: {
+    position: 'absolute', bottom: 10, right: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 12,
+    paddingHorizontal: 10, paddingVertical: 4,
+  },
+  stageEditText: { fontSize: 11, color: '#fff', fontWeight: '700' },
 });

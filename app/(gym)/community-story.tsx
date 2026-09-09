@@ -13,20 +13,18 @@ import VideoPlayer from '../../components/VideoPlayer';
 import { Post, Group } from '../../data/community';
 
 const ACCENT = COLORS.gym;
-const BANNER_H = 72;
 
 function StoryItem({
-  post, isActive, isLiked, isDisliked, isSaved,
-  onLike, onDislike, onSave, onShare,
-  screenH, relatedGroup, onGoGroup,
+  post, isActive, isLiked, isSaved,
+  onLike, onSave, onShare,
+  screenH,
   onGoAuthor, isFollowingAuthor, isSelf, onToggleFollow,
 }: {
   post: Post; isActive: boolean;
-  isLiked: boolean; isDisliked: boolean; isSaved: boolean;
-  onLike: () => void; onDislike: () => void;
+  isLiked: boolean; isSaved: boolean;
+  onLike: () => void;
   onSave: () => void; onShare: () => void;
-  screenH: number; relatedGroup?: Group;
-  onGoGroup?: (id: string) => void;
+  screenH: number;
   onGoAuthor: () => void;
   isFollowingAuthor: boolean;
   isSelf: boolean;
@@ -57,21 +55,13 @@ function StoryItem({
         ]}
       />
 
-      <View style={[styles.rightBar, { bottom: BANNER_H + 24 }]}>
+      <View style={[styles.rightBar, { bottom: 28 }]}>
         <TouchableOpacity style={styles.actionBtn} onPress={onLike} activeOpacity={0.8}>
           <MaterialCommunityIcons
             name={isLiked ? 'thumb-up' : 'thumb-up-outline'}
             size={30} color={isLiked ? ACCENT : '#fff'}
           />
           <Text style={styles.actionLabel}>{post.likes}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionBtn} onPress={onDislike} activeOpacity={0.8}>
-          <MaterialCommunityIcons
-            name={isDisliked ? 'thumb-down' : 'thumb-down-outline'}
-            size={30} color={isDisliked ? '#aaa' : '#fff'}
-          />
-          <Text style={styles.actionLabel}>관심없음</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionBtn} onPress={onShare} activeOpacity={0.8}>
@@ -92,7 +82,7 @@ function StoryItem({
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.bottomContent, { bottom: BANNER_H + 20 }]}>
+      <View style={[styles.bottomContent, { bottom: 24 }]}>
         <View style={styles.authorRow}>
           <TouchableOpacity style={styles.authorTouch} onPress={onGoAuthor} activeOpacity={0.8}>
             <View style={[styles.avatar, { backgroundColor: ACCENT + '55', borderColor: '#fff' }]}>
@@ -105,28 +95,6 @@ function StoryItem({
         <Text style={styles.postContent} numberOfLines={2}>{post.content}</Text>
       </View>
 
-      {relatedGroup && (
-        <TouchableOpacity
-          style={styles.groupBanner}
-          onPress={() => onGoGroup?.(relatedGroup.id)}
-          activeOpacity={0.9}
-        >
-          <View style={[styles.groupBannerAvatar, { backgroundColor: ACCENT + '33' }]}>
-            <Text style={[styles.groupBannerAvatarText, { color: '#fff' }]}>
-              {relatedGroup.name[0]}
-            </Text>
-          </View>
-          <View style={styles.groupBannerInfo}>
-            <Text style={styles.groupBannerName} numberOfLines={1}>{relatedGroup.name}</Text>
-            <Text style={styles.groupBannerMeta}>
-              {relatedGroup.location} · {relatedGroup.memberCount}명 · {relatedGroup.category}
-            </Text>
-          </View>
-          <View style={[styles.groupBannerBtn, { backgroundColor: ACCENT }]}>
-            <Text style={styles.groupBannerBtnText}>보러가기</Text>
-          </View>
-        </TouchableOpacity>
-      )}
     </View>
   );
 }
@@ -138,8 +106,8 @@ export default function GymCommunityStoryScreen() {
   const { isFollowing, follow, unfollow } = useFollowStore();
   const myId = gymAdmin?.id ?? '';
   const {
-    posts, groups, likedPosts, dislikedPosts, savedPosts,
-    toggleLikePost, toggleDislikePost, toggleSavePost, incrementViews,
+    posts, groups, likedPosts, savedPosts,
+    toggleLikePost, toggleSavePost, incrementViews,
   } = useCommunityStore();
   const { height: screenH } = useWindowDimensions();
 
@@ -175,18 +143,11 @@ export default function GymCommunityStoryScreen() {
     }
   });
 
-  const getRelatedGroup = useCallback((post: Post): Group | undefined => {
-    if (post.relatedGroupId) return groups.find((g) => g.id === post.relatedGroupId);
-    return undefined;
-  }, [groups]);
-
   const handleShare = useCallback((post: Post) => {
     if (Platform.OS === 'web') alert(`"${post.title}" 링크가 복사됩니다.`);
   }, []);
 
   const goBack = () => router.navigate({ pathname: '/(gym)/community', params: from ? { from } : {} } as any);
-  const goGroup = (groupId: string) =>
-    router.push(`/(gym)/community-group?groupId=${groupId}` as any);
 
   if (videoPosts.length === 0) {
     return (
@@ -225,15 +186,11 @@ export default function GymCommunityStoryScreen() {
             post={item}
             isActive={index === activeIndex}
             isLiked={likedPosts.includes(item.id)}
-            isDisliked={dislikedPosts.includes(item.id)}
             isSaved={savedPosts.includes(item.id)}
             onLike={() => toggleLikePost(item.id)}
-            onDislike={() => toggleDislikePost(item.id)}
             onSave={() => toggleSavePost(item.id)}
             onShare={() => handleShare(item)}
             screenH={containerH}
-            relatedGroup={getRelatedGroup(item)}
-            onGoGroup={goGroup}
             onGoAuthor={() => { if (item.authorId) router.push(`/user-profile/${item.authorId}` as any); }}
             isFollowingAuthor={!!(myId && item.authorId && isFollowing(myId, item.authorId))}
             isSelf={!!(myId && item.authorId && myId === item.authorId)}
@@ -250,14 +207,6 @@ export default function GymCommunityStoryScreen() {
         <TouchableOpacity onPress={goBack} style={styles.headerBtn} accessibilityRole="button" accessibilityLabel="뒤로 가기">
           <MaterialCommunityIcons name="chevron-left" size={34} color="#fff" />
         </TouchableOpacity>
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerBtn} accessibilityRole="button" accessibilityLabel="검색">
-            <MaterialCommunityIcons name="magnify" size={24} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerBtn} accessibilityRole="button" accessibilityLabel="내 프로필">
-            <MaterialCommunityIcons name="account-circle-outline" size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
       </View>
     </View>
   );
@@ -267,12 +216,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   header: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center',
     paddingTop: Platform.OS === 'ios' ? 52 : 40,
     paddingHorizontal: 4, paddingBottom: 8,
   },
   headerBtn: { padding: 8, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 20 },
-  headerRight: { flexDirection: 'row' },
   noVideo: { alignItems: 'center', justifyContent: 'center' },
   rightBar: { position: 'absolute', right: 12, gap: 22, alignItems: 'center' },
   actionBtn: { alignItems: 'center', gap: 4 },
@@ -287,20 +235,6 @@ const styles = StyleSheet.create({
   followText: { fontSize: 12, fontWeight: '700', color: '#fff' },
   postTitle: { fontSize: 14, fontWeight: '700', color: '#fff', lineHeight: 20, textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
   postContent: { fontSize: 13, color: 'rgba(255,255,255,0.9)', lineHeight: 18, textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
-  groupBanner: {
-    position: 'absolute', left: 0, right: 0, bottom: 0, height: BANNER_H,
-    backgroundColor: 'rgba(20,20,20,0.85)',
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 14, gap: 10,
-    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)',
-  },
-  groupBannerAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  groupBannerAvatarText: { fontSize: 15, fontWeight: '800' },
-  groupBannerInfo: { flex: 1 },
-  groupBannerName: { fontSize: 13, fontWeight: '700', color: '#fff' },
-  groupBannerMeta: { fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
-  groupBannerBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, flexShrink: 0 },
-  groupBannerBtnText: { fontSize: 12, fontWeight: '800', color: '#fff' },
   empty: { flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', gap: 16 },
   emptyText: { fontSize: 16, color: '#888', fontWeight: '600' },
   emptyBack: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, backgroundColor: '#222' },

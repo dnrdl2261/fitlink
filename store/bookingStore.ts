@@ -82,6 +82,27 @@ export function awaitBookingSaved(bookingId: string): Promise<unknown> {
   return pendingMirrors.get(bookingId) ?? Promise.resolve();
 }
 
+// 에스크로 원장(schema Phase U). 보관 잔액을 화면에서 계산하지 않고 증감을 행으로 남긴다.
+// hold(+) 결제 · release(−) 세션정산 · refund(−) 환불 · reverse(+) 정산역전.
+// booking을 참조하지는 않지만 결제/정산과 순서를 맞추려고 저장 완료를 기다린다.
+function escrow(e: {
+  id: string; bookingId: string; memberId: string; sessionId?: string;
+  kind: 'hold' | 'release' | 'refund' | 'reverse'; amount: number; memo?: string;
+}) {
+  if (!isRealUser(e.memberId)) return;
+  awaitBookingSaved(e.bookingId).then(() => {
+    supabase.from('escrow_ledger').insert({
+      id: e.id,
+      booking_id: e.bookingId,
+      member_id: e.memberId,
+      session_id: e.sessionId ?? null,
+      kind: e.kind,
+      amount: e.amount,
+      memo: e.memo ?? '',
+    }).then(() => {}, onDbError);
+  });
+}
+
 // ⚠️ isNew=false(기본)면 update, true면 insert 한다. upsert를 쓰면 안 된다 —
 //    upsert는 INSERT 권한을 요구하는데 bookings insert 정책은 회원(member_id=auth.uid())만 허용한다.
 //    그래서 트레이너가 예약을 확정할 때 42501(RLS 위반)로 조용히 거부됐다.
@@ -176,6 +197,8 @@ interface BookingState {
   requestCompletion: (bookingId: string, sessionId: string) => void;
   rejectCompletion: (bookingId: string, sessionId: string) => void;
   completeSession: (bookingId: string, sessionId: string) => void;
+  markNoShow: (bookingId: string, sessionId: string, markedBy: 'trainer' | 'member' | 'system', reason?: string) => void;
+  reverseSettlement: (bookingId: string, sessionId: string) => void;
   getMyBookings: (memberId: string) => Booking[];
   getTrainerBookings: (trainerId: string) => Booking[];
   loadFromSupabase: (memberId: string) => Promise<void>;
@@ -232,6 +255,12 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         pg_payment_id: info.paymentId ?? null,
         created_at: new Date().toISOString().slice(0, 10),
       }).then(() => {}, onDbError);
+    });
+    // 결제 대금은 플랫폼이 보관한다 → 원장에 hold(+)
+    escrow({
+      id: `esc_hold_${info.orderId}`,
+      bookingId: info.bookingId, memberId: info.memberId,
+      kind: 'hold', amount: info.amount, memo: 'PT 패키지 결제 보관',
     });
   },
 
@@ -308,6 +337,15 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     if (isRealUser(b.memberId)) {
       supabase.from('payments').update({ status: 'refunded' }).eq('booking_id', bookingId).then(() => {}, onDbError);
     }
+    // 보관 중이던 미사용분이 회원에게 나간다 → 원장에 refund(−)
+    if (refundedAmount > 0) {
+      escrow({
+        id: `esc_refund_${bookingId}`,
+        bookingId, memberId: b.memberId,
+        kind: 'refund', amount: -refundedAmount,
+        memo: `미사용 ${b.remainingSessions}회 환불`,
+      });
+    }
     return refundedAmount;
   },
 
@@ -329,7 +367,10 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       bookings: s.bookings.map((b) => {
         if (b.id !== bookingId) return b;
         const sessions = b.sessions.map((sess) =>
-          sess.id === sessionId ? { ...sess, status: 'pending' as SessionStatus } : sess
+          sess.id === sessionId
+            // 자동 확정은 이 시각부터 7일을 센다
+            ? { ...sess, status: 'pending' as SessionStatus, requestedAt: new Date().toISOString() }
+            : sess
         );
         return { ...b, sessions, updatedAt: new Date().toISOString() };
       }),
@@ -342,9 +383,13 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     set((s) => ({
       bookings: s.bookings.map((b) => {
         if (b.id !== bookingId) return b;
-        const sessions = b.sessions.map((sess) =>
-          sess.id === sessionId ? { ...sess, status: 'scheduled' as SessionStatus } : sess
-        );
+        const sessions = b.sessions.map((sess) => {
+          if (sess.id !== sessionId) return sess;
+          // 완료 요청 자체가 취소됐으므로 자동 확정 시계도 지운다.
+          // 남겨두면 트레이너가 다시 요청하지 않아도 7일 뒤 확정돼버린다.
+          const { requestedAt, ...rest } = sess;
+          return { ...rest, status: 'scheduled' as SessionStatus };
+        });
         return { ...b, sessions, updatedAt: new Date().toISOString() };
       }),
     }));
@@ -385,7 +430,98 @@ export const useBookingStore = create<BookingState>((set, get) => ({
           created_at: new Date().toISOString().slice(0, 10),
         }).then(() => {}, onDbError);
       });
+      // 그만큼 보관액이 빠진다 → 원장에 release(−)
+      escrow({
+        id: `esc_rel_${sessionId}`,
+        bookingId, memberId: b.memberId, sessionId,
+        kind: 'release', amount: -gross, memo: '세션 완료 정산',
+      });
     }
+  },
+
+  // 회원 미출석(노쇼). 회원 귀책이므로 회차는 차감되고 트레이너에게 정산된다.
+  // 완료(completeSession)와 금액 처리는 같고, 세션 상태와 분쟁 근거 기록만 다르다.
+  markNoShow: (bookingId, sessionId, markedBy, reason = '') => {
+    const b = get().bookings.find((x) => x.id === bookingId);
+    if (!b) return;
+    const sess = b.sessions.find((s) => s.id === sessionId);
+    if (!sess || sess.status === 'completed' || sess.status === 'no_show') return;
+
+    set((s) => ({
+      bookings: s.bookings.map((x) => {
+        if (x.id !== bookingId) return x;
+        const sessions = x.sessions.map((ss) =>
+          ss.id === sessionId ? { ...ss, status: 'no_show' as SessionStatus } : ss
+        );
+        const usedSessions = x.usedSessions + 1;
+        const remainingSessions = x.remainingSessions - 1;
+        const status: BookingStatus = remainingSessions === 0 ? 'completed' : 'active';
+        return { ...x, sessions, usedSessions, remainingSessions, status, updatedAt: new Date().toISOString() };
+      }),
+    }));
+    mirror(bookingId);
+
+    if (!isRealUser(b.memberId)) return;
+    const gross = b.pricePerSession;
+    const trainerAmount = Math.round(gross * 0.9);
+    awaitBookingSaved(bookingId).then(() => {
+      supabase.from('session_no_shows').insert({
+        id: `noshow_${sessionId}`,
+        booking_id: bookingId,
+        session_id: sessionId,
+        member_id: b.memberId,
+        trainer_id: b.trainerId,
+        marked_by: markedBy,
+        reason,
+      }).then(() => {}, onDbError);
+      supabase.from('settlements').insert({
+        id: `settle_${sessionId}`,
+        booking_id: bookingId,
+        session_id: sessionId,
+        trainer_id: b.trainerId,
+        member_id: b.memberId,
+        gross_amount: gross,
+        trainer_amount: trainerAmount,
+        platform_fee: gross - trainerAmount,
+        status: 'settled',
+        created_at: new Date().toISOString().slice(0, 10),
+      }).then(() => {}, onDbError);
+    });
+    escrow({
+      id: `esc_rel_${sessionId}`,
+      bookingId, memberId: b.memberId, sessionId,
+      kind: 'release', amount: -gross, memo: `노쇼 정산(${markedBy})`,
+    });
+  },
+
+  // 정산 역전. 분쟁·오처리로 이미 정산된 회차를 되돌린다(운영자 조치).
+  // settlements 를 reversed 로 바꾸고 보관액을 되돌린다 → 원장에 reverse(+)
+  reverseSettlement: (bookingId, sessionId) => {
+    const b = get().bookings.find((x) => x.id === bookingId);
+    if (!b || !isRealUser(b.memberId)) return;
+    set((s) => ({
+      bookings: s.bookings.map((x) => {
+        if (x.id !== bookingId) return x;
+        const sessions = x.sessions.map((ss) =>
+          ss.id === sessionId ? { ...ss, status: 'scheduled' as SessionStatus } : ss
+        );
+        return {
+          ...x, sessions,
+          usedSessions: Math.max(0, x.usedSessions - 1),
+          remainingSessions: x.remainingSessions + 1,
+          status: 'active' as BookingStatus,
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    }));
+    mirror(bookingId);
+    supabase.from('settlements').update({ status: 'reversed' })
+      .eq('session_id', sessionId).then(() => {}, onDbError);
+    escrow({
+      id: `esc_rev_${sessionId}`,
+      bookingId, memberId: b.memberId, sessionId,
+      kind: 'reverse', amount: b.pricePerSession, memo: '정산 역전(분쟁 처리)',
+    });
   },
 
   getMyBookings: (memberId) => get().bookings.filter((b) => b.memberId === memberId),

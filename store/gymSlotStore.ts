@@ -12,6 +12,11 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const isRealUser = (id?: string) => isSupabaseConfigured && !!id && UUID_RE.test(id);
 const isRealSlot = (b: SlotBooking) => isRealUser(b.trainerId) || isRealUser(b.gymId);
 
+// 시설 대여료에서 플랫폼이 떼는 비율(중개·결제대행 수수료). 트레이너 약관 제4조와 맞춘다.
+const FACILITY_PLATFORM_RATE = 0.1;
+// 이 시간보다 일찍 취소하면 대여료 전액 환불
+const FACILITY_FREE_CANCEL_HOURS = 24;
+
 function slotToRow(b: SlotBooking) {
   return {
     id: b.id, gym_id: b.gymId, gym_name: b.gymName,
@@ -40,6 +45,47 @@ function mirrorSlot(id: string) {
   const b = useGymSlotStore.getState().slotBookings.find((x) => x.id === id);
   if (!b || !isRealSlot(b)) return;
   supabase.from('slot_bookings').upsert(slotToRow(b)).then(() => {}, onDbError);
+}
+
+// 신규 예약 저장의 완료를 추적한다(schema Phase U).
+// 정원 판정을 클라 배열로만 하면 두 기기가 동시에 같은 슬롯을 넣어도 둘 다 통과하므로,
+// 신규 예약만은 book_facility_slot RPC로 보내 서버가 세는 동안 잠그게 한다.
+// 화면은 낙관적으로 먼저 반영하되, 호출부가 이 약속을 기다려 실패를 잡아야 한다.
+const pendingSlotSaves = new Map<string, Promise<void>>();
+
+export function awaitSlotSaved(id: string): Promise<void> {
+  return pendingSlotSaves.get(id) ?? Promise.resolve();
+}
+
+function createSlotOnServer(id: string, capacity: number) {
+  if (!isSupabaseConfigured) return;
+  const b = useGymSlotStore.getState().slotBookings.find((x) => x.id === id);
+  if (!b || !isRealSlot(b)) return;
+  const p = Promise.resolve(
+    supabase.rpc('book_facility_slot', {
+      p_id: b.id,
+      p_gym_id: b.gymId,
+      p_gym_name: b.gymName,
+      p_trainer_id: b.trainerId,
+      p_trainer_name: b.trainerName,
+      p_member_id: b.memberId ?? '',
+      p_member_name: b.memberName ?? '',
+      p_date: b.date,
+      p_start_time: b.startTime,
+      p_member_count: b.memberCount,
+      p_facility_fee: b.facilityFee,
+      p_capacity: capacity,
+    }),
+  ).then(({ error }: any) => {
+    pendingSlotSaves.delete(id);
+    if (error) {
+      // 서버가 거절했으면 낙관적으로 넣었던 행을 걷어낸다
+      useGymSlotStore.setState((s) => ({ slotBookings: s.slotBookings.filter((x) => x.id !== id) }));
+      onDbError(error);
+      throw error;
+    }
+  });
+  pendingSlotSaves.set(id, p);
 }
 
 function mergeSlots(rows: SlotBooking[]) {
@@ -110,7 +156,8 @@ interface GymSlotState {
   }) => string | null;
 
   confirmSlot: (slotId: string) => void;
-  cancelSlot: (slotId: string) => void;
+  cancelSlot: (slotId: string, cancelledBy?: 'trainer' | 'gym') => void;
+  recordFacilityPayment: (slotId: string, pgPaymentId?: string) => void;
 
   // 관리자가 직접 등록하는 회원 이용 일정 (바로 confirmed)
   addAdminSlot: (params: { gymId: string; gymName: string; memberName: string; date: string; startTime: string }) => void;
@@ -241,8 +288,42 @@ export const useGymSlotStore = create<GymSlotState>((set, get) => ({
       createdAt: new Date().toISOString().split('T')[0],
     };
     set((state) => ({ slotBookings: [...state.slotBookings, newBooking] }));
-    mirrorSlot(id);
+    // upsert가 아니라 RPC로 보낸다 — 서버가 정원을 잠그고 세야 오버부킹이 막힌다
+    createSlotOnServer(id, target.maxTrainers);
     return id;
+  },
+
+  // 트레이너가 대여료를 즉시 결제한 기록 + 시설주 정산 예정 명세를 남긴다(schema Phase U).
+  // 금액은 slot_bookings.facility_fee 를 트리거가 강제하므로 클라가 보내는 값은 무시된다.
+  recordFacilityPayment: (slotId, pgPaymentId) => {
+    const b = useGymSlotStore.getState().slotBookings.find((x) => x.id === slotId);
+    if (!b || !isRealUser(b.trainerId)) return;
+    const payId = `fac_${slotId}`;
+    awaitSlotSaved(slotId).then(() => {
+      supabase.from('facility_payments').insert({
+        id: payId,
+        slot_booking_id: slotId,
+        trainer_id: b.trainerId,
+        gym_id: b.gymId,
+        amount: b.facilityFee,        // 트리거가 덮어씀
+        status: 'paid',
+        pg_payment_id: pgPaymentId ?? null,
+      }).then(() => {
+        // 시설주 정산 명세(지급 대기). 정기 배치가 batch_id로 묶어 지급한다.
+        const platformFee = Math.round(b.facilityFee * FACILITY_PLATFORM_RATE);
+        return supabase.from('facility_settlements').insert({
+          id: `facset_${slotId}`,
+          facility_payment_id: payId,
+          slot_booking_id: slotId,
+          gym_id: b.gymId,
+          trainer_id: b.trainerId,
+          gross_amount: b.facilityFee,
+          platform_fee: platformFee,
+          facility_amount: b.facilityFee - platformFee,
+          status: 'pending',
+        });
+      }).then(() => {}, onDbError);
+    }, () => { /* 슬롯 저장이 실패했으면 결제도 남기지 않는다 */ });
   },
 
   confirmSlot: (slotId) => {
@@ -254,13 +335,36 @@ export const useGymSlotStore = create<GymSlotState>((set, get) => ({
     mirrorSlot(slotId);
   },
 
-  cancelSlot: (slotId) => {
+  cancelSlot: (slotId, cancelledBy = 'trainer') => {
+    const b = useGymSlotStore.getState().slotBookings.find((x) => x.id === slotId);
     set((state) => ({
-      slotBookings: state.slotBookings.map((b) =>
-        b.id === slotId ? { ...b, status: 'cancelled' } : b
+      slotBookings: state.slotBookings.map((x) =>
+        x.id === slotId ? { ...x, status: 'cancelled' } : x
       ),
     }));
     mirrorSlot(slotId);
+    if (!b || !isRealUser(b.trainerId)) return;
+
+    // 대여료 환불 정책
+    //   시설이 거절·취소   → 100% (트레이너 귀책 아님)
+    //   승인 전(pending)   → 100% (아직 시설 시간을 잡아두지 않았다)
+    //   확정 후 24시간 초과 → 100%
+    //   확정 후 24시간 이내 → 0%  (빈 시간이 그대로 뜨므로 시설주에게 정산)
+    const hoursLeft = (new Date(`${b.date}T${b.startTime}:00+09:00`).getTime() - Date.now()) / 3600000;
+    const fullRefund =
+      cancelledBy === 'gym' || b.status === 'pending' || hoursLeft > FACILITY_FREE_CANCEL_HOURS;
+    const refund = fullRefund ? b.facilityFee : 0;
+
+    supabase.from('facility_payments').update({
+      status: refund > 0 ? 'refunded' : 'paid',
+      refunded_amount: refund,
+      refunded_at: refund > 0 ? new Date().toISOString() : null,
+    }).eq('slot_booking_id', slotId).then(() => {}, onDbError);
+
+    // 전액 환불이면 시설 정산은 없던 일로, 아니면 그대로 시설주에게 간다
+    supabase.from('facility_settlements').update({
+      status: refund > 0 ? 'reversed' : 'pending',
+    }).eq('slot_booking_id', slotId).then(() => {}, onDbError);
   },
 
   getAvailableSlots: (gymId, date, trainerId) => {

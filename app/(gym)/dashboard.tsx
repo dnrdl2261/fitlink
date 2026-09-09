@@ -82,7 +82,7 @@ export default function GymDashboard() {
       setConfirmModal(null);
       Alert.alert('확정 완료', `${confirmModal.booking.trainerName}의 예약이 확정되었습니다.`);
     } else {
-      cancelSlot(confirmModal.booking.id);
+      cancelSlot(confirmModal.booking.id, 'gym');
       addNotification({
         type: 'slot_rejected', targetRole: 'trainer', userId: confirmModal.booking.trainerId,
         title: '슬롯 예약이 거절되었습니다',

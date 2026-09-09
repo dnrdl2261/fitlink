@@ -6,7 +6,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTrainerStore } from '../../store/trainerStore';
-import { useBookingStore, calcEndTime } from '../../store/bookingStore';
+import { useBookingStore, calcEndTime, awaitBookingSaved } from '../../store/bookingStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { useOfferStore } from '../../store/offerStore';
@@ -208,6 +208,9 @@ export default function NewBookingScreen() {
       notes: `${classType} · ${classPurpose}`,
     });
     recordPayment({ orderId, bookingId, memberId: member?.id ?? '', amount: finalPrice, paymentId: pay.paymentId });
+    // 예약 mirror 가 끝난 뒤에 알림을 보낸다. 먼저 보내면 서버가 "이 트레이너와 아는 사이"임을
+    // 판별할 근거(예약 행)를 못 찾아 문구가 일반 템플릿으로 바뀐다(schema Phase W).
+    await awaitBookingSaved(bookingId);
     addNotification({
       type: 'payment_done', targetRole: 'member', userId: member?.id ?? '',
       title: '결제가 완료되었습니다',

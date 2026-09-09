@@ -46,3 +46,6 @@ scripts/data/
 
 # 심사용 계정 자격증명 (public 저장소라 절대 커밋 금지)
 store-assets/review-accounts.local.md
+
+# Supabase CLI 로컬 캐시 (커밋 대상 아님)
+supabase/.temp/

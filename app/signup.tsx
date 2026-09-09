@@ -102,7 +102,7 @@ export default function SignupScreen() {
   // 이미 로그인된 상태면 바로 이동 (hooks 이후에 배치, authRole로 충돌 해결)
   if (isLoggedIn) {
     if (authRole === 'member')    return <Redirect href="/(member)" />;
-    if (authRole === 'trainer')   return <Redirect href="/(trainer)" />;
+    if (authRole === 'trainer')   return <Redirect href="/(trainer)/community" />;
     if (authRole === 'gym_admin') return <Redirect href="/(gym)" />;
   }
 
@@ -154,7 +154,7 @@ export default function SignupScreen() {
 
     if (result.success) {
       if (role === 'member')         router.replace('/(member)');
-      else if (role === 'trainer')   router.replace('/(trainer)');
+      else if (role === 'trainer')   router.replace('/(trainer)/community');
       else                           router.replace('/(gym)');
     } else if (result.message?.includes('이메일') || result.message?.includes('메일')) {
       // 이메일 인증 필요 (Supabase Confirm email ON) → 안내 후 로그인 화면으로

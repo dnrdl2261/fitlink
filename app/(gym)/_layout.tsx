@@ -1,7 +1,7 @@
 import { Tabs, useRouter, useGlobalSearchParams, Redirect } from 'expo-router';
 import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS } from '../../utils/constants';
+import { COLORS, HEADER_HEIGHT } from '../../utils/constants';
 import { useAuthStore } from '../../store/authStore';
 import { useChatStore } from '../../store/chatStore';
 import { useNotificationStore } from '../../store/notificationStore';
@@ -74,7 +74,7 @@ export default function GymLayout() {
   if (!isLoggedIn) return null;
   // 역할 가드: 다른 역할이 직접 진입(딥링크) 시 본인 역할 그룹으로 리다이렉트
   if (role !== 'gym_admin') {
-    return <Redirect href={(role === 'member' ? '/(member)/trainers' : role === 'trainer' ? '/(trainer)' : '/login') as any} />;
+    return <Redirect href={(role === 'member' ? '/(member)/community' : role === 'trainer' ? '/(trainer)/community' : '/login') as any} />;
   }
 
   return (
@@ -87,12 +87,30 @@ export default function GymLayout() {
         tabBarStyle: TAB_BAR,
         tabBarShowLabel: false,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2, fontFamily: PRETENDARD },
-        headerStyle: { backgroundColor: '#ffffff' },
+        headerStyle: { backgroundColor: '#ffffff', height: HEADER_HEIGHT },
         headerTintColor: '#0F172A',
         headerTitleStyle: { fontWeight: '700', fontSize: 17, color: '#0F172A', fontFamily: PRETENDARD },
         headerShadowVisible: false,
       }}
     >
+      <Tabs.Screen
+        name="community"
+        options={{
+          tabBarLabel: '커뮤니티',
+          tabBarAccessibilityLabel: '커뮤니티',
+          tabBarIcon: ({ color }) => <TabIcon name="account-group" color={color} />,
+          headerShown: false,
+        }}
+      />
+      <Tabs.Screen
+        name="map"
+        options={{
+          tabBarLabel: '헬스장',
+          tabBarAccessibilityLabel: '헬스장',
+          tabBarIcon: ({ color }) => <TabIcon name="map-marker" color={color} />,
+          headerTitle: '주변 헬스장',
+        }}
+      />
       <Tabs.Screen
         name="bookings"
         options={{
@@ -106,24 +124,6 @@ export default function GymLayout() {
               <GymBellBtn userId={gymAdmin?.id ?? ''} color={COLORS.gym} />
             </View>
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="map"
-        options={{
-          tabBarLabel: '헬스장',
-          tabBarAccessibilityLabel: '헬스장',
-          tabBarIcon: ({ color }) => <TabIcon name="map-marker" color={color} />,
-          headerTitle: '주변 헬스장',
-        }}
-      />
-      <Tabs.Screen
-        name="community"
-        options={{
-          tabBarLabel: '커뮤니티',
-          tabBarAccessibilityLabel: '커뮤니티',
-          tabBarIcon: ({ color }) => <TabIcon name="account-group" color={color} />,
-          headerTitle: '커뮤니티',
         }}
       />
       <Tabs.Screen
@@ -193,6 +193,7 @@ export default function GymLayout() {
       <Tabs.Screen name="community-group" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="community-write" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="community-group-write" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="community-search" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="community-story" options={{ href: null, headerShown: false, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen
         name="schedule"

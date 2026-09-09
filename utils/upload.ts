@@ -9,7 +9,9 @@ import { supabase, isSupabaseConfigured } from '../config/supabase';
 export const MEDIA_BUCKET = 'media';
 
 // 업로드 대상별 폴더. Storage 정책이 `<folder>/<uid>/...` 경로로 소유권을 판별한다.
-export type MediaFolder = 'avatars' | 'gyms' | 'posts' | 'reviews';
+// 정책은 폴더명을 열거하지 않고 두 번째 조각(uid)만 보므로, 폴더를 추가해도 SQL 변경이 필요 없다.
+// 'avatars'는 대표사진 1장, 'trainers'는 트레이너 갤러리(여러 장) — 섞이면 정리·용량 파악이 어렵다.
+export type MediaFolder = 'avatars' | 'trainers' | 'gyms' | 'posts' | 'reviews';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const canUpload = (userId?: string) =>
@@ -43,7 +45,7 @@ export function fitWithin(
  *
  * ⚠️ ImagePicker의 `quality` 옵션은 네이티브에서만 적용된다. 웹에서는 원본이 그대로 올라와
  *    2MB짜리 PNG가 목록에 여러 장 뜨면 눈에 띄게 느려진다. 그래서 웹에서만 canvas로 축소한다.
- *    (네이티브는 ImagePicker quality 0.8이 이미 적용됨 — 더 줄이려면 expo-image-manipulator 필요)
+ *    (네이티브는 canvas가 없어 downscaleImageNative가 expo-image-manipulator로 같은 일을 한다)
  * 실패하면 원본을 그대로 반환한다 — 축소는 최적화일 뿐 업로드를 막아선 안 된다.
  */
 async function downscaleImage(blob: Blob): Promise<Blob> {
@@ -71,6 +73,36 @@ async function downscaleImage(blob: Blob): Promise<Blob> {
     return out && out.size > 0 && out.size < blob.size ? out : blob;
   } catch {
     return blob;
+  }
+}
+
+/**
+ * 네이티브용 축소. canvas가 없으므로 expo-image-manipulator로 리사이즈 + JPEG 재인코딩한다.
+ * 성공하면 새 로컬 uri(JPEG), 축소가 불필요하거나 실패하면 null을 반환한다(원본 그대로 업로드).
+ *
+ * ⚠️ expo-image-manipulator 14(SDK 54)는 API가 바뀌었다. `manipulateAsync`는 deprecated이고
+ *    `ImageManipulator.manipulate(uri)` → 컨텍스트 → `renderAsync()` → `saveAsync()` 순서다.
+ *    (expo-file-system 19가 `readAsStringAsync`를 legacy로 민 것과 같은 흐름)
+ * ⚠️ 원본 크기를 알아야 긴 변 기준으로 줄일지 판단할 수 있는데, ImagePicker의 asset이 아니라
+ *    uri만 받으므로 한 번 render해서 width/height를 읽는다.
+ */
+async function downscaleImageNative(uri: string, mime: string): Promise<string | null> {
+  try {
+    const { ImageManipulator, SaveFormat } = await import('expo-image-manipulator');
+    const ctx = ImageManipulator.manipulate(uri);
+    const probe = await ctx.renderAsync();
+    const target = fitWithin(probe.width, probe.height);
+
+    // HEIC/HEIF는 브라우저가 못 여는 포맷이라, 크기가 작아도 JPEG로 바꿔야 웹에서 보인다.
+    const mustConvert = mime === 'image/heic' || mime === 'image/heif';
+    if (!target && !mustConvert) return null;
+
+    if (target) ctx.reset().resize({ width: target.w, height: target.h });
+    const rendered = target ? await ctx.renderAsync() : probe;
+    const saved = await rendered.saveAsync({ compress: JPEG_QUALITY, format: SaveFormat.JPEG });
+    return saved.uri || null;
+  } catch {
+    return null; // 축소는 최적화일 뿐 업로드를 막아선 안 된다
   }
 }
 
@@ -110,8 +142,6 @@ export async function uploadMedia(
 
   try {
     const mime = mimeFromUri(uri);
-    const ext = extFromUri(uri, mime);
-    const path = `${folder}/${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
     // ⚠️ 웹과 네이티브는 파일을 읽는 방법이 다르다.
     //    · 웹      : blob: uri → fetch → Blob (canvas 축소도 여기서만 가능)
@@ -128,12 +158,22 @@ export async function uploadMedia(
       body = blob;
       contentType = blob.type || mime;
     } else {
+      // ImagePicker의 quality 옵션만으로는 원본 해상도가 그대로라, 웹과 같은 기준(긴 변 1600px)으로 줄인다.
+      let localUri = uri;
+      if (mime.startsWith('image/') && mime !== 'image/gif') {
+        const shrunk = await downscaleImageNative(uri, mime);
+        if (shrunk) { localUri = shrunk; contentType = 'image/jpeg'; }
+      }
       const { File } = await import('expo-file-system');
-      const buf = await new File(uri).arrayBuffer();
+      const buf = await new File(localUri).arrayBuffer();
       if (!buf || buf.byteLength === 0) return null;
       body = buf;
-      // 네이티브는 ImagePicker의 quality 옵션으로 이미 축소된 상태다(canvas 사용 불가).
     }
+
+    // 경로 확장자는 실제 업로드되는 형식(contentType)을 따라야 한다.
+    // 축소하면 png·heic이 jpeg로 바뀌므로, 확장자를 먼저 정해두면 실제 내용과 어긋난다.
+    const ext = extFromUri(uri, contentType);
+    const path = `${folder}/${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
     const { error } = await supabase.storage.from(MEDIA_BUCKET).upload(path, body, {
       contentType,

@@ -22,7 +22,7 @@ const D = {
 };
 
 const FAQS = [
-  { q: '회원이 예약을 취소했을 때 어떻게 처리되나요?', a: '회원의 취소 시점에 따라 환불 정책이 적용됩니다. 48시간 전 취소 시 회원 100% 환불, 24시간 이내 취소 시 트레이너에게 50%가 지급됩니다.' },
+  { q: '회원이 예약을 취소했을 때 어떻게 처리되나요?', a: '회원이 아직 이용하지 않은 회차는 100% 환불되며, 그만큼은 정산 대상에서 빠집니다. 이미 완료한 세션의 정산금은 그대로 유지됩니다. 회원이 정당한 사유 없이 나오지 않은 경우(노쇼)는 이용한 것으로 처리되어 해당 회차가 트레이너님께 정산됩니다.' },
   { q: '수익 정산은 언제 이루어지나요?', a: '세션 완료 후 익일 기준으로 정산이 진행되며, 매월 말일에 등록된 계좌로 입금됩니다. 정산 내역은 매출 관리 탭에서 확인하실 수 있습니다.' },
   { q: '자격증 인증은 어떻게 하나요?', a: '내 프로필 > 자격증 관리에서 자격증 사진을 업로드하면 영업일 기준 2~3일 이내 검토 후 인증 완료됩니다.' },
   { q: '회원이 결제 후 연락이 없어요.', a: '예약 확정 후 회원에게 자동 알림이 발송됩니다. 채팅 기능을 통해 직접 연락하실 수 있으며, 무응답 시 고객지원에 문의해주세요.' },
@@ -39,7 +39,7 @@ const QUICK_QS = ['정산 문의', '예약 취소', '자격증 인증', '회원 
 
 const BOT_MAP: Record<string, string> = {
   '정산': '세션 완료 후 익일 기준 정산되며, 매월 말일 등록 계좌로 입금됩니다. 매출 관리 탭에서 내역 확인이 가능합니다.',
-  '취소': '회원 취소 시 48시간 전은 전액 환불, 24시간 이내는 트레이너에게 50% 지급됩니다.',
+  '취소': '회원의 미사용 회차는 100% 환불되어 정산 대상에서 빠집니다. 노쇼는 이용한 것으로 보아 정산됩니다.',
   '자격': '내 프로필에서 자격증 사진을 업로드하면 2~3 영업일 이내 인증이 완료됩니다.',
   '회원': '회원과의 분쟁은 채팅 내역을 보관 후 고객지원 1:1 문의로 접수해주세요.',
   '오류': '앱 재시작 후에도 오류가 지속되면 고객지원 1:1 문의로 오류 화면 캡처와 함께 접수해주세요.',
@@ -220,7 +220,7 @@ export default function SupportScreen() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: D.bg },
   flex: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 10, backgroundColor: D.surface, borderBottomWidth: 1, borderBottomColor: D.border },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 8, backgroundColor: D.surface, borderBottomWidth: 1, borderBottomColor: D.border },
   backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: D.bg, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 16, fontWeight: '700', color: D.text },
   tabBar: { flexDirection: 'row', backgroundColor: D.surface, borderBottomWidth: 1, borderBottomColor: D.border },

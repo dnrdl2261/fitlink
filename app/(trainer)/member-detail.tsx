@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: D.bg },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 14,
+    paddingHorizontal: 16, paddingVertical: 8,
     backgroundColor: D.surface, borderBottomWidth: 1, borderBottomColor: D.border,
   },
   backBtn: { width: 24, alignItems: 'flex-start' },

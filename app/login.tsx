@@ -60,7 +60,7 @@ const DEMO_ACCOUNTS: { role: UserRole; label: string; emoji: string }[] = [
 
 function navigateByRole(router: ReturnType<typeof useRouter>, role: UserRole) {
   if (role === 'member')    router.replace('/(member)');
-  else if (role === 'trainer') router.replace('/(trainer)');
+  else if (role === 'trainer') router.replace('/(trainer)/community');
   else if (role === 'operator') router.replace('/operator' as any);
   else                      router.replace('/(gym)');
 }
@@ -125,7 +125,7 @@ export default function LoginScreen() {
 
   if (isLoggedIn) {
     if (role === 'member')    return <Redirect href="/(member)" />;
-    if (role === 'trainer')   return <Redirect href="/(trainer)" />;
+    if (role === 'trainer')   return <Redirect href="/(trainer)/community" />;
     if (role === 'gym_admin') return <Redirect href="/(gym)" />;
     if (role === 'operator')  return <Redirect href={'/operator' as any} />;
   }

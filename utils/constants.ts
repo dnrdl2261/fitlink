@@ -1,4 +1,14 @@
+import { Platform, StatusBar } from 'react-native';
 import { GeoCoordinate } from '../types';
+
+// 탭 화면 상단 헤더 높이.
+// react-navigation 기본값은 iOS만 44이고 웹·안드로이드는 64라 지나치게 두껍다(getDefaultHeaderHeight).
+// 지정한 height에는 상태바 영역이 포함되므로 안드로이드는 상태바 높이를 더해준다.
+// iOS는 노치·다이나믹아일랜드 보정이 기본 계산에 들어 있어 그대로 둔다(undefined = 기본값 유지).
+export const HEADER_HEIGHT =
+  Platform.OS === 'web' ? 44
+  : Platform.OS === 'android' ? 44 + (StatusBar.currentHeight ?? 0)
+  : undefined;
 
 // 위치 권한 거부 시 폴백 좌표 = 부산시청.
 // ⚠️ 서비스 데이터(공공데이터 헬스장)가 현재 부산만 적재돼 있어 서울로 두면 지도가 텅 빈 것처럼 보인다.
@@ -17,6 +27,11 @@ export const PLATFORM_FEE_RATE = 0.1;
 // PT 회차권 유효기간(개월). 환불정책 문서·결제 화면 고지·만료 처리가 모두 이 값을 참조한다.
 // ⚠️ 토스페이먼츠에 '서비스 종료까지 기간 12개월'로 신고한 값이므로 바꾸려면 PG 신고 내용도 함께 정정할 것.
 export const SESSION_PASS_VALIDITY_MONTHS = 12;
+
+// 트레이너의 세션 완료 요청 후 회원이 무응답이면 자동 확정되는 기간(일).
+// 이 값이 없으면 회원이 확인을 안 할 때 정산이 영구히 멈춘다.
+// 환불정책 문서 고지와 auto-confirm-sessions Edge Function이 같은 값을 써야 한다.
+export const SESSION_AUTO_CONFIRM_DAYS = 7;
 
 export const COLORS = {
   primary: '#0057ff',

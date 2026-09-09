@@ -25,7 +25,7 @@ import { formatPrice } from '../../utils/formatters';
 import { COLORS, DAY_LABELS } from '../../utils/constants';
 import StarRating from '../../components/StarRating';
 import TrainerCard from '../../components/TrainerCard';
-import GymThumb from '../../components/GymThumb';
+import GymHeroPhoto from '../../components/GymHeroPhoto';
 
 const GYM_REPORT_REASONS = [
   '허위 시설·정보 기재',
@@ -122,8 +122,8 @@ export default function GymDetailScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* 이미지 슬라이더 */}
         <View style={styles.imageContainer}>
-          {/* 공공데이터 헬스장은 사진이 없다. 빈 회색 영역 대신 이름 기반 플레이스홀더를 쓴다. */}
-          <GymThumb name={gym.name} uri={gym.images[activeImg]} size={250} radius={0} style={styles.mainImage} />
+          {/* 공공데이터 헬스장은 사진이 없다. 좌표로 로드뷰·지도를 띄우고, 그것도 안 되면 이름 기반 플레이스홀더. */}
+          <GymHeroPhoto name={gym.name} uri={gym.images[activeImg]} coordinate={gym.coordinate} style={styles.mainImage} />
           {gym.images.length > 1 && (
             <View style={styles.imageDots}>
               {gym.images.map((_, i) => (

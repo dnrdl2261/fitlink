@@ -648,7 +648,7 @@ const styles = StyleSheet.create({
   topOverlay: { position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'box-none' as any },
   topBar: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6,
+    paddingHorizontal: 14, paddingTop: 8, paddingBottom: 6,
   },
   locChip: {
     flexDirection: 'row', alignItems: 'center', flexShrink: 1,

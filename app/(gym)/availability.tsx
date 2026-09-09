@@ -301,7 +301,7 @@ export default function AvailabilityScreen() {
                     <TouchableOpacity
                       style={[styles.pendingBtn, styles.pendingBtnReject]}
                       onPress={() => {
-                        cancelSlot(b.id);
+                        cancelSlot(b.id, 'gym');
                         addNotification({
                           type: 'slot_rejected', targetRole: 'trainer', userId: b.trainerId,
                           title: '슬롯 예약이 거절되었습니다',

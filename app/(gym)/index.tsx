@@ -1,5 +1,5 @@
 import { Redirect } from 'expo-router';
 
 export default function GymIndex() {
-  return <Redirect href="/(gym)/bookings" />;
+  return <Redirect href="/(gym)/community" />;
 }

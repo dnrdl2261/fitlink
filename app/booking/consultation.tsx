@@ -372,7 +372,7 @@ const s = StyleSheet.create({
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12,
+    paddingHorizontal: 16, paddingVertical: 8,
     backgroundColor: D.surface,
     borderBottomWidth: 1, borderBottomColor: D.border,
   },

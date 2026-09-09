@@ -31,7 +31,7 @@ function timeAgoOf(iso?: string): string {
 
 function postToRow(p: Post) {
   return {
-    id: p.id, category: p.category, title: p.title, content: p.content,
+    id: p.id, hashtags: p.hashtags, title: p.title, content: p.content,
     author: p.author, author_id: p.authorId ?? null, author_avatar: p.authorAvatar ?? null,
     location: p.location, views: p.views, image_url: p.imageUrl ?? null,
     is_video: !!p.isVideo, video_url: p.videoUrl ?? null, related_group_id: p.relatedGroupId ?? null,
@@ -39,7 +39,9 @@ function postToRow(p: Post) {
 }
 function postFromRow(x: any): Post {
   return {
-    id: x.id, category: x.category, title: x.title ?? '', content: x.content ?? '',
+    // 해시태그 도입 전 행은 category 한 개를 태그로 보여준다
+    id: x.id, hashtags: x.hashtags ?? (x.category ? [x.category] : []),
+    title: x.title ?? '', content: x.content ?? '',
     author: x.author ?? '', authorId: x.author_id ?? undefined, authorAvatar: x.author_avatar ?? undefined,
     location: x.location ?? '', timeAgo: timeAgoOf(x.created_at), views: x.views ?? 0,
     likes: 0, comments: 0,
@@ -83,12 +85,11 @@ interface CommunityState {
   comments: Comment[];
   groups: Group[];
   likedPosts: string[];
-  dislikedPosts: string[];
   savedPosts: string[];
   joinedGroups: string[];
 
   addPost: (data: {
-    category: Post['category'];
+    hashtags: string[];
     title: string;
     content: string;
     author: string;
@@ -102,7 +103,6 @@ interface CommunityState {
 
   addComment: (postId: string, content: string, author: string, authorAvatar?: string, authorId?: string) => void;
   toggleLikePost: (postId: string) => void;
-  toggleDislikePost: (postId: string) => void;
   toggleSavePost: (postId: string) => void;
   incrementViews: (postId: string) => void;
 
@@ -116,6 +116,7 @@ interface CommunityState {
   }) => void;
   toggleJoinGroup: (groupId: string) => void;
 
+  searchContent: (term: string) => Promise<{ posts: Post[]; groups: Group[] }>;
   loadContent: () => Promise<void>;
   loadUserState: (userId: string) => Promise<void>;
 }
@@ -125,7 +126,6 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
   comments: INITIAL_COMMENTS,
   groups: INITIAL_GROUPS,
   likedPosts: [],
-  dislikedPosts: [],
   savedPosts: [],
   joinedGroups: [],
 
@@ -133,7 +133,7 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
     const id = `post_${Date.now()}`;
     const newPost: Post = {
       id,
-      category: data.category,
+      hashtags: data.hashtags,
       title: data.title,
       content: data.content,
       author: data.author,
@@ -175,7 +175,6 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
       likedPosts: liked
         ? s.likedPosts.filter((id) => id !== postId)
         : [...s.likedPosts, postId],
-      dislikedPosts: s.dislikedPosts.filter((id) => id !== postId),
       posts: s.posts.map((p) =>
         p.id === postId ? { ...p, likes: p.likes + (liked ? -1 : 1) } : p
       ),
@@ -186,7 +185,6 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
       fire(supabase.from('post_reactions').delete().match({ user_id: uid, post_id: postId, type: 'like' }));
     } else {
       fire(supabase.from('post_reactions').upsert({ user_id: uid, post_id: postId, type: 'like' }));
-      fire(supabase.from('post_reactions').delete().match({ user_id: uid, post_id: postId, type: 'dislike' }));
     }
   },
 
@@ -201,27 +199,6 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
     if (!isRealUser(uid)) return;
     if (saved) fire(supabase.from('post_reactions').delete().match({ user_id: uid, post_id: postId, type: 'save' }));
     else fire(supabase.from('post_reactions').upsert({ user_id: uid, post_id: postId, type: 'save' }));
-  },
-
-  toggleDislikePost: (postId) => {
-    const disliked = get().dislikedPosts.includes(postId);
-    set((s) => ({
-      dislikedPosts: disliked
-        ? s.dislikedPosts.filter((id) => id !== postId)
-        : [...s.dislikedPosts, postId],
-      likedPosts: s.likedPosts.filter((id) => id !== postId),
-      posts: s.posts.map((p) =>
-        p.id === postId && !disliked ? { ...p, likes: Math.max(0, p.likes - (s.likedPosts.includes(postId) ? 1 : 0)) } : p
-      ),
-    }));
-    const uid = currentUserId();
-    if (!isRealUser(uid)) return;
-    if (disliked) {
-      fire(supabase.from('post_reactions').delete().match({ user_id: uid, post_id: postId, type: 'dislike' }));
-    } else {
-      fire(supabase.from('post_reactions').upsert({ user_id: uid, post_id: postId, type: 'dislike' }));
-      fire(supabase.from('post_reactions').delete().match({ user_id: uid, post_id: postId, type: 'like' }));
-    }
   },
 
   incrementViews: (postId) => {
@@ -273,6 +250,46 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
     if (!isRealUser(uid)) return;
     if (joined) fire(supabase.from('group_members').delete().match({ user_id: uid, group_id: groupId }));
     else fire(supabase.from('group_members').upsert({ user_id: uid, group_id: groupId }));
+  },
+
+  // 커뮤니티 검색. 서버(posts/groups)를 직접 조회하고, DB에 없는 시드 콘텐츠는
+  // 피드와 눈높이를 맞추기 위해 로컬에서도 걸러 합친다.
+  searchContent: async (term) => {
+    const q = term.trim();
+    if (!q) return { posts: [], groups: [] };
+
+    const lower = q.toLowerCase();
+    const hit = (...fields: (string | undefined)[]) => fields.some((f) => f?.toLowerCase().includes(lower));
+    const localPosts = get().posts.filter((p) => hit(p.title, p.content, p.author, p.hashtags.join(' ')));
+    const localGroups = get().groups.filter((g) => hit(g.name, g.description, g.location));
+    if (!isSupabaseConfigured) return { posts: localPosts, groups: localGroups };
+
+    // PostgREST or() 필터 문법을 깨뜨리는 문자는 공백으로 바꾼다
+    const safe = q.replace(/[,()"'\\%*{}:]/g, ' ').trim();
+    if (!safe) return { posts: localPosts, groups: localGroups };
+
+    const [postRes, groupRes] = await Promise.all([
+      // 해시태그는 text[]라 or() 필터로 부분 일치가 안 된다. schema.sql의 search_posts RPC가
+      // array_to_string으로 펴서 찾는다(함수 미배포 시 서버 글은 빠지고 로컬 결과만 남는다).
+      supabase.rpc('search_posts', { q }),
+      supabase.from('groups')
+        .select('*')
+        .or(`name.ilike.*${safe}*,description.ilike.*${safe}*,location.ilike.*${safe}*`)
+        .order('created_at', { ascending: false })
+        .limit(50),
+    ]);
+    if (postRes.error) onDbError(postRes.error);
+    if (groupRes.error) onDbError(groupRes.error);
+
+    // 같은 id가 스토어에 있으면 집계된 좋아요·댓글 수를 살리기 위해 스토어 쪽을 쓴다
+    const postById = new Map(get().posts.map((p) => [p.id, p]));
+    const groupById = new Map(get().groups.map((g) => [g.id, g]));
+    const posts = new Map(localPosts.map((p) => [p.id, p]));
+    (postRes.data ?? []).forEach((r: any) => posts.set(r.id, postById.get(r.id) ?? postFromRow(r)));
+    const groups = new Map(localGroups.map((g) => [g.id, g]));
+    (groupRes.data ?? []).forEach((r) => groups.set(r.id, groupById.get(r.id) ?? groupFromRow(r)));
+
+    return { posts: Array.from(posts.values()), groups: Array.from(groups.values()) };
   },
 
   // 공개 콘텐츠 로드(게시글/댓글/그룹) + 카운트 집계(좋아요/댓글/멤버). 비로그인 포함 startup에서 호출.
@@ -330,7 +347,6 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
     ]);
     set({
       likedPosts: (reactions ?? []).filter((r) => r.type === 'like').map((r) => r.post_id),
-      dislikedPosts: (reactions ?? []).filter((r) => r.type === 'dislike').map((r) => r.post_id),
       savedPosts: (reactions ?? []).filter((r) => r.type === 'save').map((r) => r.post_id),
       joinedGroups: (members ?? []).map((m) => m.group_id),
     });

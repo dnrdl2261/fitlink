@@ -33,7 +33,16 @@ function json(body: unknown, status = 200) {
   });
 }
 
-serve(async () => {
+
+// cron 전용 함수다. anon 키는 웹 번들에 공개돼 있으므로,
+// pg_cron 이 쓰는 service_role 키로 온 요청만 받는다.
+// (앱에서 부르는 send-push·verify-payment·delete-account 에는 이 가드를 넣으면 안 된다)
+function isFromCron(req: Request): boolean {
+  return req.headers.get('Authorization') === `Bearer ${SERVICE_ROLE_KEY}`;
+}
+serve(async (req) => {
+  if (!isFromCron(req)) return json({ ok: false, error: 'forbidden' }, 401);
+
   try {
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
     const nowIso = new Date().toISOString();

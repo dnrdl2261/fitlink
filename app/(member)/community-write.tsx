@@ -8,29 +8,38 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../../utils/constants';
-import { FeedCat, FEED_CATS, CAT_COLOR } from '../../data/community';
 import { useCommunityStore } from '../../store/communityStore';
 import { useAuthStore } from '../../store/authStore';
 import { uploadMedia, isLocalUri, canUpload } from '../../utils/upload';
 import { notify } from '../../utils/alert';
+import VideoPlayer from '../../components/VideoPlayer';
 
-const WRITE_CATS = FEED_CATS.filter((c) => c !== '전체') as Exclude<FeedCat, '전체'>[];
 const MAX_IMAGES = 5;
+
+// "#오운완 #스쿼트" → ['오운완', '스쿼트'] (#·공백·쉼표로 구분, 중복 제거)
+const parseTags = (raw: string) =>
+  Array.from(new Set(raw.split(/[s,#]+/).map((t) => t.trim()).filter(Boolean)));
 
 export default function CommunityWriteScreen() {
   const router = useRouter();
-  const { t, from } = useLocalSearchParams<{ t: string; from?: string }>();
+  const { t, from, mode } = useLocalSearchParams<{ t: string; from?: string; mode?: string }>();
   const { member } = useAuthStore();
   const { addPost } = useCommunityStore();
 
-  const [category, setCategory] = useState<Exclude<FeedCat, '전체'> | null>(null);
+  const [tagText, setTagText] = useState('');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [images, setImages] = useState<string[]>([]);
-  const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
+  const [mediaType, setMediaType] = useState<'image' | 'video'>(mode === 'video' ? 'video' : 'image');
   const [videoUri, setVideoUri] = useState<string | null>(null);
+  // 캐러셀 한 장 폭. 앱이 430px 컨테이너라 창 크기로 재면 어긋난다.
+  const [stageW, setStageW] = useState(0);
 
-  const canSubmit = !!category && title.trim().length > 0 && content.trim().length > 0;
+  const hashtags = parseTags(tagText);
+  // 사진이나 동영상 없이는 글을 올릴 수 없다
+  const hasMedia = mediaType === 'image' ? images.length > 0 : !!videoUri;
+  const canSubmit =
+    hashtags.length > 0 && title.trim().length > 0 && content.trim().length > 0 && hasMedia;
 
   const pickImages = async () => {
     if (Platform.OS !== 'web') {
@@ -82,11 +91,6 @@ export default function CommunityWriteScreen() {
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
-    if (mediaType === 'video' && !videoUri) {
-      if (Platform.OS === 'web') { alert('동영상을 추가해주세요.'); }
-      else { Alert.alert('알림', '동영상을 추가해주세요.'); }
-      return;
-    }
     // 첨부 사진을 Storage에 올린다(로컬 uri를 그대로 저장하면 남에게 안 보인다).
     let imgUrl = images[0];
     if (isLocalUri(imgUrl) && canUpload(member?.id)) {
@@ -105,7 +109,7 @@ export default function CommunityWriteScreen() {
       vidUrl = upv;
     }
     addPost({
-      category: category!,
+      hashtags,
       title: title.trim(),
       content: content.trim(),
       author: member?.name ?? '익명',
@@ -154,33 +158,109 @@ export default function CommunityWriteScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView key={t} style={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* 고정 미디어 무대 — 글을 쓰는 동안 스크롤해도 사라지지 않는다 */}
+        <View style={styles.stage} onLayout={(e) => setStageW(e.nativeEvent.layout.width)}>
+          {mediaType === 'video' ? (
+            videoUri ? (
+              <>
+                <VideoPlayer uri={videoUri} isPlaying muted />
+                <TouchableOpacity
+                  style={styles.stageRemove}
+                  onPress={() => setVideoUri(null)}
+                  accessibilityRole="button"
+                  accessibilityLabel="동영상 삭제"
+                >
+                  <MaterialCommunityIcons name="close" size={18} color="#fff" />
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity style={styles.stagePick} onPress={pickVideo}>
+                <MaterialCommunityIcons name="video-plus" size={34} color={COLORS.textSecondary} />
+                <Text style={styles.stagePickText}>동영상 추가</Text>
+                <Text style={styles.stagePickSub}>스토리 탭에 노출됩니다</Text>
+              </TouchableOpacity>
+            )
+          ) : images.length > 0 ? (
+            <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
+              {images.map((uri, idx) => (
+                <View key={uri + idx} style={[styles.stagePage, { width: stageW }]}>
+                  <Image source={{ uri }} style={styles.stageImg} resizeMode="contain" />
+                  <TouchableOpacity
+                    style={styles.stageRemove}
+                    onPress={() => removeImage(idx)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`사진 ${idx + 1} 삭제`}
+                  >
+                    <MaterialCommunityIcons name="close" size={18} color="#fff" />
+                  </TouchableOpacity>
+                  <View style={styles.stageCount}>
+                    <Text style={styles.stageCountText}>{idx + 1}/{images.length}</Text>
+                  </View>
+                </View>
+              ))}
+              {images.length < MAX_IMAGES && (
+                <TouchableOpacity style={[styles.stagePage, { width: stageW }]} onPress={pickImages}>
+                  <MaterialCommunityIcons name="image-plus" size={34} color={COLORS.textSecondary} />
+                  <Text style={styles.stagePickText}>사진 추가</Text>
+                  <Text style={styles.stagePickSub}>{images.length}/{MAX_IMAGES}</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          ) : (
+            <TouchableOpacity style={styles.stagePick} onPress={pickImages}>
+              <MaterialCommunityIcons name="image-plus" size={34} color={COLORS.textSecondary} />
+              <Text style={styles.stagePickText}>사진 추가</Text>
+              <Text style={styles.stagePickSub}>최대 {MAX_IMAGES}장</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
-          {/* 카테고리 */}
+        {/* 유형 토글 — 무대 바로 아래 고정 */}
+        <View style={styles.typeBar}>
+          <TouchableOpacity
+            style={[styles.mediaTypeBtn, styles.typeBtnSlim, mediaType === 'image' && styles.mediaTypeBtnActive]}
+            onPress={() => { setMediaType('image'); setVideoUri(null); }}
+          >
+            <MaterialCommunityIcons name="image-multiple" size={16} color={mediaType === 'image' ? COLORS.primary : COLORS.textSecondary} />
+            <Text style={[styles.mediaTypeText, mediaType === 'image' && styles.mediaTypeTextActive]}>사진</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.mediaTypeBtn, styles.typeBtnSlim, mediaType === 'video' && styles.mediaTypeBtnActive]}
+            onPress={() => { setMediaType('video'); setImages([]); }}
+          >
+            <MaterialCommunityIcons name="video" size={16} color={mediaType === 'video' ? COLORS.primary : COLORS.textSecondary} />
+            <Text style={[styles.mediaTypeText, mediaType === 'video' && styles.mediaTypeTextActive]}>동영상</Text>
+          </TouchableOpacity>
+          {!hasMedia && <Text style={styles.typeHint}>사진 또는 동영상을 1개 이상 올려주세요</Text>}
+        </View>
+
+        <ScrollView key={t} style={styles.scroll} showsVerticalScrollIndicator={false}>
+          {/* 해시태그 */}
           <View style={styles.section}>
             <View style={styles.labelRow}>
-              <Text style={styles.sectionLabel}>카테고리</Text>
+              <Text style={styles.sectionLabel}>해시태그</Text>
               <Text style={styles.required}>*</Text>
-              {!category && <Text style={styles.labelHint}>분류를 선택해주세요</Text>}
+              {hashtags.length === 0 && <Text style={styles.labelHint}>최소 1개 입력해주세요</Text>}
+              <View style={styles.labelSpacer} />
+              <Text style={styles.charCount}>{hashtags.length}개</Text>
             </View>
-            <View style={styles.catGrid}>
-              {WRITE_CATS.map((cat) => {
-                const color = CAT_COLOR[cat] ?? '#888';
-                const selected = category === cat;
-                return (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[styles.catChip, { borderColor: color }, selected && { backgroundColor: color }]}
-                    onPress={() => setCategory(cat)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.catChipText, { color: selected ? '#fff' : color }]}>
-                      {cat}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <TextInput
+              style={styles.titleInput}
+              placeholder="#오운완 #스쿼트 (띄어쓰기로 구분)"
+              placeholderTextColor={COLORS.textSecondary}
+              value={tagText}
+              onChangeText={setTagText}
+              autoCapitalize="none"
+            />
+            {hashtags.length > 0 && (
+              <View style={styles.tagPreview}>
+                {hashtags.map((tag) => (
+                  <View key={tag} style={styles.tagChip}>
+                    <Text style={styles.tagChipText}>#{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
 
           {/* 제목 */}
@@ -221,83 +301,6 @@ export default function CommunityWriteScreen() {
             />
           </View>
 
-          {/* 미디어 첨부 (유형 토글 + 첨부 영역 통합) */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>미디어 첨부</Text>
-            <View style={styles.mediaTypeRow}>
-              <TouchableOpacity
-                style={[styles.mediaTypeBtn, mediaType === 'image' && styles.mediaTypeBtnActive]}
-                onPress={() => { setMediaType('image'); setVideoUri(null); }}
-              >
-                <MaterialCommunityIcons
-                  name="image-multiple"
-                  size={16}
-                  color={mediaType === 'image' ? COLORS.primary : COLORS.textSecondary}
-                />
-                <Text style={[styles.mediaTypeText, mediaType === 'image' && styles.mediaTypeTextActive]}>
-                  사진 (최대 {MAX_IMAGES}장)
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.mediaTypeBtn, mediaType === 'video' && styles.mediaTypeBtnActive]}
-                onPress={() => { setMediaType('video'); setImages([]); }}
-              >
-                <MaterialCommunityIcons
-                  name="video"
-                  size={16}
-                  color={mediaType === 'video' ? COLORS.primary : COLORS.textSecondary}
-                />
-                <Text style={[styles.mediaTypeText, mediaType === 'video' && styles.mediaTypeTextActive]}>
-                  동영상 (쇼츠)
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {mediaType === 'image' && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoScroll}>
-                <View style={styles.photoRow}>
-                  {images.map((uri, idx) => (
-                    <View key={uri + idx} style={styles.thumbWrap}>
-                      <Image source={{ uri }} style={styles.thumb} resizeMode="cover" />
-                      <TouchableOpacity style={styles.removeBtn} onPress={() => removeImage(idx)} accessibilityRole="button" accessibilityLabel="사진 삭제">
-                        <MaterialCommunityIcons name="close-circle" size={20} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                  {images.length < MAX_IMAGES && (
-                    <TouchableOpacity style={styles.addMediaBtn} onPress={pickImages}>
-                      <MaterialCommunityIcons name="image-plus" size={28} color={COLORS.textSecondary} />
-                      <Text style={styles.addMediaText}>사진 추가</Text>
-                      <Text style={styles.addMediaSub}>{images.length}/{MAX_IMAGES}</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </ScrollView>
-            )}
-
-            {mediaType === 'video' && (
-              <View style={styles.photoRow}>
-                {videoUri ? (
-                  <View style={styles.thumbWrap}>
-                    <View style={styles.videoThumb}>
-                      <MaterialCommunityIcons name="video-check" size={30} color={COLORS.primary} />
-                      <Text style={styles.videoThumbText}>동영상 선택됨</Text>
-                    </View>
-                    <TouchableOpacity style={styles.removeBtn} onPress={() => setVideoUri(null)} accessibilityRole="button" accessibilityLabel="동영상 삭제">
-                      <MaterialCommunityIcons name="close-circle" size={20} color="#fff" />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity style={styles.addMediaBtn} onPress={pickVideo}>
-                    <MaterialCommunityIcons name="video-plus" size={28} color={COLORS.textSecondary} />
-                    <Text style={styles.addMediaText}>동영상 추가</Text>
-                    <Text style={styles.addMediaSub}>스토리 탭에 노출됩니다</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-          </View>
-
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -311,7 +314,7 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 10,
+    paddingHorizontal: 16, paddingVertical: 8,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
@@ -342,9 +345,12 @@ const styles = StyleSheet.create({
   labelSpacer: { flex: 1 },
   charCount: { fontSize: 12, color: COLORS.textSecondary },
 
-  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  catChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5 },
-  catChipText: { fontSize: 13, fontWeight: '700' },
+  tagPreview: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  tagChip: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+    backgroundColor: COLORS.primaryPale,
+  },
+  tagChipText: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
 
   titleInput: {
     fontSize: 16, color: COLORS.text,
@@ -358,7 +364,6 @@ const styles = StyleSheet.create({
     borderRadius: 12, padding: 14,
   },
 
-  mediaTypeRow: { flexDirection: 'row', gap: 10 },
   mediaTypeBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, paddingVertical: 10, borderRadius: 12,
@@ -369,27 +374,30 @@ const styles = StyleSheet.create({
   mediaTypeText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
   mediaTypeTextActive: { color: COLORS.primary },
 
-  photoScroll: { marginHorizontal: -16, paddingLeft: 16 },
-  photoRow: { flexDirection: 'row', gap: 10, paddingBottom: 4 },
-  thumbWrap: { position: 'relative' },
-  thumb: { width: 90, height: 90, borderRadius: 10 },
-  removeBtn: {
-    position: 'absolute', top: -6, right: -6,
-    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 10,
-  },
-  addMediaBtn: {
-    width: 90, height: 90, borderRadius: 10,
-    borderWidth: 1.5, borderColor: COLORS.border, borderStyle: 'dashed',
-    alignItems: 'center', justifyContent: 'center', gap: 3,
-    backgroundColor: COLORS.background,
-  },
-  addMediaText: { fontSize: 11, color: COLORS.textSecondary, fontWeight: '600' },
-  addMediaSub: { fontSize: 10, color: COLORS.border },
 
-  videoThumb: {
-    width: 90, height: 90, borderRadius: 10,
-    backgroundColor: COLORS.primary + '15',
-    alignItems: 'center', justifyContent: 'center', gap: 4,
+  stage: { height: 220, backgroundColor: '#0f0f10' },
+  stagePage: { height: 220, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  stageImg: { width: '100%', height: '100%' },
+  stagePick: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  stagePickText: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '700' },
+  stagePickSub: { fontSize: 11, color: COLORS.textSecondary },
+  stageRemove: {
+    position: 'absolute', top: 10, right: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 14, padding: 5,
   },
-  videoThumbText: { fontSize: 10, color: COLORS.primary, fontWeight: '600' },
+  stageCount: {
+    position: 'absolute', bottom: 10, right: 12,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 10,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  stageCountText: { fontSize: 11, color: '#fff', fontWeight: '700' },
+  typeBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderBottomWidth: 1, borderBottomColor: COLORS.borderSubtle,
+  },
+  // flex: 1 은 flexBasis: 0% 까지 넣어서 버튼이 밑넓이를 못 가진다.
+  // basis 를 auto 로 돌려놔야 글자 폭만큼 잡히고 세로로 안 쪼개진다.
+  typeBtnSlim: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', paddingHorizontal: 14, paddingVertical: 7 },
+  typeHint: { fontSize: 11, color: '#E53935', flex: 1, flexShrink: 1 },
 });

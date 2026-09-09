@@ -226,7 +226,7 @@ const s = StyleSheet.create({
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 10,
+    paddingHorizontal: 16, paddingVertical: 8,
     backgroundColor: D.surface, borderBottomWidth: 1, borderBottomColor: D.border,
   },
   backBtn: {

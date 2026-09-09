@@ -8,9 +8,9 @@ export default function Index() {
     return <Redirect href="/login" />;
   }
 
-  if (role === 'member')         return <Redirect href="/(member)/trainers" />;
-  if (role === 'trainer')        return <Redirect href="/(trainer)" />;
-  if (role === 'gym_admin')      return <Redirect href="/(gym)/bookings" />;
+  if (role === 'member')         return <Redirect href="/(member)/community" />;
+  if (role === 'trainer')        return <Redirect href="/(trainer)/community" />;
+  if (role === 'gym_admin')      return <Redirect href="/(gym)/community" />;
 
   return <Redirect href="/login" />;
 }

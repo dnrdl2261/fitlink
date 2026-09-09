@@ -153,7 +153,7 @@ export default function EditProfileScreen() {
         const next = [];
         for (const m of mediaItems) {
           if (!isLocalUri(m.uri)) { next.push(m); continue; }
-          const up = await uploadMedia(m.uri, 'avatars', trainer.id);
+          const up = await uploadMedia(m.uri, 'trainers', trainer.id);
           if (up) next.push({ ...m, uri: up });
         }
         media = next;

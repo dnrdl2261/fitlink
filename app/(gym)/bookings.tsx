@@ -934,7 +934,7 @@ export default function GymBookingsScreen() {
         meta: { slotBookingId: slots[0]?.id },
       });
     } else {
-      slots.forEach(s => cancelSlot(s.id));
+      slots.forEach(s => cancelSlot(s.id, 'gym'));
       addNotification({
         type: 'slot_rejected', targetRole: 'trainer', userId: group.trainerId,
         title: '슬롯 예약이 거절되었습니다',

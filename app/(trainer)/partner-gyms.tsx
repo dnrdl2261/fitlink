@@ -607,7 +607,7 @@ const st = StyleSheet.create({
   // ── 헤더 ──
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12,
+    paddingHorizontal: 16, paddingVertical: 8,
     backgroundColor: '#fff',
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },

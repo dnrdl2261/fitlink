@@ -102,7 +102,7 @@ function Field({ label, value, onChange, placeholder, keyboard, hint }: { label:
 
 const s = StyleSheet.create({
   c: { flex: 1, backgroundColor: COLORS.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 12, backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 8, backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   back: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 17, fontWeight: '800', color: COLORS.text },
 

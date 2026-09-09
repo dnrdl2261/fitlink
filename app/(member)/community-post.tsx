@@ -7,20 +7,11 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../utils/constants';
-import { CAT_COLOR, INITIAL_GROUPS } from '../../data/community';
+import { INITIAL_GROUPS } from '../../data/community';
 import { useCommunityStore } from '../../store/communityStore';
 import { useAuthStore } from '../../store/authStore';
 import { useBlockedIds } from '../../hooks/useBlockedIds';
 import VideoPlayer from '../../components/VideoPlayer';
-
-const CAT_TO_GROUP: Record<string, string[]> = {
-  운동팁: ['운동', '자기계발'],
-  인증샷: ['운동', '다이어트'],
-  식단: ['다이어트', '운동'],
-  질문: ['운동', '자기계발'],
-  자유: ['운동', '아웃도어'],
-  쇼츠: ['운동', '아웃도어', '자기계발'],
-};
 
 const postScrollCache: Record<string, number> = {};
 
@@ -39,21 +30,26 @@ export default function CommunityPostScreen() {
   );
   const isLiked = likedPosts.includes(postId ?? '');
 
-  const similarPosts = useMemo(() =>
-    posts.filter(p => p.id !== postId && p.category === post?.category).slice(0, 4),
-    [posts, postId, post?.category]
-  );
+  // 해시태그가 하나라도 겹치면 비슷한 글로 본다
+  const similarPosts = useMemo(() => {
+    const tags = post?.hashtags ?? [];
+    if (!tags.length) return [];
+    return posts.filter(p => p.id !== postId && p.hashtags.some(t => tags.includes(t))).slice(0, 4);
+  }, [posts, postId, post?.hashtags]);
 
   const popularPosts = useMemo(
     () => [...posts].filter(p => p.id !== postId).sort((a, b) => b.likes - a.likes).slice(0, 5),
     [posts, postId]
   );
 
+  // 해시태그가 모임 분류(운동·다이어트·아웃도어·자기계발)와 겹치면 그 모임을 추천한다
   const matchingGroups = useMemo(() => {
     if (!post) return [];
-    const relatedCats = CAT_TO_GROUP[post.category] ?? ['운동'];
-    return INITIAL_GROUPS.filter(g => relatedCats.includes(g.category)).slice(0, 4);
-  }, [post?.category]);
+    const matched = INITIAL_GROUPS.filter(
+      g => post.hashtags.some(t => t.includes(g.category) || g.category.includes(t)),
+    );
+    return (matched.length ? matched : INITIAL_GROUPS.filter(g => g.category === '운동')).slice(0, 4);
+  }, [post?.hashtags]);
 
   const authorIdMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -81,7 +77,8 @@ export default function CommunityPostScreen() {
     );
   }
 
-  const catColor = CAT_COLOR[post.category] ?? '#888';
+  const goTag = (tag: string) =>
+    router.navigate({ pathname: '/(member)/community', params: { tag, t: String(Date.now()), ...(from && from !== 'post' ? { from } : {}) } } as any);
 
   const handleSubmitComment = () => {
     const text = commentText.trim();
@@ -101,7 +98,7 @@ export default function CommunityPostScreen() {
           <TouchableOpacity onPress={() => router.navigate((from === 'post' && returnPostId ? { pathname: '/(member)/community-post', params: { postId: returnPostId } } : { pathname: '/(member)/community', params: from && from !== 'post' ? { from } : {} }) as any)} style={styles.backBtn}>
             <Text style={styles.backBtnText}>‹</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle} numberOfLines={1}>{post.category}</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>게시글</Text>
           <View style={{ width: 36 }} />
         </View>
 
@@ -120,9 +117,20 @@ export default function CommunityPostScreen() {
           style={styles.scroll}
         >
           <View style={styles.postSection}>
-            <View style={[styles.catBadge, { backgroundColor: catColor + '18' }]}>
-              <Text style={[styles.catText, { color: catColor }]}>{post.category}</Text>
-            </View>
+            {post.hashtags.length > 0 && (
+              <View style={styles.tagRow}>
+                {post.hashtags.map((tag) => (
+                  <TouchableOpacity
+                    key={tag}
+                    onPress={() => goTag(tag)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`#${tag} 태그 글 모아보기`}
+                  >
+                    <Text style={styles.tagText}>#{tag}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
             <Text style={styles.postTitle}>{post.title}</Text>
 
             <TouchableOpacity
@@ -265,16 +273,15 @@ export default function CommunityPostScreen() {
             <View style={styles.recSection}>
               <Text style={[styles.recTitle, { marginBottom: 4 }]}>🔗 이 글과 비슷한 게시글</Text>
               {similarPosts.map(p => {
-                const pc = CAT_COLOR[p.category] ?? '#888';
                 return (
                   <TouchableOpacity
                     key={p.id} style={styles.simPost} activeOpacity={0.8}
                     onPress={() => router.push({ pathname: '/(member)/community-post', params: { postId: p.id, from: 'post', returnPostId: post.id } } as any)}
                   >
                     <View style={styles.simPostBody}>
-                      <View style={[styles.simCatBadge, { backgroundColor: pc + '18' }]}>
-                        <Text style={[styles.simCatText, { color: pc }]}>{p.category}</Text>
-                      </View>
+                      {p.hashtags.length > 0 && (
+                        <Text style={styles.simTagText} numberOfLines={1}>#{p.hashtags[0]}</Text>
+                      )}
                       <Text style={styles.simTitle} numberOfLines={2}>{p.title}</Text>
                       <Text style={styles.simContent} numberOfLines={2}>{p.content}</Text>
                       <View style={styles.simStats}>
@@ -299,7 +306,6 @@ export default function CommunityPostScreen() {
             <View style={[styles.recSection, { paddingBottom: 20 }]}>
               <Text style={[styles.recTitle, { marginBottom: 4 }]}>🔥 인기글</Text>
               {popularPosts.map((p, index) => {
-                const pc = CAT_COLOR[p.category] ?? '#888';
                 return (
                   <TouchableOpacity
                     key={p.id} style={styles.simPost} activeOpacity={0.8}
@@ -307,9 +313,9 @@ export default function CommunityPostScreen() {
                   >
                     <Text style={[styles.popularRank, index < 3 && styles.popularRankHot]}>{index + 1}</Text>
                     <View style={styles.simPostBody}>
-                      <View style={[styles.simCatBadge, { backgroundColor: pc + '18' }]}>
-                        <Text style={[styles.simCatText, { color: pc }]}>{p.category}</Text>
-                      </View>
+                      {p.hashtags.length > 0 && (
+                        <Text style={styles.simTagText} numberOfLines={1}>#{p.hashtags[0]}</Text>
+                      )}
                       <Text style={styles.simTitle} numberOfLines={2}>{p.title}</Text>
                       <View style={styles.simStats}>
                         <MaterialCommunityIcons name="heart-outline" size={13} color={COLORS.textSecondary} />
@@ -365,7 +371,7 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 8, paddingVertical: 12,
+    paddingHorizontal: 8, paddingVertical: 8,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
@@ -380,8 +386,8 @@ const styles = StyleSheet.create({
     padding: 20, gap: 12,
     borderBottomWidth: 8, borderBottomColor: COLORS.background,
   },
-  catBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  catText: { fontSize: 12, fontWeight: '700' },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  tagText: { fontSize: 14, fontWeight: '600', color: COLORS.primary },
   postTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text, lineHeight: 28 },
 
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
@@ -490,8 +496,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: COLORS.border,
   },
   simPostBody: { flex: 1, gap: 5 },
-  simCatBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  simCatText: { fontSize: 11, fontWeight: '700' },
+  simTagText: { fontSize: 11, fontWeight: '700', color: COLORS.primary },
   simTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text, lineHeight: 20 },
   simContent: { fontSize: 12, color: COLORS.textSecondary, lineHeight: 17 },
   simStats: { flexDirection: 'row', alignItems: 'center', gap: 4 },

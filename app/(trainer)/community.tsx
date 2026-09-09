@@ -1,28 +1,28 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, FlatList,
-  TouchableOpacity, Image, Share, Platform, TextInput,
+  TouchableOpacity, Image, Share, Platform, TextInput, Animated,
 } from 'react-native';
 import { useRouter, useGlobalSearchParams } from 'expo-router';
 import { useScrollToTop } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../utils/constants';
-import {
-  FeedCat, GroupCat, CAT_COLOR, GROUP_CAT_COLOR,
-  FEED_CATS, GROUP_CATS, likersOfPost,
-} from '../../data/community';
+import { GROUP_CAT_COLOR, likersOfPost } from '../../data/community';
 import { useCommunityStore } from '../../store/communityStore';
 import { useBlockedIds } from '../../hooks/useBlockedIds';
+import { useHideOnScroll } from '../../hooks/useHideOnScroll';
 import { useAuthStore } from '../../store/authStore';
 import VideoPlayer from '../../components/VideoPlayer';
 import { Post, Group } from '../../data/community';
 
 const GYM = '#2DD4BF';
 
+// 상단 고정 영역 높이. 스크롤로 숨길 만큼 위로 밀어야 해서 상수로 잡는다.
+const TAG_BAR_H = 40;  // 해시태그 모아보기 줄
+
 type Tab = '피드' | '모임' | '스토리';
 
-function PostCard({ post, isVisible, onPress, onComment, onLikes }: { post: Post; isVisible: boolean; onPress: () => void; onComment: () => void; onLikes: () => void }) {
-  const catColor = CAT_COLOR[post.category] ?? '#888';
+function PostCard({ post, isVisible, onPress, onComment, onLikes, onTag }: { post: Post; isVisible: boolean; onPress: () => void; onComment: () => void; onLikes: () => void; onTag: (tag: string) => void }) {
   const likedPosts = useCommunityStore((s) => s.likedPosts);
   const toggleLikePost = useCommunityStore((s) => s.toggleLikePost);
   const liked = likedPosts.includes(post.id);
@@ -56,9 +56,6 @@ function PostCard({ post, isVisible, onPress, onComment, onLikes }: { post: Post
             : <Text style={styles.authorAvatarText}>{post.author[0]}</Text>}
         </View>
         <Text style={styles.authorName} numberOfLines={1}>{post.author}</Text>
-        <View style={[styles.catBadge, { backgroundColor: catColor + '18' }]}>
-          <Text style={[styles.catText, { color: catColor }]}>{post.category}</Text>
-        </View>
       </View>
 
       {post.imageUrl && (
@@ -111,6 +108,21 @@ function PostCard({ post, isVisible, onPress, onComment, onLikes }: { post: Post
         <TouchableOpacity onPress={() => setExpanded(true)} accessibilityRole="button" accessibilityLabel="본문 더보기">
           <Text style={styles.moreText}>더보기</Text>
         </TouchableOpacity>
+      )}
+
+      {post.hashtags.length > 0 && (
+        <View style={styles.tagRow}>
+          {post.hashtags.map((tag) => (
+            <TouchableOpacity
+              key={tag}
+              onPress={() => onTag(tag)}
+              accessibilityRole="button"
+              accessibilityLabel={`#${tag} 태그 글 모아보기`}
+            >
+              <Text style={styles.tagText}>#{tag}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       )}
 
       {post.comments > 0 && (
@@ -300,14 +312,22 @@ function GroupCard({ group, isJoined, onPress }: { group: Group; isJoined: boole
 
 export default function TrainerCommunityScreen() {
   const router = useRouter();
-  const { from } = useGlobalSearchParams<{ from?: string }>();
+  const { from, tag, t } = useGlobalSearchParams<{ from?: string; tag?: string; t?: string }>();
   const scrollRef = useRef<any>(null);
   useScrollToTop(scrollRef);
-  const { posts, groups, joinedGroups, dislikedPosts } = useCommunityStore();
+  const { posts, groups, joinedGroups } = useCommunityStore();
 
   const [activeTab, setActiveTab] = useState<Tab>('피드');
-  const [feedCat, setFeedCat] = useState<FeedCat>('전체');
-  const [groupCat, setGroupCat] = useState<GroupCat>('전체');
+  // 해시태그 모아보기. 다른 화면에서 태그를 누르면 tag 파라미터로 들어온다(t는 같은 태그 재진입용).
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  // 스크롤 중에 태그를 눌러도 필터 줄이 바로 보이도록 목록을 맨 위로 올린다
+  const applyTag = (next: string | null) => {
+    setTagFilter(next);
+    scrollRef.current?.scrollToOffset?.({ offset: 0, animated: false });
+  };
+  useEffect(() => {
+    if (tag) { applyTag(tag); setActiveTab('피드'); }
+  }, [tag, t]);
   const [visibleIds, setVisibleIds] = useState<string[]>([]);
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [likePost, setLikePost] = useState<Post | null>(null);
@@ -320,23 +340,17 @@ export default function TrainerCommunityScreen() {
 
   const blockedIds = useBlockedIds();
 
+  const headerH = tagFilter ? TAG_BAR_H : 0;
+  const { translateY, onScroll } = useHideOnScroll(headerH);
+
   const filteredPosts = useMemo(() => {
     const visible = blockedIds.length
       ? posts.filter((p) => !p.authorId || !blockedIds.includes(p.authorId))
       : posts;
-    if (feedCat === '전체') return visible;
-    return visible.filter((p) => p.category === feedCat);
-  }, [posts, feedCat, blockedIds]);
+    return tagFilter ? visible.filter((p) => p.hashtags.includes(tagFilter)) : visible;
+  }, [posts, blockedIds, tagFilter]);
 
-  const filteredGroups = useMemo(() => {
-    if (groupCat === '전체') return groups;
-    return groups.filter((g) => g.category === groupCat);
-  }, [groups, groupCat]);
-
-  const videoPosts = useMemo(
-    () => posts.filter((p) => p.isVideo && !dislikedPosts.includes(p.id)),
-    [posts, dislikedPosts],
-  );
+  const videoPosts = useMemo(() => posts.filter((p) => p.isVideo), [posts]);
 
   const goPost = (postId: string) =>
     router.push({ pathname: '/(trainer)/community-post', params: { postId, ...(from ? { from } : {}) } } as any);
@@ -346,109 +360,96 @@ export default function TrainerCommunityScreen() {
     router.push({ pathname: '/(trainer)/community-write', params: { t: String(Date.now()), ...(from ? { from } : {}) } } as any);
   const goGroupWrite = () =>
     router.push({ pathname: '/(trainer)/community-group-write', params: { t: String(Date.now()), ...(from ? { from } : {}) } } as any);
+  // 영상 올리기는 글쓰기 화면을 동영상 모드로 연다
+  const goVideoWrite = () =>
+    router.push({ pathname: '/(trainer)/community-write', params: { t: String(Date.now()), mode: 'video', ...(from ? { from } : {}) } } as any);
   const goStory = (postId: string) =>
     router.push({ pathname: '/(trainer)/community-story', params: { postId, ...(from ? { from } : {}) } } as any);
+  // 커뮤니티 홈 = 피드 탭 맨 위(해시태그 필터도 푼다)
+  const goHome = () => { setActiveTab('피드'); applyTag(null); };
+  const goVideoTab = () => { setActiveTab('스토리'); setTagFilter(null); };
+  const goGroupTab = () => { setActiveTab('모임'); setTagFilter(null); };
+  const goSearch = () =>
+    router.push({ pathname: '/(trainer)/community-search', params: { ...(from ? { from } : {}) } } as any);
+
+  // 우하단 작성 버튼은 현재 탭에 맞는 글쓰기 화면으로 간다
+  const [fabLabel, fabIcon, fabAction] = ({
+    '피드': ['글쓰기', 'square-edit-outline', goWrite],
+    '모임': ['모임 만들기', 'calendar-plus', goGroupWrite],
+    '스토리': ['영상 올리기', 'video-plus-outline', goVideoWrite],
+  } as const)[activeTab];
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.tabBar}>
-        {(['피드', '모임', '스토리'] as Tab[]).map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={styles.tabItem}
-            onPress={() => setActiveTab(tab)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-              {tab}
-            </Text>
-            {activeTab === tab && <View style={styles.tabUnderline} />}
-          </TouchableOpacity>
-        ))}
-      </View>
+      <Animated.View style={[styles.stickyHeader, { transform: [{ translateY }] }]}>
+        {tagFilter && (
+          <View style={styles.tagBar}>
+            <Text style={styles.tagBarText} numberOfLines={1}>#{tagFilter}</Text>
+            <Text style={styles.tagBarCount}>글 {filteredPosts.length}개</Text>
+            <TouchableOpacity
+              onPress={() => applyTag(null)}
+              accessibilityRole="button"
+              accessibilityLabel="해시태그 모아보기 해제"
+            >
+              <MaterialCommunityIcons name="close" size={18} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        )}
+      </Animated.View>
 
       {activeTab === '피드' && (
-        <View style={styles.flex1}>
-          <View style={styles.chipWrap}>
-            <FlatList
-              data={FEED_CATS}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              keyExtractor={(c) => c}
-              contentContainerStyle={styles.chipRow}
-              renderItem={({ item: cat }) => (
-                <TouchableOpacity
-                  style={[styles.chip, feedCat === cat && styles.chipActive]}
-                  onPress={() => setFeedCat(cat)}
-                >
-                  <Text style={[styles.chipText, feedCat === cat && styles.chipTextActive]}>{cat}</Text>
-                </TouchableOpacity>
-              )}
+        <FlatList
+          style={styles.flex1}
+          ref={scrollRef}
+          data={filteredPosts}
+          keyExtractor={(p) => p.id}
+          renderItem={({ item }) => (
+            <PostCard
+              post={item}
+              isVisible={visibleIds.includes(item.id)}
+              // 영상 글은 게시글 상세 대신 전체화면 뷰어로 연다.
+              // 댓글은 카드의 댓글 버튼이 시트로 띄우므로 여기서 잃는 건 없다.
+              onPress={() => (item.isVideo ? goStory(item.id) : goPost(item.id))}
+              onComment={() => setCommentPostId(item.id)}
+              onLikes={() => setLikePost(item)}
+              onTag={applyTag}
             />
-          </View>
-          <FlatList
-            ref={scrollRef}
-            data={filteredPosts}
-            keyExtractor={(p) => p.id}
-            renderItem={({ item }) => (
-              <PostCard
-                post={item}
-                isVisible={visibleIds.includes(item.id)}
-                onPress={() => goPost(item.id)}
-                onComment={() => setCommentPostId(item.id)}
-                onLikes={() => setLikePost(item)}
-              />
-            )}
-            onViewableItemsChanged={onViewableItemsChanged.current}
-            viewabilityConfig={viewabilityConfig.current}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 100 }}
-            ListEmptyComponent={
-              <View style={styles.empty}><Text style={styles.emptyText}>게시글이 없습니다</Text></View>
-            }
-          />
-        </View>
+          )}
+          onViewableItemsChanged={onViewableItemsChanged.current}
+          viewabilityConfig={viewabilityConfig.current}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          showsVerticalScrollIndicator={false}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          contentContainerStyle={{ paddingTop: headerH, paddingBottom: 100 }}
+          ListEmptyComponent={
+            <View style={styles.empty}><Text style={styles.emptyText}>게시글이 없습니다</Text></View>
+          }
+        />
       )}
 
       {activeTab === '모임' && (
-        <View style={styles.flex1}>
-          <View style={styles.chipWrap}>
-            <FlatList
-              data={GROUP_CATS}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              keyExtractor={(c) => c}
-              contentContainerStyle={styles.chipRow}
-              renderItem={({ item: cat }) => (
-                <TouchableOpacity
-                  style={[styles.chip, groupCat === cat && styles.chipActive]}
-                  onPress={() => setGroupCat(cat)}
-                >
-                  <Text style={[styles.chipText, groupCat === cat && styles.chipTextActive]}>{cat}</Text>
-                </TouchableOpacity>
-              )}
+        <FlatList
+          style={styles.flex1}
+          ref={scrollRef}
+          data={groups}
+          keyExtractor={(g) => g.id}
+          renderItem={({ item }) => (
+            <GroupCard
+              group={item}
+              isJoined={joinedGroups.includes(item.id)}
+              onPress={() => goGroup(item.id)}
             />
-          </View>
-          <FlatList
-            ref={scrollRef}
-            data={filteredGroups}
-            keyExtractor={(g) => g.id}
-            renderItem={({ item }) => (
-              <GroupCard
-                group={item}
-                isJoined={joinedGroups.includes(item.id)}
-                onPress={() => goGroup(item.id)}
-              />
-            )}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 100 }}
-            ListEmptyComponent={
-              <View style={styles.empty}><Text style={styles.emptyText}>모임이 없습니다</Text></View>
-            }
-          />
-        </View>
+          )}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          showsVerticalScrollIndicator={false}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          contentContainerStyle={{ paddingTop: headerH, paddingBottom: 100 }}
+          ListEmptyComponent={
+            <View style={styles.empty}><Text style={styles.emptyText}>모임이 없습니다</Text></View>
+          }
+        />
       )}
 
       {activeTab === '스토리' && (
@@ -509,7 +510,9 @@ export default function TrainerCommunityScreen() {
             viewabilityConfig={viewabilityConfig.current}
             ItemSeparatorComponent={() => <View style={styles.separator} />}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 100 }}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            contentContainerStyle={{ paddingTop: headerH, paddingBottom: 100 }}
             ListEmptyComponent={
               <View style={styles.storyEmpty}>
                 <MaterialCommunityIcons name="video-off-outline" size={52} color={COLORS.border} />
@@ -521,19 +524,48 @@ export default function TrainerCommunityScreen() {
         </View>
       )}
 
+      {/* 현재 탭에 맞는 작성 버튼 */}
       <TouchableOpacity
-        style={styles.fab}
-        onPress={activeTab === '모임' ? goGroupWrite : goWrite}
+        style={styles.writeFab}
+        onPress={fabAction}
         activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={fabLabel}
       >
-        <MaterialCommunityIcons
-          name={activeTab === '스토리' ? 'video-plus' : 'plus'}
-          size={20} color="#fff"
-        />
-        <Text style={styles.fabText}>
-          {activeTab === '모임' ? '모임 만들기' : activeTab === '스토리' ? '영상 올리기' : '글쓰기'}
-        </Text>
+        <MaterialCommunityIcons name={fabIcon} size={26} color="#fff" />
       </TouchableOpacity>
+
+      {/* 상단 탭바를 없앤 대신 이 바가 탭 전환까지 맡는다. tab이 null인 검색만 화면 이동. */}
+      <View style={styles.actionBarWrap} pointerEvents="box-none">
+        <View style={styles.actionBar}>
+          {([
+            ['홈', 'home-outline', goHome, '피드'],
+            ['영상', 'play-box-outline', goVideoTab, '스토리'],
+            ['모임', 'calendar-account-outline', goGroupTab, '모임'],
+            ['검색', 'magnify', goSearch, null],
+          ] as const).map(([label, icon, onPress, tab], i) => {
+            const on = activeTab === tab;
+            return (
+              <React.Fragment key={label}>
+                {i > 0 && <View style={styles.actionDivider} />}
+                <TouchableOpacity
+                  style={styles.actionItem}
+                  onPress={onPress}
+                  activeOpacity={0.8}
+                  accessibilityRole={tab === null ? 'button' : 'tab'}
+                  accessibilityLabel={label}
+                  // RN-Web 0.21은 accessibilityState.selected를 aria-selected로 안 내보낸다
+                  aria-selected={tab === null ? undefined : on}
+                >
+                  <MaterialCommunityIcons name={icon} size={19} color="#fff" />
+                  <Text style={styles.actionText}>{label}</Text>
+                  {on && <View style={styles.actionUnderline} />}
+                </TouchableOpacity>
+              </React.Fragment>
+            );
+          })}
+        </View>
+      </View>
 
       {commentPostId && (
         <CommentSheet postId={commentPostId} onClose={() => setCommentPostId(null)} />
@@ -550,34 +582,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   flex1: { flex: 1 },
 
-  tabBar: {
-    flexDirection: 'row', backgroundColor: COLORS.surface,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  // 목록 위에 떠 있다가 아래로 스크롤하면 위로 밀려 사라지는 영역
+  stickyHeader: {
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
+    backgroundColor: COLORS.surface,
   },
-  tabItem: { flex: 1, alignItems: 'center', paddingVertical: 14, position: 'relative' },
-  tabText: { fontSize: 15, fontWeight: '600', color: COLORS.textSecondary },
-  tabTextActive: { color: GYM, fontWeight: '800' },
-  tabUnderline: {
-    position: 'absolute', bottom: 0, left: '15%', right: '15%',
-    height: 2, backgroundColor: GYM, borderRadius: 1,
-  },
-
-  chipWrap: {
-    height: 56, backgroundColor: COLORS.surface,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
-    overflow: 'hidden',
-  },
-  chipRow: {
-    flexDirection: 'row', alignItems: 'center',
-    height: 56, paddingHorizontal: 14, gap: 8,
-  },
-  chip: {
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
-    backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0',
-  },
-  chipActive: { backgroundColor: GYM, borderColor: GYM },
-  chipText: { fontSize: 13, color: '#64748B', fontWeight: '600' },
-  chipTextActive: { color: '#fff', fontWeight: '700' },
 
   authorAvatar: {
     width: 28, height: 28, borderRadius: 14,
@@ -595,6 +604,17 @@ const styles = StyleSheet.create({
   },
   catBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   catText: { fontSize: 11, fontWeight: '700' },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 14, marginTop: 2 },
+  tagText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
+
+  tagBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    height: TAG_BAR_H, paddingHorizontal: 14,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
+  tagBarText: { fontSize: 14, fontWeight: '800', color: COLORS.primary },
+  tagBarCount: { flex: 1, fontSize: 12, color: COLORS.textSecondary },
   media: { width: '100%', aspectRatio: 1, backgroundColor: '#111', position: 'relative' },
   mediaImg: { width: '100%', height: '100%' },
   muteBadge: {
@@ -750,13 +770,26 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingTop: 60 },
   emptyText: { fontSize: 15, color: COLORS.textSecondary },
 
-  fab: {
-    position: 'absolute', bottom: 24, right: 16,
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: GYM,
-    paddingHorizontal: 16, paddingVertical: 11, borderRadius: 24,
+  writeFab: {
+    position: 'absolute', right: 16, bottom: 98,
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: GYM, alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.18, shadowRadius: 6, elevation: 5,
+    shadowOpacity: 0.2, shadowRadius: 8, elevation: 6,
   },
-  fabText: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  actionBarWrap: { position: 'absolute', left: 0, right: 0, bottom: 24, alignItems: 'center' },
+  actionBar: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: GYM,
+    borderRadius: 26, paddingVertical: 9,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2, shadowRadius: 8, elevation: 6,
+  },
+  actionItem: { alignItems: 'center', gap: 2, paddingHorizontal: 16 },
+  actionUnderline: {
+    position: 'absolute', bottom: -5, left: '25%', right: '25%',
+    height: 2, backgroundColor: '#fff', borderRadius: 1,
+  },
+  actionDivider: { width: 1, height: 26, backgroundColor: 'rgba(255,255,255,0.3)' },
+  actionText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 });
